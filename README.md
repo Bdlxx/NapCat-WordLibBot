@@ -106,17 +106,16 @@
 
 ---
 
-## 配置文件
+## 文件路径
 
-### 命令回复配置
-
-文件位置：`/root/mybot2/data/wordlib_messages.json`
-
-可自定义所有命令的回复内容，支持变量替换。
-
-### 伪人模式配置
-
-文件位置：`/root/mybot2/plugins/persona_config.json`
+| 文件 | 路径 |
+|------|------|
+| 词库数据 | `~/data/wordlib_data.json` |
+| 好感度数据 | `~/data/favor_data.json` |
+| 昵称数据 | `~/data/nickname_data.json` |
+| 签到数据 | `~/data/sign_data.json` |
+| 命令回复配置 | `~/data/wordlib_messages.json` |
+| 伪人模式配置 | `~/plugins/persona_config.json` |
 
 ---
 
@@ -133,11 +132,12 @@
 ```
 mybot2/
 ├── main.py                 # 主程序
-├── config.json             # 配置文件（不上传）
-├── data/                   # 数据目录（不上传）
+├── config.json             # 配置文件
+├── data/                   # 数据目录
 │   ├── wordlib_data.json   # 词库数据
 │   ├── favor_data.json     # 好感度数据
 │   ├── nickname_data.json  # 昵称数据
+│   ├── sign_data.json      # 签到数据
 │   └── wordlib_messages.json # 命令回复配置
 ├── plugins/
 │   ├── wordlib.py          # 词库插件
