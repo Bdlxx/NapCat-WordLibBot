@@ -1,6 +1,6 @@
-# mybot
+# NapCat-WordLibBot
 
-基于 NapCat 的 QQ 机器人，支持词库管理、伪人 AI 对话、签到好感度、结婚系统等功能。
+基于 NapCat 的 QQ 词库机器人，支持词库管理、伪人 AI 对话、签到好感度、结婚系统等功能。
 
 ---
 
