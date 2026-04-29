@@ -685,7 +685,7 @@ def handle_message(event: dict, data: dict) -> bool:
                 "favor": str(favor_data.get(str(user_id), 0)),
                 "r1-100": str(random.randint(1, 100)),
                 "r1-1000": str(random.randint(1, 1000)),
-                "bot_id": str(BOT_QQ),
+                "bot_qq": str(BOT_QQ),
                 "message_id": str(event.get("message_id", "")),
                 "raw_message": raw_msg
             }

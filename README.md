@@ -62,7 +62,7 @@
 | `[time]` | 当前时间 |
 | `[date]` | 当前日期 |
 | `[datetime]` | 日期时间 |
-| `[bot_id]` | 机器人 QQ 号 |
+| `[bot_qq]` | 机器人 QQ 号 |
 | `[message_id]` | 消息 ID |
 | `[raw_message]` | 原始消息内容 |
 
