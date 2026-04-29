@@ -724,7 +724,7 @@ def handle_message(event: dict, data: dict) -> bool:
                     if img_url:
                         img_file = download_image(img_url)
                         segments.append({"type": "image", "data": {"file": img_file}})
-                elif match.group(0) in ["[@qq]", "[@QQ]", "[@[QQ]]"]:
+                elif match.group(0) in ["[@qq]", "[@QQ]", "[@QQ]"]:
                     segments.append({"type": "at", "data": {"qq": str(user_id)}})
                 elif match.group(0) == "[avatar]":
                     avatar_url = f"https://q1.qlogo.cn/g?b=qq&nk={user_id}&s=640"
