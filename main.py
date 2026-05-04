@@ -4,11 +4,30 @@ import time
 import websocket
 import json
 import threading
+import sys
+import os
 import plugins
-import utils.ws  # 用于存储全局 WebSocket 对象
+import utils.ws
+
+# ====== 日志文件 ======
+LOG_FILE = os.path.join(os.path.dirname(__file__), "runtime.log")
+log_file = open(LOG_FILE, "a", encoding="utf-8", buffering=1)
+
+class Tee:
+    def write(self, msg):
+        log_file.write(msg)
+        sys.__stdout__.write(msg)
+    def flush(self):
+        log_file.flush()
+        sys.__stdout__.flush()
+
+sys.stdout = Tee()
+sys.stderr = Tee()
+# ===========================  # 用于存储全局 WebSocket 对象
 
 # WebSocket 连接地址（根据你的 NapCat 配置修改，已包含 token）
-WS_URL = "ws://127.0.0.1:3003/?access_token=pdlKE8P2vfQD0nVZ"
+from utils.config import get_config as _get_cfg
+WS_URL = _get_cfg("WS_URL", "ws://127.0.0.1:3003/?access_token=pdlKE8P2vfQD0nVZ")
 
 # 加载所有插件
 plugin_handlers = []
@@ -48,7 +67,7 @@ if __name__ == "__main__":
                                 on_message=on_message,
                                 on_error=on_error,
                                 on_close=on_close)
-    wst = threading.Thread(target=ws.run_forever)
+    wst = threading.Thread(target=ws.run_forever, kwargs={"reconnect": 5})
     wst.start()
 
     try:

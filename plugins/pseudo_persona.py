@@ -34,6 +34,23 @@ def get_nickname(user_id):
     nicknames = load_nicknames()
     return nicknames.get(str(user_id), None)
 
+# ============ 消息文本配置 ============
+_MESSAGES_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "pseudo_messages.json")
+_MESSAGES = {}
+
+def _load_messages():
+    global _MESSAGES
+    try:
+        if os.path.exists(_MESSAGES_FILE):
+            with open(_MESSAGES_FILE, "r", encoding="utf-8") as f:
+                _MESSAGES = json.load(f)
+    except:
+        _MESSAGES = {}
+_load_messages()
+
+def msg(k, d=''):
+    return _MESSAGES.get(k, d)
+
 # ============ 配置区域 ============
 CONFIG = {
     # 当前使用的模型: "glm" 或 "gemini"（全局配置，只有主人可改）
@@ -79,7 +96,7 @@ def load_config():
     global CONFIG
     try:
         import os
-        config_path = os.path.join(os.path.dirname(__file__), "persona_config.json")
+        config_path = os.path.join(os.path.dirname(__file__), "..", "data", "persona_config.json")
         if os.path.exists(config_path):
             with open(config_path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
@@ -294,7 +311,7 @@ def split_msg(text):
 def save_config():
     """保存配置到文件"""
     import os
-    config_path = os.path.join(os.path.dirname(__file__), "persona_config.json")
+    config_path = os.path.join(os.path.dirname(__file__), "..", "data", "persona_config.json")
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(CONFIG, f, ensure_ascii=False, indent=2)
 
@@ -316,31 +333,31 @@ def handle(event):
         if cmd in ["切换glm", "用glm"]:
             CONFIG["current_model"] = "glm"
             save_config()
-            send_message(event, "已切换到 GLM-4V-Flash")
+            send_message(event, msg("switch_glm", "已切换到 GLM-4V-Flash"))
             return True
         
         if cmd in ["切换gemini", "用gemini"]:
             CONFIG["current_model"] = "gemini"
             save_config()
-            send_message(event, "已切换到 Gemini 2.5 Flash")
+            send_message(event, msg("switch_gemini", "已切换到 Gemini 2.5 Flash"))
             return True
         
         # 查看当前模型
         if cmd in ["当前模型", "用什么模型"]:
             model = CONFIG.get("current_model", "glm")
-            send_message(event, f"当前模型: {model.upper()}")
+            send_message(event, msg("current_model", "当前模型: {model}").format(model=model.upper()))
             return True
         
         # 清除历史
         if cmd in ["清除历史", "清空历史"]:
             clear_history(event)
-            send_message(event, "已清除当前会话历史")
+            send_message(event, msg("history_cleared", "已清除当前会话历史"))
             return True
         
         # 清除所有历史
         if cmd in ["清除所有历史", "清空所有历史"]:
             clear_history()
-            send_message(event, "已清除所有历史")
+            send_message(event, msg("all_history_cleared", "已清除所有历史"))
             return True
     
     if not text and not images:
@@ -369,9 +386,9 @@ def handle(event):
     
     clean_text = re.sub(r'@\S+\s*', '', text).strip() if text else ""
     if not clean_text and not images:
-        clean_text = "叫我干嘛呀~"
+        clean_text = msg("whats_up", "叫我干嘛呀~")
     elif not clean_text and images:
-        clean_text = "看看你发了什么图~"
+        clean_text = msg("check_image", "看看你发了什么图~")
     
     context = get_context_for_ai(event, current_user_id=user_id)
     
@@ -382,7 +399,7 @@ def handle(event):
         print(f"[伪人] {error}")
     
     if not response:
-        response = "唔...我好像有点累了，待会再聊吧~"
+        response = msg("no_reply", "唔...我好像有点累了，待会再聊吧~")
     
     add_to_history(event, "assistant", response, triggered=True, user_id=user_id)
     
