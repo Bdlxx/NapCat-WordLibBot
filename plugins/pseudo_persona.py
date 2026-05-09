@@ -17,14 +17,15 @@ from utils.config import get_config
 import os
 
 # ============ 昵称系统 ============
-NICKNAME_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "nickname_data.json")
+USER_DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "user_data.json")
 
 def load_nicknames():
-    """加载词库插件保存的昵称"""
+    """从 user_data.json 读取昵称"""
     try:
-        if os.path.exists(NICKNAME_FILE):
-            with open(NICKNAME_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+        if os.path.exists(USER_DATA_FILE):
+            with open(USER_DATA_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return {uid: info.get("nickname", "") for uid, info in data.items() if info.get("nickname")}
     except:
         pass
     return {}

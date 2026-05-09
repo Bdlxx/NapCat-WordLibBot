@@ -24,8 +24,8 @@ MESSAGES_FILE = os.path.join(DATA_DIR, "wordlib_messages.json")  # 命令回复�
 MASTER_QQ = get_master_qq()
 BOT_QQ = get_bot_qq()
 
-# ========== 配置加载（从 data/wordlib_commands.json）==========
-_CFG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "wordlib_commands.json")
+# ========== 配置加载（从 data/wordlib_messages.json）==========
+_CFG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "wordlib_messages.json")
 _CFG = {}
 
 def _l():
@@ -176,33 +176,54 @@ def save_sign_data(data):
     with open(os.path.join(DATA_DIR, "sign_data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-def load_favor_data():
-    file = os.path.join(DATA_DIR, "favor_data.json")
-    if os.path.exists(file):
+def load_user_data():
+    """读取 user_data.json，自动从旧文件迁移"""
+    new_file = os.path.join(DATA_DIR, "user_data.json")
+    if os.path.exists(new_file):
         try:
-            with open(file, "r", encoding="utf-8") as f:
+            with open(new_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except:
             return {}
-    return {}
-
-def save_favor_data(data):
-    with open(os.path.join(DATA_DIR, "favor_data.json"), "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-def load_nickname_data():
-    file = os.path.join(DATA_DIR, "nickname_data.json")
-    if os.path.exists(file):
+    # 迁移旧数据
+    old_favor_file = os.path.join(DATA_DIR, "favor_data.json")
+    old_nickname_file = os.path.join(DATA_DIR, "nickname_data.json")
+    has_old = os.path.exists(old_favor_file) or os.path.exists(old_nickname_file)
+    if not has_old:
+        return {}
+    data = {}
+    if os.path.exists(old_favor_file):
         try:
-            with open(file, "r", encoding="utf-8") as f:
-                return json.load(f)
+            with open(old_favor_file, "r", encoding="utf-8") as f:
+                old_favor = json.load(f)
+                for uid, favor in old_favor.items():
+                    data.setdefault(uid, {})["favor"] = favor
         except:
-            return {}
-    return {}
+            pass
+    if os.path.exists(old_nickname_file):
+        try:
+            with open(old_nickname_file, "r", encoding="utf-8") as f:
+                old_nickname = json.load(f)
+                for uid, nickname in old_nickname.items():
+                    data.setdefault(uid, {})["nickname"] = nickname
+        except:
+            pass
+    save_user_data(data)
+    _clean_old_data_files()
+    return data
 
-def save_nickname_data(data):
-    with open(os.path.join(DATA_DIR, "nickname_data.json"), "w", encoding="utf-8") as f:
+def save_user_data(data):
+    with open(os.path.join(DATA_DIR, "user_data.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+def _clean_old_data_files():
+    for name in ["favor_data.json", "nickname_data.json"]:
+        path = os.path.join(DATA_DIR, name)
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except:
+                pass
 # =============================================
 
 def load_wordlib():
@@ -418,7 +439,7 @@ def handle_message(event: dict, data: dict) -> bool:
     # ========== 签到功能 ==========
     if raw_msg in SIGN_COMMANDS:
         sign_data = load_sign_data()
-        favor_data = load_favor_data()
+        user_data = load_user_data()
         today = beijing_now().date().isoformat()
         user_key = str(user_id)
         total = sign_data.get(user_key, {}).get("total", 0)
@@ -427,16 +448,16 @@ def handle_message(event: dict, data: dict) -> bool:
             total += 1
             sign_data[user_key] = {"total": total, "last_date": today}
             add = random.randint(*FAVOR_ADD_RANGE)
-            favor = favor_data.get(user_key, 0) + add
-            favor_data[user_key] = favor
+            favor = user_data.get(user_key, {}).get("favor", 0) + add
+            user_data.setdefault(user_key, {})["favor"] = favor
             save_sign_data(sign_data)
-            save_favor_data(favor_data)
+            save_user_data(user_data)
             reply = get_message("sign_success", add=add, favor=favor)
         else:
             minus = random.randint(*FAVOR_MINUS_RANGE)
-            favor = favor_data.get(user_key, 0) - minus
-            favor_data[user_key] = max(favor, 0)
-            save_favor_data(favor_data)
+            favor = user_data.get(user_key, {}).get("favor", 0) - minus
+            user_data.setdefault(user_key, {})["favor"] = max(favor, 0)
+            save_user_data(user_data)
             reply = get_message("sign_already", minus=minus, favor=favor)
         send_message(event, reply)
         return True
@@ -467,9 +488,8 @@ def handle_message(event: dict, data: dict) -> bool:
 
     # ========== 自定义昵称 ==========
     if raw_msg.startswith(NICKNAME_COMMAND):
-        nickname_data = load_nickname_data()
-        favor_data = load_favor_data()
-        user_favor = favor_data.get(str(user_id), 0)
+        user_data = load_user_data()
+        user_favor = user_data.get(str(user_id), {}).get("favor", 0)
         if user_favor < NICKNAME_NEED_FAVOR:
             need = NICKNAME_NEED_FAVOR - user_favor
             send_message(event, get_message("nickname_fail", need=need))
@@ -482,8 +502,8 @@ def handle_message(event: dict, data: dict) -> bool:
         if not new_nick:
             send_message(event, get_message("nickname_empty"))
             return True
-        nickname_data[str(user_id)] = new_nick
-        save_nickname_data(nickname_data)
+        user_data.setdefault(str(user_id), {})["nickname"] = new_nick
+        save_user_data(user_data)
         send_message(event, get_message("nickname_set", nick=new_nick))
         return True
 
@@ -494,7 +514,7 @@ def handle_message(event: dict, data: dict) -> bool:
             send_message(event, get_message("rank_empty"))
             return True
         sorted_list = sorted(sign_data.items(), key=lambda x: x[1]["total"], reverse=True)[:RANK_TOP_N]
-        nickname_data = load_nickname_data()
+        user_data = load_user_data()
         group_id = event.get("group_id")
         members = []
         if group_id:
@@ -508,7 +528,7 @@ def handle_message(event: dict, data: dict) -> bool:
         member_dict = {str(m["user_id"]): m.get("nickname", "") for m in members}
         msg = get_message("rank_title", top=len(sorted_list))
         for idx, (uid, info) in enumerate(sorted_list, 1):
-            custom_nick = nickname_data.get(uid)
+            custom_nick = user_data.get(uid, {}).get("nickname", "")
             if custom_nick:
                 display_name = custom_nick
             else:
@@ -654,7 +674,7 @@ def handle_message(event: dict, data: dict) -> bool:
                 return True
 
     # ========== 随机回复（所有人可触发） ==========
-    favor_data = load_favor_data()
+    user_data = load_user_data()
     
     matched_keywords = []
     for keyword, replies in wordlib.items():
@@ -688,8 +708,7 @@ def handle_message(event: dict, data: dict) -> bool:
             reply_template = html.unescape(reply_template)
 
             # 获取自定义昵称
-            nickname_data = load_nickname_data()
-            custom_nick = nickname_data.get(str(user_id), "")
+            custom_nick = user_data.get(str(user_id), {}).get("nickname", "")
             
             # 统一使用 [var] 格式的变量
             var_values = {
@@ -704,7 +723,7 @@ def handle_message(event: dict, data: dict) -> bool:
                 "group_id": str(event.get("group_id", "")),
                 "card": event.get("sender", {}).get("card", ""),
                 "nick": custom_nick or event.get("sender", {}).get("nickname", ""),
-                "favor": str(favor_data.get(str(user_id), 0)),
+                "favor": str(user_data.get(str(user_id), {}).get("favor", 0)),
                 "r1-100": str(random.randint(1, 100)),
                 "r1-1000": str(random.randint(1, 1000)),
                 "bot_qq": str(BOT_QQ),

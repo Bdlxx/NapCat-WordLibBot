@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Bot 管理门户</title><link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+        }
+        .logo { font-size: 4em; margin-bottom: 15px; }
+        .title {
+            color: #fff;
+            font-size: 2em;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            color: rgba(255,255,255,0.4);
+            font-size: 0.9em;
+            margin-bottom: 40px;
+        }
+        .input-group { margin-bottom: 20px; }
+        .input-group input {
+            width: 100%;
+            padding: 16px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            font-size: 1em;
+            outline: none;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        .input-group input::placeholder { color: rgba(255,255,255,0.3); }
+        .input-group input:focus {
+            border-color: rgba(255,255,255,0.4);
+            background: rgba(255,255,255,0.12);
+        }
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102,126,234,0.4);
+        }
+        .btn:active { transform: translateY(0); }
+        .error {
+            color: #ff6b6b;
+            font-size: 0.9em;
+            margin-top: 15px;
+            min-height: 24px;
+        }
+        .hint-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.8em;
+            margin-top: 20px;
+        }
+        .tag-yixing { background: rgba(255,215,0,0.15); color: #ffd700; }
+        .tag-yusheng { background: rgba(126,200,227,0.15); color: #7ec8e3; }
+        .hint-text {
+            color: rgba(255,255,255,0.15);
+            font-size: 0.75em;
+            margin-top: 8px;
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🤖</div>
+        <div class="title">My Bot</div>
+        <div class="subtitle">请输入密码进入管理面板</div>
+        <div class="input-group">
+            <input type="password" id="passwordInput" placeholder="输入密码" autofocus>
+        </div>
+        <button class="btn" id="loginBtn" onclick="handleLogin2()">进入管理面板</button>
+        <div id="errorMsg" class="error"></div>
+        <div>
+            <span class="hint-tag tag-yixing">⭐ 依星</span>
+            <span class="hint-tag tag-yusheng">🪶 羽笙</span>
+            <div class="hint-text">输入对应密码自动跳转</div>
+        </div>
+    </div>
+    <script>
+        async function handleLogin2() {
+            const pwd = document.getElementById('passwordInput').value.trim();
+            const errorEl = document.getElementById('errorMsg');
+            if (!pwd) { errorEl.textContent = '请输入密码'; return; }
+            try {
+                const res = await fetch('/api/portal-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pwd })
+                });
+                const data = await res.json();
+                if (data.success && data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    errorEl.textContent = '密码错误，请重试';
+                    document.getElementById('passwordInput').value = '';
+                    document.getElementById('passwordInput').focus();
+                    setTimeout(() => errorEl.textContent = '', 2500);
+                }
+            } catch(e) {
+                errorEl.textContent = '登录服务异常，请稍后重试';
+            }
+        }
+        document.getElementById('passwordInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleLogin2();
+            }
+        });
+    </script>
+</body>
+</html>

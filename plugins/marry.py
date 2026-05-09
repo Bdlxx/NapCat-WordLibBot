@@ -33,8 +33,10 @@ def cmd(k, d=None):
 def rep(k, d='', **kw):
     r = _CFG.get('replies', {}).get(k) or d
     if r and kw:
-        try: return r.format(**kw)
-        except: return r
+        try:
+            return r.format(**kw)
+        except:
+            return r
     return r or d
 
 
@@ -49,22 +51,19 @@ MARRIAGE_FILE = os.path.join(DATA_DIR, "marriage.json")
 CD_FILE = os.path.join(DATA_DIR, "marriage_cd.json")
 CONFIG_FILE = os.path.join(DATA_DIR, "marriage_config.json")
 
+
 def load_marriage():
-    """加载婚姻数据，并自动修复为双向存储格式"""
     if not os.path.exists(MARRIAGE_FILE):
         return {}
     try:
         with open(MARRIAGE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-        # 修复：将单向数据转换为双向
         repaired = False
         for group_key, days in data.items():
             for date_key, marriages in days.items():
                 new_marriages = {}
                 for k, v in marriages.items():
-                    # 如果已经是双向，直接保留；否则补充反向关系
                     if str(v) in new_marriages:
-                        # 已经存在反向关系，跳过
                         new_marriages[k] = v
                     else:
                         new_marriages[k] = v
@@ -109,8 +108,11 @@ def load_config():
     return default
 
 def save_config(config):
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(config, f, ensure_ascii=False, indent=2)
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"保存结婚配置失败: {e}")
 
 def get_today_key():
     return datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
@@ -145,11 +147,12 @@ def extract_at(event):
     return None
 
 def handle_marriage(event, target_qq=None):
-    user_id = event.get("user_id")
-    group_id = event.get("group_id")
-    if not group_id:
+    if event.get("message_type") != "group":
         send_message(event, rep("only_group", "该功能只能在群内使用。"))
         return True
+
+    user_id = event.get("user_id")
+    group_id = event.get("group_id")
 
     members = get_group_members(group_id)
     if not members:
@@ -164,14 +167,11 @@ def handle_marriage(event, target_qq=None):
     if today not in marriage_data[group_key]:
         marriage_data[group_key][today] = {}
 
-    # 检查自己是否已有伴侣（键存在表示已有伴侣）
     if str(user_id) in marriage_data[group_key][today]:
         send_message(event, rep("already_married", "你今天已经有对象了，不能再次结婚。"))
         return True
 
-    # 确定目标
     if target_qq is None:
-        # 随机选择，排除自己，排除已有伴侣的人（即所有键）
         occupied = set(marriage_data[group_key][today].keys())
         available = [m for m in members if m.get("user_id") != user_id and str(m.get("user_id")) not in occupied]
         if not available:
@@ -189,27 +189,22 @@ def handle_marriage(event, target_qq=None):
             send_message(event, rep("not_in_group", "对方不在本群，无法结婚。"))
             return True
         target_nick = target_info.get("nickname", "")
-
-        # 检查目标是否已有伴侣（键存在）
         if str(target_qq) in marriage_data[group_key][today]:
             send_message(event, rep("target_married", "对方今天已经有对象了，不能娶/嫁。"))
             return True
 
-    # 概率判定
     config = load_config()
     success_rate = config["success_rate"]
     if random.randint(1, 100) > success_rate:
         send_message(event, rep("failed", "表白失败，对方拒绝了你的求婚。"))
         return True
 
-    # 再次加载最新数据（防止并发）
     marriage_data = load_marriage()
     if group_key not in marriage_data:
         marriage_data[group_key] = {}
     if today not in marriage_data[group_key]:
         marriage_data[group_key][today] = {}
 
-    # 最终检查
     if str(user_id) in marriage_data[group_key][today]:
         send_message(event, rep("just_married", "你刚刚已经结婚了，请稍后再试。"))
         return True
@@ -217,7 +212,6 @@ def handle_marriage(event, target_qq=None):
         send_message(event, rep("target_just_married", "对方刚刚有了对象，请稍后再试。"))
         return True
 
-    # 双向存储
     marriage_data[group_key][today][str(user_id)] = target_qq
     marriage_data[group_key][today][str(target_qq)] = user_id
     save_marriage(marriage_data)
@@ -255,14 +249,11 @@ def handle_divorce(event):
         send_message(event, rep("no_divorce", "你今天都没有对象，离什么婚？"))
         return True
 
-    # 检查用户是否有伴侣（键存在）
     if str(user_id) not in marriage_data[group_key][today]:
         send_message(event, rep("no_divorce", "你今天都没有对象，离什么婚？"))
         return True
 
-    # 获取伴侣QQ
     partner = marriage_data[group_key][today][str(user_id)]
-    # 删除双向记录
     del marriage_data[group_key][today][str(user_id)]
     if str(partner) in marriage_data[group_key][today]:
         del marriage_data[group_key][today][str(partner)]
@@ -372,3 +363,4 @@ def handle(event):
         return handle_my_object(event)
 
     return False
+

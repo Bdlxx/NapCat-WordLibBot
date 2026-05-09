@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>依星 - 系统配置</title><link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⭐</text></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f0f1a;color:#e0e0e0;padding-bottom:80px}
+.header{background:linear-gradient(135deg,#1a1a2e,#16213e);padding:16px;text-align:center;border-bottom:1px solid #333;position:sticky;top:0;z-index:10}
+.header h1{font-size:18px;color:#fff}
+.header .sub{font-size:12px;color:#888;margin-top:4px}
+.section{margin:12px;background:#1a1a2e;border-radius:12px;overflow:hidden;border:1px solid #333}
+.section-title{padding:14px 16px;font-size:15px;font-weight:600;color:#a0c4ff;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center}
+.section-title .badge{font-size:11px;background:rgba(100,200,255,0.2);color:#64c8ff;padding:2px 8px;border-radius:10px}
+.field{padding:10px 16px;border-bottom:1px solid #222}
+.field:last-child{border-bottom:none}
+.field label{display:block;font-size:13px;color:#aaa;margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;background:#242438;border:1px solid #444;border-radius:8px;padding:10px 12px;color:#e0e0e0;font-size:14px;outline:none;transition:border .2s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#64c8ff}
+.field select{appearance:auto}
+.field textarea{min-height:80px;resize:vertical;font-family:inherit}
+.field .hint{font-size:11px;color:#666;margin-top:4px}
+.btn-group{padding:16px;display:flex;gap:12px}
+.btn{flex:1;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .3s}
+.btn:active{opacity:.7}
+.btn-save{background:#64c8ff;color:#111}
+.btn-restart{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff}
+.status-bar{padding:12px 16px;display:flex;align-items:center;gap:8px;font-size:13px;color:#888}
+.status-dot{width:8px;height:8px;border-radius:50%}
+.status-dot.green{background:#4ade80;box-shadow:0 0 6px rgba(74,222,128,.4)}
+.status-dot.red{background:#f87171;box-shadow:0 0 6px rgba(248,113,113,.4)}
+.status-dot.yellow{background:#fbbf24;animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;z-index:100;opacity:0;transition:opacity .3s}
+.toast.show{opacity:1}
+.empty{text-align:center;padding:32px;color:#666;font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚙️ 系统配置</h1>
+  <div class="sub" id="headerSub">正在加载...</div>
+</div>
+
+<div class="status-bar">
+  <span class="status-dot" id="statusDot"></span>
+  <span id="statusText">检测中...</span>
+  <span style="margin-left:auto;color:#555" id="botName"></span>
+</div>
+
+<div id="fieldsContainer"></div>
+
+<div class="btn-group">
+  <button class="btn btn-save" onclick="saveConfig()">💾 保存</button>
+  <button class="btn btn-restart" onclick="restartBot()">🔄 保存并重启</button>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const botNum = window.location.pathname.match(/\/yusheng\/config/)?2:1;
+// 鉴权检查
+fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
+const botName = botNum === 1 ? '依星' : '羽笙';
+let currentPlugins = {};
+
+document.getElementById('botName').textContent = botName;
+checkStatus();
+
+async function checkStatus() {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  
+  dot.className = 'status-dot yellow';
+  txt.textContent = '检测中...';
+  
+  try {
+    const r = await fetch(`/api/bot/${botNum}/status`);
+    const d = await r.json();
+    if (d.running) {
+      dot.className = 'status-dot green';
+      txt.textContent = '● 运行中';
+    } else {
+      dot.className = 'status-dot red';
+      txt.textContent = '● 已停止';
+    }
+  } catch {
+    dot.className = 'status-dot red';
+    txt.textContent = '无法连接';
+  }
+}
+
+async function loadConfig() {
+  document.getElementById('headerSub').textContent = `${botName} - 加载中...`;
+  try {
+    const r = await fetch(`/api/bot/${botNum}/plugins`);
+    const d = await r.json();
+    currentPlugins = d.plugins;
+    
+    document.getElementById('headerSub').textContent = `${d.bot.name} (QQ:${d.bot.qq})`;
+    
+    const container = document.getElementById('fieldsContainer');
+    container.innerHTML = '';
+    
+    const keys = Object.keys(d.plugins);
+    if (keys.length === 0) {
+      container.innerHTML = '<div class="empty">暂无可配置的插件</div>';
+      return;
+    }
+    
+    for (const [key, plugin] of Object.entries(d.plugins)) {
+      const section = document.createElement('div');
+      section.className = 'section';
+      
+      let fieldsHtml = '';
+      for (const field of plugin.fields) {
+        let inputHtml = '';
+        if (field.t === 'num') {
+          inputHtml = `<input type="number" id="f_${key}_${field.k}" value="${field.v}" min="${field.min||0}" max="${field.max||''}" step="${field.s||1}">`;
+        } else if (field.t === 'sel') {
+          const options = field.o.map(o => `<option value="${o}" ${o===field.v?'selected':''}>${o}</option>`).join('');
+          inputHtml = `<select id="f_${key}_${field.k}">${options}</select>`;
+        } else if (field.t === 'textlist') {
+          const lines = Array.isArray(field.v) ? field.v.join('\n') : '';
+          inputHtml = `<textarea id="f_${key}_${field.k}">${lines}</textarea>`;
+        } else {
+          inputHtml = `<input type="text" id="f_${key}_${field.k}" value="${field.v}">`;
+        }
+        
+        fieldsHtml += `<div class="field">
+          <label>${field.l}</label>
+          ${inputHtml}
+          ${field.hint ? `<div class="hint">${field.hint}</div>` : ''}
+        </div>`;
+      }
+      
+      section.innerHTML = `<div class="section-title">
+        <span>${plugin.name}</span>
+        <span class="badge">${plugin.fields.length} 项</span>
+      </div>${fieldsHtml}`;
+      
+      container.appendChild(section);
+    }
+  } catch (e) {
+    document.getElementById('headerSub').textContent = '加载失败';
+    showToast('❌ 加载配置失败: ' + e.message);
+  }
+}
+
+function collectConfig() {
+  const cfg = {};
+  for (const [key, plugin] of Object.entries(currentPlugins)) {
+    cfg[key] = {};
+    for (const field of plugin.fields) {
+      const el = document.getElementById(`f_${key}_${field.k}`);
+      if (!el) continue;
+      let val;
+      if (field.t === 'num') {
+        val = parseFloat(el.value);
+      } else if (field.t === 'textlist') {
+        val = el.value.split('\n').map(s => s.trim()).filter(s => s);
+      } else {
+        val = el.value;
+      }
+      cfg[key][field.k] = val;
+    }
+  }
+  return cfg;
+}
+
+async function saveConfig() {
+  const cfg = collectConfig();
+  showToast('💾 正在保存...');
+  try {
+    for (const [plugin, data] of Object.entries(cfg)) {
+      const r = await fetch(`/api/bot/${botNum}/config`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({plugin, cfg: data})
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || '保存失败');
+    }
+    showToast('✅ 所有配置已保存！');
+    checkStatus();
+  } catch (e) {
+    showToast('❌ ' + e.message);
+  }
+}
+
+async function restartBot() {
+  // Save first
+  const cfg = collectConfig();
+  showToast('💾 保存中...');
+  try {
+    for (const [plugin, data] of Object.entries(cfg)) {
+      await fetch(`/api/bot/${botNum}/config`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({plugin, cfg: data})
+      });
+    }
+    showToast('🔄 已保存，正在重启...');
+    setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/bot/${botNum}/restart`, {method: 'POST'});
+        const d = await r.json();
+        if (d.ok) {
+          showToast(d.msg);
+          setTimeout(checkStatus, 3000);
+        } else throw new Error(d.error);
+      } catch (e) {
+        showToast('❌ 重启失败: ' + e.message);
+      }
+    }, 500);
+  } catch (e) {
+    showToast('❌ ' + e.message);
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show';
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+loadConfig();
+setInterval(checkStatus, 10000);
+</script>
+</body>
+</html>

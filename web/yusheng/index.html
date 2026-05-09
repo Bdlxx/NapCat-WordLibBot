@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>羽笙 - 机器人管理</title><link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪶</text></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);min-height:100vh;padding:20px}
+.container{max-width:480px;margin:0 auto}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.header .title{color:#7ec8e3;font-size:28px;font-weight:700}
+.logout-btn{background:rgba(255,80,80,0.15);color:#ff6464;border:1px solid rgba(255,80,80,0.3);padding:8px 16px;border-radius:10px;cursor:pointer;font-size:13px;transition:.2s}
+.logout-btn:hover{background:rgba(255,80,80,0.25)}
+
+/* Status cards */
+.status-grid{display:flex;gap:12px;margin-bottom:20px}
+.status-card{flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px;text-align:center}
+.status-card .label{color:rgba(255,255,255,0.4);font-size:12px;margin-bottom:8px}
+.status-card .value{font-size:22px;font-weight:700}
+.status-card .sub{font-size:12px;margin-top:4px}
+.status-online .value{color:#4ade80}
+.status-offline .value{color:#f87171}
+.status-online .sub{color:rgba(74,222,128,0.6)}
+.status-offline .sub{color:rgba(248,113,113,0.6)}
+
+/* Info card */
+.info-card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:20px;margin-bottom:20px}
+.info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.info-row:last-child{border-bottom:none}
+.info-label{color:rgba(255,255,255,0.4);font-size:13px}
+.info-value{color:#fff;font-weight:500;font-size:13px}
+
+/* Buttons */
+.btn-group{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.btn{flex:1;padding:12px;border:none;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;min-width:80px;text-align:center;text-decoration:none;transition:all .2s}
+.btn:hover{filter:brightness(1.2);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:none;transform:none}
+.btn-start{background:rgba(0,200,100,0.2);color:#4ade80}
+.btn-stop{background:rgba(255,100,100,0.2);color:#f87171}
+.btn-restart{background:rgba(100,150,255,0.2);color:#6496ff}
+.btn-config{background:rgba(100,200,255,0.2);color:#64c8ff}
+.btn-napcat{background:rgba(150,100,255,0.2);color:#a78bfa}
+.btn-qr{background:rgba(255,180,50,0.2);color:#fbbf24}
+
+/* Loading */
+.loading{text-align:center;color:rgba(255,255,255,0.3);padding:60px 20px;font-size:15px}
+.loading .spinner{display:inline-block;width:32px;height:32px;border:3px solid rgba(255,255,255,0.1);border-top-color:#7ec8e3;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* QR Modal */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:100;justify-content:center;align-items:center}
+.modal-overlay.active{display:flex}
+.modal{background:#1a1a2e;border:1px solid rgba(126,200,227,0.3);border-radius:18px;padding:30px;max-width:320px;width:90%;text-align:center}
+.modal h3{color:#7ec8e3;font-size:18px;margin-bottom:6px}
+.modal p{color:rgba(255,255,255,0.4);font-size:13px;margin-bottom:20px}
+.modal .qr-img{width:220px;height:220px;margin:0 auto 20px;background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.modal .qr-img img{width:200px;height:200px}
+.modal .qr-img .no-qr{color:#666;font-size:13px}
+.modal .qr-actions{display:flex;gap:10px}
+.modal .qr-actions button{flex:1;padding:10px;border:none;border-radius:10px;font-size:14px;cursor:pointer;font-weight:600}
+.btn-close-modal{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6)}
+.btn-refresh{background:rgba(100,200,255,0.2);color:#64c8ff}
+.log-modal{max-width:540px;width:95%}
+.log-container{background:#0a0a14;border-radius:10px;padding:12px;max-height:350px;overflow-y:auto;text-align:left;font-family:'Courier New',Consolas,monospace;font-size:12px;line-height:1.6;color:#a0e8a0;white-space:pre-wrap;word-break:break-all}
+.log-container .no-qr{color:#666;text-align:center;padding:40px 0;font-size:13px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="title">🪶 羽笙</div>
+    <button class="logout-btn" onclick="handleLogout()">← 退出</button>
+  </div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>加载中...</div>
+  </div>
+
+  <div id="mainContent" style="display:none">
+    <div class="status-grid">
+      <div class="status-card" id="mybotCard">
+        <div class="label">🤖 MyBot</div>
+        <div class="value">-</div>
+        <div class="sub">检测中</div>
+      </div>
+      <div class="status-card" id="napcatCard">
+        <div class="label">🐱 NapCat</div>
+        <div class="value">-</div>
+        <div class="sub">检测中</div>
+      </div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-row"><span class="info-label">QQ 号</span><span class="info-value" id="qqDisplay">-</span></div>
+      <div class="info-row"><span class="info-label">主人 QQ</span><span class="info-value" id="masterDisplay">-</span></div>
+      <div class="info-row"><span class="info-label">工作目录</span><span class="info-value" id="dirDisplay">-</span></div>
+      <div class="info-row"><span class="info-label">NapCat 端口</span><span class="info-value" id="portDisplay">-</span></div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-start" onclick="botAction('start')">▶ 启动</button>
+      <button class="btn btn-stop" onclick="botAction('stop')">⏹ 停止</button>
+      <button class="btn btn-restart" onclick="botAction('restart')">🔄 重启</button>
+    </div>
+    <div class="btn-group">
+      <a class="btn btn-config" href="/yusheng/config/">⚙️ 配置</a>
+      <button class="btn btn-log" onclick="showLog()">📋 日志</button>
+      <a class="btn btn-napcat" href="https://yusheng.xn--kivt1l.online/" target="_blank">🌐 NapCat</a>
+      <button class="btn btn-qr" onclick="showQR()">📱 登录</button>
+    </div>
+
+    <div id="msg" style="text-align:center;margin-top:12px;font-size:13px;min-height:24px"></div>
+  </div>
+</div>
+
+<!-- QR Modal -->
+<div class="modal-overlay" id="qrModal">
+  <div class="modal">
+    <h3>📱 NapCat 扫码登录</h3>
+    <p>使用手机 QQ 扫描二维码</p>
+    <div class="qr-img" id="qrImgContainer">
+      <div class="no-qr" id="qrPlaceholder">获取二维码中...</div>
+    </div>
+    <div class="qr-actions">
+      <button class="btn-refresh" onclick="refreshQR()">🔄 刷新</button>
+      <button class="btn-close-modal" onclick="closeQR()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BOT_NUM = 2;
+
+fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
+
+async function loadData() {
+  try {
+    const [botRes, ncRes] = await Promise.all([
+      fetch('/api/bot/' + BOT_NUM + '/info'),
+      fetch('/api/bot/' + BOT_NUM + '/napcat-status')
+    ]);
+    const botData = await botRes.json();
+    const ncData = await ncRes.json();
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+
+    if (botData.success) {
+      setMyBotStatus(botData.running);
+      document.getElementById('qqDisplay').textContent = botData.qq || '-';
+      document.getElementById('masterDisplay').textContent = botData.master || '-';
+      document.getElementById('dirDisplay').textContent = botData.dir || '-';
+      document.getElementById('portDisplay').textContent = botData.napcat_port ? ':' + botData.napcat_port : '-';
+    }
+    setNapCatStatus(ncData.running);
+  } catch(e) {
+    document.getElementById('loading').innerHTML = '<div style="color:#f87171">❌ 加载失败</div>';
+  }
+}
+
+function setMyBotStatus(running) {
+  const card = document.getElementById('mybotCard');
+  card.className = 'status-card ' + (running ? 'status-online' : 'status-offline');
+  card.querySelector('.value').textContent = running ? '运行中' : '已停止';
+  card.querySelector('.sub').textContent = running ? '● 在线' : '● 离线';
+}
+
+function setNapCatStatus(running) {
+  const card = document.getElementById('napcatCard');
+  card.className = 'status-card ' + (running ? 'status-online' : 'status-offline');
+  card.querySelector('.value').textContent = running ? '运行中' : '已停止';
+  card.querySelector('.sub').textContent = running ? '● 在线' : '● 离线';
+}
+
+async function botAction(action) {
+  const msg = document.getElementById('msg');
+  msg.style.color = 'rgba(255,255,255,0.5)';
+  msg.textContent = '操作中...';
+
+  try {
+    const r = await fetch('/api/bot/' + BOT_NUM + '/' + action, {method:'POST'});
+    const d = await r.json();
+    if (d.success || d.ok) {
+      msg.style.color = '#4ade80';
+      msg.textContent = d.message || d.msg || action + '成功';
+      setTimeout(async () => {
+        try {
+          const r2 = await fetch('/api/bot/' + BOT_NUM + '/info');
+          const d2 = await r2.json();
+          if (d2.success) setMyBotStatus(d2.running);
+        } catch(e) {}
+      }, 2000);
+    } else {
+      msg.style.color = '#f87171';
+      msg.textContent = d.error || action + '失败';
+    }
+  } catch(e) {
+    msg.style.color = '#f87171';
+    msg.textContent = '请求失败';
+  }
+}
+
+function showQR() {
+  document.getElementById('qrModal').classList.add('active');
+  refreshQR();
+}
+
+function closeQR() {
+  document.getElementById('qrModal').classList.remove('active');
+}
+
+async function refreshQR() {
+  const container = document.getElementById('qrImgContainer');
+  const placeholder = document.getElementById('qrPlaceholder');
+  placeholder.textContent = '获取中...';
+  try {
+    const r = await fetch('/api/bot/' + BOT_NUM + '/napcat-qr');
+    const d = await r.json();
+    if (d.qr) {
+      container.innerHTML = '<img src="data:image/png;base64,' + d.qr + '" alt="QR Code">';
+    } else {
+      placeholder.textContent = '暂无二维码\nNapCat 可能未启动';
+    }
+  } catch(e) {
+    placeholder.textContent = '获取失败';
+  }
+}
+
+function handleLogout() {
+  fetch('/api/logout', {method:'POST'}).then(()=>{window.location.href='/'});
+}
+
+loadData();
+setInterval(async () => {
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch('/api/bot/' + BOT_NUM + '/info'),
+      fetch('/api/bot/' + BOT_NUM + '/napcat-status')
+    ]);
+    const d1 = await r1.json();
+    const d2 = await r2.json();
+    if (d1.success) setMyBotStatus(d1.running);
+    setNapCatStatus(d2.running);
+  } catch(e) {}
+}, 15000);
+
+async function refreshLog() {
+  const container = document.getElementById('logContainer');
+  const placeholder = document.getElementById('logPlaceholder');
+  if (placeholder) placeholder.textContent = '获取中...';
+  try {
+    const r = await fetch('/api/bot/' + BOT_NUM + '/screen-log');
+    const d = await r.json();
+    if (d.log) {
+      container.innerHTML = '<pre style="margin:0;white-space:pre-wrap;word-break:break-all">' + escapeHtml(d.log) + '</pre>';
+    } else {
+      container.innerHTML = '<div class="no-qr">暂无日志</div>';
+    }
+  } catch(e) {
+    container.innerHTML = '<div class="no-qr">获取失败: ' + e.message + '</div>';
+  }
+}
+
+function showLog() {
+  document.getElementById('logModal').classList.add('active');
+  refreshLog();
+}
+
+function closeLog() {
+  document.getElementById('logModal').classList.remove('active');
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+</script>
+<!-- Log Modal -->
+<div class="modal-overlay" id="logModal">
+  <div class="modal log-modal">
+    <h3>📋 羽笙 运行日志</h3>
+    <p>最近日志（自动刷新）</p>
+    <div class="log-container" id="logContainer">
+      <div class="no-qr" id="logPlaceholder">加载中...</div>
+    </div>
+    <div class="qr-actions" style="margin-top:12px">
+      <button class="btn-refresh" onclick="refreshLog()">🔄 刷新</button>
+      <button class="btn-close-modal" onclick="closeLog()">关闭</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
