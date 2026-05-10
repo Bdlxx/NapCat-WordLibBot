@@ -152,7 +152,9 @@ def load_sign_data():
     if os.path.exists(file):
         try:
             with open(file, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                data.pop("_note", None)
+                return data
         except:
             return {}
     return {}
@@ -162,18 +164,33 @@ def load_praise_data():
     if os.path.exists(file):
         try:
             with open(file, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                data.pop("_note", None)
+                return data
         except:
             return {}
     return {}
 
-def save_praise_data(data):
-    with open(os.path.join(DATA_DIR, "praise_data.json"), "w", encoding="utf-8") as f:
+def _write_json(path, data):
+    """写入 JSON，保留文件中原有的 _note 备注"""
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                note = json.load(f).get("_note")
+        except:
+            note = None
+    else:
+        note = None
+    if note:
+        data["_note"] = note
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+def save_praise_data(data):
+    _write_json(os.path.join(DATA_DIR, "praise_data.json"), data)
+
 def save_sign_data(data):
-    with open(os.path.join(DATA_DIR, "sign_data.json"), "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    _write_json(os.path.join(DATA_DIR, "sign_data.json"), data)
 
 def load_user_data():
     """读取 user_data.json，自动从旧文件迁移"""
@@ -181,7 +198,9 @@ def load_user_data():
     if os.path.exists(new_file):
         try:
             with open(new_file, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                data.pop("_note", None)
+                return data
         except:
             return {}
     # 迁移旧数据
@@ -212,8 +231,7 @@ def load_user_data():
     return data
 
 def save_user_data(data):
-    with open(os.path.join(DATA_DIR, "user_data.json"), "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    _write_json(os.path.join(DATA_DIR, "user_data.json"), data)
 
 def _clean_old_data_files():
     for name in ["favor_data.json", "nickname_data.json"]:
@@ -231,6 +249,7 @@ def load_wordlib():
         try:
             with open(WORD_DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
+                data.pop("_note", None)
                 if isinstance(data, dict):
                     new_data = {}
                     for keyword, replies in data.items():
@@ -246,8 +265,7 @@ def load_wordlib():
 
 def save_wordlib(wordlib):
     try:
-        with open(WORD_DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(wordlib, f, ensure_ascii=False, indent=2)
+        _write_json(WORD_DATA_FILE, wordlib)
     except Exception as e:
         print(f"保存词库失败: {e}")
 
@@ -271,8 +289,7 @@ def save_admins(admins):
         else:
             data = {}
         data["admins"] = admins
-        with open(_CFG_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        _write_json(_CFG_FILE, data)
     except Exception as e:
         print(f"保存管理员列表失败: {e}")
 

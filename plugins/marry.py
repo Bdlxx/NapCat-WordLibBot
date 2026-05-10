@@ -58,9 +58,25 @@ MARRIAGE_FILE = os.path.join(DATA_DIR, "marriage.json")
 CD_FILE = os.path.join(DATA_DIR, "marriage_cd.json")
 
 
+def _write_json(path, data):
+    """写入 JSON，保留文件中原有的 _note 备注"""
+    note = None
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                note = json.load(f).get("_note")
+        except:
+            pass
+    if note:
+        data["_note"] = note
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
 def _purge_old_days(data):
     today = get_today_key()
     for group_key in list(data.keys()):
+        if group_key == "_note":
+            continue
         days = data.get(group_key, {})
         for date_key in list(days.keys()):
             if date_key != today:
@@ -77,6 +93,7 @@ def load_marriage():
     try:
         with open(MARRIAGE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
+        data.pop("_note", None)
         _purge_old_days(data)
         repaired = False
         for group_key, days in data.items():
@@ -101,21 +118,21 @@ def load_marriage():
 
 def save_marriage(data):
     _purge_old_days(data)
-    with open(MARRIAGE_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    _write_json(MARRIAGE_FILE, data)
 
 def load_cd():
     if os.path.exists(CD_FILE):
         try:
             with open(CD_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                data.pop("_note", None)
+                return data
         except:
             return {}
     return {}
 
 def save_cd(data):
-    with open(CD_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    _write_json(CD_FILE, data)
 
 def get_today_key():
     return datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
