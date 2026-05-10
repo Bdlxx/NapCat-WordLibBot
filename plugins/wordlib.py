@@ -18,14 +18,13 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 WORD_DATA_FILE = os.path.join(DATA_DIR, "wordlib_data.json")
-ADMIN_DATA_FILE = os.path.join(DATA_DIR, "admins.json")
-MESSAGES_FILE = os.path.join(DATA_DIR, "wordlib_messages.json")  # 命令回复配置
+MESSAGES_FILE = os.path.join(DATA_DIR, "wordlib_config.json")  # 命令回复配置（messages 字段）
 
 MASTER_QQ = get_master_qq()
 BOT_QQ = get_bot_qq()
 
 # ========== 配置加载（从 data/wordlib_messages.json）==========
-_CFG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "wordlib_messages.json")
+_CFG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "wordlib_config.json")
 _CFG = {}
 
 def _l():
@@ -117,12 +116,12 @@ user_word_add_state = {}
 
 # ========== 加载命令回复配置 ==========
 def load_messages():
-    """加载自定义命令回复，合并默认值"""
+    """加载自定义命令回复（从 wordlib_config.json 的 messages 字段），合并默认值"""
     if os.path.exists(MESSAGES_FILE):
         try:
             with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
-                custom = json.load(f)
-                # 合并，自定义优先
+                data = json.load(f)
+                custom = data.get("messages", {})
                 messages = DEFAULT_MESSAGES.copy()
                 messages.update(custom)
                 return messages
@@ -253,20 +252,27 @@ def save_wordlib(wordlib):
         print(f"保存词库失败: {e}")
 
 def load_admins():
-    if os.path.exists(ADMIN_DATA_FILE):
-        try:
-            with open(ADMIN_DATA_FILE, "r", encoding="utf-8") as f:
-                admins = json.load(f)
+    try:
+        if os.path.exists(_CFG_FILE):
+            with open(_CFG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                admins = data.get("admins", [])
                 if isinstance(admins, list):
                     return admins
-        except:
-            pass
+    except:
+        pass
     return []
 
 def save_admins(admins):
     try:
-        with open(ADMIN_DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(admins, f, ensure_ascii=False, indent=2)
+        if os.path.exists(_CFG_FILE):
+            with open(_CFG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        else:
+            data = {}
+        data["admins"] = admins
+        with open(_CFG_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"保存管理员列表失败: {e}")
 

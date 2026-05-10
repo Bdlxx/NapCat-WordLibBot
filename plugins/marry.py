@@ -12,7 +12,7 @@ from utils.api import send_message
 from utils.config import get_master_qq, get_napcat_http, get_access_token
 
 # ========== 可配置命令和回复 ==========
-_CFG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "commands_config.json")
+_CFG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "marry_config.json")
 _CFG = {}
 
 def _l():
@@ -39,6 +39,13 @@ def rep(k, d='', **kw):
             return r
     return r or d
 
+def setting(k, d=None):
+    return _CFG.get('settings', {}).get(k) or d
+
+def _save():
+    with open(_CFG_FILE, "w", encoding="utf-8") as f:
+        json.dump(_CFG, f, ensure_ascii=False, indent=2)
+
 
 MASTER_QQ = get_master_qq()
 NAPCAT_HTTP = get_napcat_http()
@@ -49,8 +56,20 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 MARRIAGE_FILE = os.path.join(DATA_DIR, "marriage.json")
 CD_FILE = os.path.join(DATA_DIR, "marriage_cd.json")
-CONFIG_FILE = os.path.join(DATA_DIR, "marriage_config.json")
 
+
+def _purge_old_days(data):
+    today = get_today_key()
+    for group_key in list(data.keys()):
+        days = data.get(group_key, {})
+        for date_key in list(days.keys()):
+            if date_key != today:
+                del days[date_key]
+        if not days:
+            del data[group_key]
+        else:
+            data[group_key] = days
+    return data
 
 def load_marriage():
     if not os.path.exists(MARRIAGE_FILE):
@@ -58,6 +77,7 @@ def load_marriage():
     try:
         with open(MARRIAGE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
+        _purge_old_days(data)
         repaired = False
         for group_key, days in data.items():
             for date_key, marriages in days.items():
@@ -80,6 +100,7 @@ def load_marriage():
         return {}
 
 def save_marriage(data):
+    _purge_old_days(data)
     with open(MARRIAGE_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -95,24 +116,6 @@ def load_cd():
 def save_cd(data):
     with open(CD_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-
-def load_config():
-    default = {"success_rate": 80, "divorce_cd_hours": 24}
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                config = json.load(f)
-                return {**default, **config}
-        except:
-            pass
-    return default
-
-def save_config(config):
-    try:
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"保存结婚配置失败: {e}")
 
 def get_today_key():
     return datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
@@ -146,7 +149,7 @@ def extract_at(event):
                 return int(qq)
     return None
 
-def handle_marriage(event, target_qq=None):
+def handle_marriage(event, target_qq=None, mode="娶"):
     if event.get("message_type") != "group":
         send_message(event, rep("only_group", "该功能只能在群内使用。"))
         return True
@@ -193,8 +196,7 @@ def handle_marriage(event, target_qq=None):
             send_message(event, rep("target_married", "对方今天已经有对象了，不能娶/嫁。"))
             return True
 
-    config = load_config()
-    success_rate = config["success_rate"]
+    success_rate = setting("success_rate", 80)
     if random.randint(1, 100) > success_rate:
         send_message(event, rep("failed", "表白失败，对方拒绝了你的求婚。"))
         return True
@@ -212,17 +214,26 @@ def handle_marriage(event, target_qq=None):
         send_message(event, rep("target_just_married", "对方刚刚有了对象，请稍后再试。"))
         return True
 
-    marriage_data[group_key][today][str(user_id)] = target_qq
-    marriage_data[group_key][today][str(target_qq)] = user_id
+    marriage_data[group_key][today][str(user_id)] = {"qq": target_qq, "mode": mode}
+    inverse_mode = "嫁" if mode == "娶" else "娶"
+    marriage_data[group_key][today][str(target_qq)] = {"qq": user_id, "mode": inverse_mode}
     save_marriage(marriage_data)
 
     avatar_url = f"https://q1.qlogo.cn/g?b=qq&nk={target_qq}&s=640"
-    msg_segments = [
-        {"type": "at", "data": {"qq": str(user_id)}},
-        {"type": "text", "data": {"text": f" 恭喜你！今天你的对象是 {target_nick}({target_qq}) "}},
-        {"type": "image", "data": {"file": avatar_url}},
-        {"type": "text", "data": {"text": " 祝你们幸福！"}}
-    ]
+    if mode == "娶":
+        msg_segments = [
+            {"type": "at", "data": {"qq": str(user_id)}},
+            {"type": "text", "data": {"text": f" 恭喜你！今天你娶了老婆 {target_nick}({target_qq}) "}},
+            {"type": "image", "data": {"file": avatar_url}},
+            {"type": "text", "data": {"text": " 祝你们幸福！"}}
+        ]
+    else:
+        msg_segments = [
+            {"type": "at", "data": {"qq": str(user_id)}},
+            {"type": "text", "data": {"text": f" 恭喜你！今天你嫁给了老公 {target_nick}({target_qq}) "}},
+            {"type": "image", "data": {"file": avatar_url}},
+            {"type": "text", "data": {"text": " 祝你们幸福！"}}
+        ]
     send_message(event, msg_segments)
     return True
 
@@ -254,12 +265,13 @@ def handle_divorce(event):
         return True
 
     partner = marriage_data[group_key][today][str(user_id)]
+    partner_qq = partner.get("qq") if isinstance(partner, dict) else partner
     del marriage_data[group_key][today][str(user_id)]
-    if str(partner) in marriage_data[group_key][today]:
-        del marriage_data[group_key][today][str(partner)]
+    if str(partner_qq) in marriage_data[group_key][today]:
+        del marriage_data[group_key][today][str(partner_qq)]
     save_marriage(marriage_data)
 
-    cd_data[str(user_id)] = time.time() + load_config()["divorce_cd_hours"] * 3600
+    cd_data[str(user_id)] = time.time() + setting("divorce_cd_hours", 24) * 3600
     save_cd(cd_data)
 
     send_message(event, rep("divorce_success", "离婚成功，你可以重新开始新的恋情了。"))
@@ -280,14 +292,22 @@ def handle_my_object(event):
         return True
 
     target_qq = marriage_data[group_key][today][str(user_id)]
+    if isinstance(target_qq, dict):
+        mode = target_qq.get("mode", "娶")
+        target_qq = target_qq["qq"]
+    else:
+        mode = "娶"
     members = get_group_members(group_id)
     target_info = next((m for m in members if m.get("user_id") == int(target_qq)), None)
     target_nick = target_info.get("nickname", "") if target_info else "未知"
 
+    caller_role = "老公" if mode == "娶" else "老婆"
+    partner_role = "老婆" if mode == "娶" else "老公"
+
     avatar_url = f"https://q1.qlogo.cn/g?b=qq&nk={target_qq}&s=640"
     msg_segments = [
         {"type": "at", "data": {"qq": str(user_id)}},
-        {"type": "text", "data": {"text": f" 你今天的老婆/老公是 {target_nick}({target_qq}) "}},
+        {"type": "text", "data": {"text": f" 今天你的{partner_role}是 {target_nick}({target_qq}) "}},
         {"type": "image", "data": {"file": avatar_url}}
     ]
     send_message(event, msg_segments)
@@ -304,9 +324,9 @@ def handle_set_prob(event):
     try:
         rate = int(parts[1])
         if 0 <= rate <= 100:
-            config = load_config()
-            config["success_rate"] = rate
-            save_config(config)
+            _l()
+            _CFG.setdefault("settings", {})["success_rate"] = rate
+            _save()
             send_message(event, rep("prob_set", "结婚成功率已设置为 {rate}%", rate=rate))
         else:
             send_message(event, rep("prob_range", "概率必须在0-100之间。"))
@@ -325,9 +345,9 @@ def handle_set_cd(event):
     try:
         hours = float(parts[1])
         if hours >= 0:
-            config = load_config()
-            config["divorce_cd_hours"] = hours
-            save_config(config)
+            _l()
+            _CFG.setdefault("settings", {})["divorce_cd_hours"] = hours
+            _save()
             send_message(event, rep("cd_set", "离婚CD已设置为 {hours} 小时", hours=hours))
         else:
             send_message(event, rep("cd_non_neg", "CD必须是非负数。"))
@@ -347,15 +367,15 @@ def handle(event):
         return handle_set_cd(event)
 
     if raw_msg == cmd("marry", "娶群友"):
-        return handle_marriage(event)
+        return handle_marriage(event, mode="娶")
     if raw_msg == cmd("marry_f", "嫁群友"):
-        return handle_marriage(event)
+        return handle_marriage(event, mode="嫁")
 
     at_qq = extract_at(event)
     if raw_msg.startswith(cmd("marry_t", "娶")) and at_qq is not None:
-        return handle_marriage(event, at_qq)
+        return handle_marriage(event, at_qq, mode="娶")
     if raw_msg.startswith(cmd("marry_ft", "嫁")) and at_qq is not None:
-        return handle_marriage(event, at_qq)
+        return handle_marriage(event, at_qq, mode="嫁")
 
     if raw_msg == cmd("divorce", "闹离婚"):
         return handle_divorce(event)

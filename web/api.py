@@ -198,24 +198,21 @@ def get_plugins(num):
     pd = os.path.join(b['dir'], 'plugins')
     plugins = {}
     if os.path.exists(os.path.join(pd, 'marry.py')):
-        cfg = read_json(os.path.join(dd, 'commands_config.json'))
-        mc = read_json(os.path.join(dd, 'marriage_config.json'))
+        mc = read_json(os.path.join(dd, 'marry_config.json'))
         fields = [
-            {'k': 'success_rate', 'l': '结婚成功率(%)', 't': 'num', 'min': 0, 'max': 100, 'v': mc.get('success_rate', 80)},
-            {'k': 'divorce_cd_hours', 'l': '离婚CD(小时)', 't': 'num', 'min': 0, 'v': mc.get('divorce_cd_hours', 0.25)},
+            {'k': 'success_rate', 'l': '结婚成功率(%)', 't': 'num', 'min': 0, 'max': 100, 'v': mc.get('settings', {}).get('success_rate', 80)},
+            {'k': 'divorce_cd_hours', 'l': '离婚CD(小时)', 't': 'num', 'min': 0, 'v': mc.get('settings', {}).get('divorce_cd_hours', 0.25)},
         ]
-        plugins['marry'] = {'name': '结婚插件', 'fields': fields + build_fields_from_cfg(cfg, 'marry')}
+        plugins['marry'] = {'name': '结婚插件', 'fields': fields + build_fields_from_cfg(mc, 'marry')}
     if os.path.exists(os.path.join(pd, 'wordlib.py')):
-        a = read_json(os.path.join(dd, 'admins.json'))
-        msgs = read_json(os.path.join(dd, 'wordlib_messages.json'))
+        wc = read_json(os.path.join(dd, 'wordlib_config.json'))
+        a = wc.get('admins', [])
         base_fields = []
         if a is not None:
             base_fields.append({'k': 'admins', 'l': '管理员QQ（每行一个）', 't': 'textlist', 'v': a or []})
-        for k, v in msgs.get('commands', {}).items():
+        for k, v in wc.get('commands', {}).items():
             base_fields.append({'k': 'wl_cmd_' + k, 'l': '命令「' + k + '」', 't': 'text', 'v': v})
-        for k, v in msgs.items():
-            if k in ('commands', 'settings'):
-                continue
+        for k, v in wc.get('messages', {}).items():
             field_type = 'textarea' if len(v) > 30 else 'text'
             base_fields.append({'k': 'wl_msg_' + k, 'l': '回复「' + k + '」', 't': field_type, 'v': v})
         plugins['wordlib'] = {'name': '词库插件', 'fields': base_fields}
@@ -244,30 +241,25 @@ def save_config(num):
     pd = os.path.join(b['dir'], 'plugins')
     try:
         if plugin == 'marry':
-            cc = {'commands': {}, 'replies': {}}
-            mc = {}
+            merged = read_json(os.path.join(dd, 'marry_config.json'))
             for k, v in cfg.items():
                 if k.startswith('marry_cmd_'):
-                    cc['commands'][k.replace('marry_cmd_', '')] = v
+                    merged.setdefault('commands', {})[k.replace('marry_cmd_', '')] = v
                 elif k.startswith('marry_rep_'):
-                    cc['replies'][k.replace('marry_rep_', '')] = v
+                    merged.setdefault('replies', {})[k.replace('marry_rep_', '')] = v
                 else:
-                    mc[k] = v
-            write_json(os.path.join(dd, 'commands_config.json'), cc)
-            write_json(os.path.join(dd, 'marriage_config.json'), mc)
+                    merged.setdefault('settings', {})[k] = v
+            write_json(os.path.join(dd, 'marry_config.json'), merged)
         elif plugin == 'wordlib':
-            wm = read_json(os.path.join(dd, 'wordlib_messages.json'))
-            admins = None
+            wc = read_json(os.path.join(dd, 'wordlib_config.json'))
             for k, v in cfg.items():
                 if k.startswith('wl_cmd_'):
-                    wm.setdefault('commands', {})[k.replace('wl_cmd_', '')] = v
+                    wc.setdefault('commands', {})[k.replace('wl_cmd_', '')] = v
                 elif k.startswith('wl_msg_'):
-                    wm[k.replace('wl_msg_', '')] = v
+                    wc.setdefault('messages', {})[k.replace('wl_msg_', '')] = v
                 elif k == 'admins':
-                    admins = v
-            if admins is not None:
-                write_json(os.path.join(dd, 'admins.json'), admins)
-            write_json(os.path.join(dd, 'wordlib_messages.json'), wm)
+                    wc['admins'] = v
+            write_json(os.path.join(dd, 'wordlib_config.json'), wc)
         elif plugin == 'pseudo':
             old = read_json(os.path.join(dd, 'persona_config.json'))
             for k, v in cfg.items():

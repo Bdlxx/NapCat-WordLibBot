@@ -35,8 +35,8 @@ def get_nickname(user_id):
     nicknames = load_nicknames()
     return nicknames.get(str(user_id), None)
 
-# ============ 消息文本配置 ============
-_MESSAGES_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "pseudo_messages.json")
+# ============ 消息文本配置（与 persona_config.json 合并）============
+_MESSAGES_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "persona_config.json")
 _MESSAGES = {}
 
 def _load_messages():
@@ -44,7 +44,8 @@ def _load_messages():
     try:
         if os.path.exists(_MESSAGES_FILE):
             with open(_MESSAGES_FILE, "r", encoding="utf-8") as f:
-                _MESSAGES = json.load(f)
+                data = json.load(f)
+            _MESSAGES = data.get("messages", {})
     except:
         _MESSAGES = {}
 _load_messages()
@@ -265,7 +266,9 @@ def call_ai(prompt, context, images, user_id=None, event=None):
             messages.append({"role": "user", "content": prompt})
         
         print(f"[伪人] 模型: {model_name}, 消息: {len(messages)}, 图片: {len(images)}")
-        
+
+        import time as _time
+        _start = _time.time()
         resp = requests.post(
             model_config["api_url"],
             headers={
@@ -278,9 +281,11 @@ def call_ai(prompt, context, images, user_id=None, event=None):
                 "temperature": 0.8,
                 "max_tokens": 500
             },
-            timeout=60
+            timeout=90
         )
-        
+        _elapsed = _time.time() - _start
+        print(f"[伪人] 返回耗时: {_elapsed:.1f}s, 状态码: {resp.status_code}")
+
         if resp.status_code == 200:
             return resp.json()["choices"][0]["message"]["content"], None
         return None, f"API 错误: {resp.status_code}"
