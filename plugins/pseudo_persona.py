@@ -208,19 +208,18 @@ def add_to_history(event, role, content, triggered=False, has_image=False, user_
 def get_context_for_ai(event, current_user_id=None):
     key = get_session_key(event)
     history = message_history.get(key, [])
-    
+
     window = CONFIG.get("context_window", 20)
     recent = history[-window:] if len(history) > window else history
-    
+
     context = []
     for record in recent:
-        content = record["content"]
-        # 不在这里替换昵称，而是在发送给AI时附加昵称信息
-        context.append({
-            "role": record["role"],
-            "content": content
-        })
-    
+        msg = {"role": record["role"], "content": record["content"]}
+        # 附带触发者QQ号作为用户标识
+        if record["role"] == "user" and record.get("user_id"):
+            msg["name"] = f"u{record['user_id']}"
+        context.append(msg)
+
     return context
 
 def clear_history(event=None, key=None):
@@ -341,9 +340,15 @@ def call_ai(prompt, context, images, user_id=None, event=None):
                         user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}})
                 if prompt:
                     user_content.append({"type": "text", "text": prompt})
-                messages.append({"role": "user", "content": user_content})
+                msg = {"role": "user", "content": user_content}
+                if user_id:
+                    msg["name"] = f"u{user_id}"
+                messages.append(msg)
             else:
-                messages.append({"role": "user", "content": prompt})
+                msg = {"role": "user", "content": prompt}
+                if user_id:
+                    msg["name"] = f"u{user_id}"
+                messages.append(msg)
 
             print(f"[伪人] 尝试模型: {attempt}, 消息: {len(messages)}, 图片: {len(images)}")
 
