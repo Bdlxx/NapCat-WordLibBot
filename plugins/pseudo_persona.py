@@ -275,10 +275,27 @@ def download_image_as_base64(url):
     return None
 
 def build_system_prompt(user_id=None, event=None):
-    """构建系统提示：用户人设 + 插件提示词，替换 [nick] 为对方昵称"""
+    """构建系统提示：代码默认人设 + 用户人设 + 插件提示词，替换 [nick] 为对方昵称"""
+    # 把代码默认人设保存在变量中，避免被配置文件覆盖
+    default_persona = """你是羽笙，一个温柔可爱的女孩子。
+性格：温柔体贴、善解人意、偶尔撒娇卖萌
+风格：用简短句子、语气词（呀呢嘛啦）、颜文字 (◕‿◕)
+像朋友聊天，不要像客服。
+
+看到图片时要自然地评论图片内容，像朋友一样聊天。"""
+
     user_persona = CONFIG.get("user_persona", "")
     plugin_persona = CONFIG.get("persona", "")
-    combined = f"{user_persona}\n{plugin_persona}".strip() if user_persona else plugin_persona
+
+    # 组合：默认人设 + 用户自定义人设（始终包含默认人设）
+    character_parts = [default_persona]
+    if user_persona:
+        character_parts.append(user_persona)
+
+    # 插件提示词（如系统指令、格式规范等）作为补充
+    combined = "\n".join(character_parts)
+    if plugin_persona and plugin_persona != default_persona:
+        combined += "\n" + plugin_persona
 
     # 获取对方昵称
     nick = get_nickname(user_id) if user_id else None
