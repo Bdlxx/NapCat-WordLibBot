@@ -21,6 +21,9 @@ def get_config(key, default=None):
     return config.get(key, default)
 
 # 常用配置项的便捷函数（可选）
+def get_bot_name():
+    return get_config("BOT_NAME", "羽笙")
+
 def get_master_qq():
     return get_config("MASTER_QQ", [])
 

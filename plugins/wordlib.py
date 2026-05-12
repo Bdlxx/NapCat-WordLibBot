@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils.api import send_message
-from utils.config import get_master_qq, get_bot_qq
+from utils.config import get_master_qq, get_bot_qq, get_bot_name
 
 # ========== 配置 ==========
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
@@ -40,15 +40,23 @@ def _l():
 _l()
 
 def cmd(k, d=None):
-    return _CFG.get('commands', {}).get(k) or d
+    v = _CFG.get('commands', {}).get(k)
+    return v if v is not None else d
 
 def setting(k, d=None):
-    return _CFG.get('settings', {}).get(k) or d
+    v = _CFG.get('settings', {}).get(k)
+    return v if v is not None else d
+
+def _save():
+    with open(_CFG_FILE, "w", encoding="utf-8") as f:
+        json.dump(_CFG, f, ensure_ascii=False, indent=2)
+
+BOT_NAME = get_bot_name()
 
 # 命令前缀配置（可自定义）
-ADD_WORD_COMMAND = cmd("add", "羽笙跟我学")
-DELETE_WORD_COMMAND = cmd("delete", "羽笙忘掉")
-QUERY_WORD_COMMAND = cmd("query", "羽笙回忆一下")
+ADD_WORD_COMMAND = cmd("add", f"{BOT_NAME}跟我学")
+DELETE_WORD_COMMAND = cmd("delete", f"{BOT_NAME}忘掉")
+QUERY_WORD_COMMAND = cmd("query", f"{BOT_NAME}回忆一下")
 ENCODE_COMMAND = cmd("encode", "转码")  # 转码命令
 
 # 转码状态存储
@@ -101,7 +109,7 @@ DEFAULT_MESSAGES = {
 SIGN_COMMANDS = [v for v in [cmd("sign1"), cmd("sign2")] if v]
 FAVOR_ADD_RANGE = (0, setting("favor_add_max", 3))
 FAVOR_MINUS_RANGE = (0, setting("favor_minus_max", 2))
-NICKNAME_COMMAND = cmd("nickname", "羽笙以后叫我")
+NICKNAME_COMMAND = cmd("nickname", f"{BOT_NAME}以后叫我")
 NICKNAME_NEED_FAVOR = setting("nickname_need_favor", 10)
 RANK_COMMAND = cmd("rank", "签到排行")
 RANK_TOP_N = setting("rank_top_n", 10)
@@ -404,8 +412,8 @@ def handle_message(event: dict, data: dict) -> bool:
     if user_id in user_encode_state:
         state = user_encode_state[user_id]
         if state.get("step") == "waiting_content":
-            # 超时检查（5分钟）
-            if time.time() - state.get("time", 0) > 300:
+            # 超时检查
+            if time.time() - state.get("time", 0) > setting("encode_timeout", 300):
                 del user_encode_state[user_id]
                 send_message(event, get_message("encode_timeout"))
                 return True
@@ -587,10 +595,10 @@ def handle_message(event: dict, data: dict) -> bool:
                 return True
 
         # 添加模糊词条（一步式模糊）
-        if raw_msg.startswith("添加模糊词条"):
-            remaining = raw_msg[len("添加模糊词条"):].strip()
+        if raw_msg.startswith(cmd("add_fuzzy", "添加模糊词条")):
+            remaining = raw_msg[len(cmd("add_fuzzy", "添加模糊词条")):].strip()
             if '答' not in remaining:
-                send_message(event, get_message("add_format_error", cmd="添加模糊词条"))
+                send_message(event, get_message("add_format_error", cmd=cmd("add_fuzzy", "添加模糊词条")))
                 return True
             keyword, reply = remaining.split('答', 1)
             keyword = keyword.strip()
@@ -831,8 +839,27 @@ def handle_message(event: dict, data: dict) -> bool:
     return False
 
 def handle(event: dict) -> bool:
-    data = load_data()
+    raw_msg = event.get("raw_message", "").strip()
+    user_id = event.get("user_id")
     post_type = event.get("post_type")
+
     if post_type == "message":
+        _l()
+        # 主人开关命令
+        if is_master(user_id):
+            if raw_msg == cmd("enable", "开启词库") or raw_msg.endswith(cmd("enable", "开启词库")):
+                _CFG.setdefault("settings", {})["enabled"] = True
+                _save()
+                send_message(event, "词库已开启")
+                return True
+            if raw_msg == cmd("disable", "关闭词库") or raw_msg.endswith(cmd("disable", "关闭词库")):
+                _CFG.setdefault("settings", {})["enabled"] = False
+                _save()
+                send_message(event, "词库已关闭")
+                return True
+
+        if not setting("enabled", True):
+            return False
+        data = load_data()
         return handle_message(event, data)
     return False

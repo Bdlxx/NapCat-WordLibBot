@@ -96,4 +96,5 @@ python web/api.py
 - **Timezone**: all time-based features use `Asia/Shanghai` (`zoneinfo.ZoneInfo`)
 - **Config loading pattern**: each plugin uses `_l()` → `_CFG` + `cmd()`/`setting()`/`rep()` helpers for hot-reloadable strings without code changes
 - **Old data migration**: `load_user_data()` auto-migrates from legacy `favor_data.json` + `nickname_data.json` to unified `user_data.json`
+- **Variable reference**: see [VARIABLES.md](VARIABLES.md) for all available template variables in replies
 - **No tests** exist in the project

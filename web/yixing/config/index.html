@@ -7,9 +7,30 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f0f1a;color:#e0e0e0;padding-bottom:80px}
-.header{background:linear-gradient(135deg,#1a1a2e,#16213e);padding:16px;text-align:center;border-bottom:1px solid #333;position:sticky;top:0;z-index:10}
-.header h1{font-size:18px;color:#fff}
-.header .sub{font-size:12px;color:#888;margin-top:4px}
+.header{background:linear-gradient(135deg,#1a1a2e,#16213e);padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #333;position:sticky;top:0;z-index:10}
+.menu-btn{background:none;border:none;color:#a0c4ff;font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background .2s}
+.menu-btn:hover{background:rgba(160,196,255,.15)}
+.header-title{font-size:16px;color:#fff;flex:1}
+.header-right{display:flex;align-items:center;gap:10px}
+.back-btn{background:none;border:1px solid #444;color:#aaa;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;transition:.2s;text-decoration:none}
+.back-btn:hover{color:#fff;border-color:#888}
+.header .sub{font-size:11px;color:#666}
+
+/* overlay */
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);z-index:20;opacity:0;pointer-events:none;transition:opacity .3s}
+.overlay.open{opacity:1;pointer-events:auto}
+
+/* drawer */
+.drawer{position:fixed;top:0;left:-280px;bottom:0;width:260px;background:#16162a;z-index:21;transition:left .3s;border-right:1px solid #333;overflow-y:auto}
+.drawer.open{left:0}
+.drawer-header{padding:18px 16px 12px;font-size:15px;font-weight:600;color:#a0c4ff;border-bottom:1px solid #333}
+.drawer-item{padding:14px 16px;font-size:14px;color:#ccc;cursor:pointer;border-left:3px solid transparent;transition:.2s;display:flex;align-items:center;gap:10px}
+.drawer-item:hover{background:rgba(160,196,255,.08);color:#fff}
+.drawer-item.active{background:rgba(160,196,255,.12);color:#64c8ff;border-left-color:#64c8ff}
+.drawer-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.drawer-item .dot.dirty{background:#fbbf24}
+.drawer-item .dot.clean{background:transparent}
+
 .section{margin:12px;background:#1a1a2e;border-radius:12px;overflow:hidden;border:1px solid #333}
 .section-title{padding:14px 16px;font-size:15px;font-weight:600;color:#a0c4ff;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center}
 .section-title .badge{font-size:11px;background:rgba(100,200,255,0.2);color:#64c8ff;padding:2px 8px;border-radius:10px}
@@ -26,7 +47,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .btn:active{opacity:.7}
 .btn-save{background:#64c8ff;color:#111}
 .btn-restart{background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff}
-.status-bar{padding:12px 16px;display:flex;align-items:center;gap:8px;font-size:13px;color:#888}
+.status-bar{padding:8px 16px;display:flex;align-items:center;gap:8px;font-size:13px;color:#888}
 .status-dot{width:8px;height:8px;border-radius:50%}
 .status-dot.green{background:#4ade80;box-shadow:0 0 6px rgba(74,222,128,.4)}
 .status-dot.red{background:#f87171;box-shadow:0 0 6px rgba(248,113,113,.4)}
@@ -34,14 +55,38 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;z-index:100;opacity:0;transition:opacity .3s}
 .toast.show{opacity:1}
-.empty{text-align:center;padding:32px;color:#666;font-size:14px}
+.empty{padding:40px 16px;text-align:center;color:#666;font-size:14px}
+
+/* modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:50;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:#1e1e34;border-radius:14px;padding:24px;max-width:360px;width:90%;border:1px solid #444}
+.modal-msg{font-size:15px;color:#e0e0e0;margin-bottom:20px;line-height:1.5}
+.modal-btns{display:flex;gap:10px;justify-content:flex-end}
+.modal-btn{padding:9px 18px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:500}
+.modal-btn.primary{background:#64c8ff;color:#111}
+.modal-btn.default{background:#333;color:#ccc}
+.modal-btn.primary:hover{opacity:.85}
+.modal-btn.default:hover{background:#444}
 </style>
 </head>
 <body>
 
+<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">插件列表</div>
+  <div id="drawerList"></div>
+</div>
+
 <div class="header">
-  <h1>⚙️ 系统配置</h1>
-  <div class="sub" id="headerSub">正在加载...</div>
+  <button class="menu-btn" onclick="toggleDrawer()">☰</button>
+  <div>
+    <div class="header-title">⚙️ 系统配置</div>
+    <div class="sub" id="headerSub">正在加载...</div>
+  </div>
+  <div class="header-right">
+    <a class="back-btn" id="backBtn" href="/yixing/">返回后台</a>
+  </div>
 </div>
 
 <div class="status-bar">
@@ -53,177 +98,266 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="fieldsContainer"></div>
 
 <div class="btn-group">
-  <button class="btn btn-save" onclick="saveConfig()">💾 保存</button>
-  <button class="btn btn-restart" onclick="restartBot()">🔄 保存并重启</button>
+  <button class="btn btn-save" onclick="saveCurrent()">💾 保存</button>
+  <button class="btn btn-restart" onclick="saveAndExit()">🚪 保存并退出</button>
 </div>
 
 <div id="toast" class="toast"></div>
 
+<!-- modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-msg" id="modalMsg"></div>
+    <div class="modal-btns" id="modalBtns"></div>
+  </div>
+</div>
+
 <script>
 const botNum = window.location.pathname.match(/\/yusheng\/config/)?2:1;
-// 鉴权检查
 fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
 const botName = botNum === 1 ? '依星' : '羽笙';
 let currentPlugins = {};
+let pluginKeys = [];           // ordered plugin keys
+let activePlugin = null;       // current plugin key
+let dirtyPlugins = {};         // {key: true/false}
+let snapshotValues = {};       // {key: {fieldK: value}} — original loaded values
 
 document.getElementById('botName').textContent = botName;
 checkStatus();
 
+/******* status *******/
 async function checkStatus() {
   const dot = document.getElementById('statusDot');
   const txt = document.getElementById('statusText');
-  
   dot.className = 'status-dot yellow';
   txt.textContent = '检测中...';
-  
   try {
     const r = await fetch(`/api/bot/${botNum}/status`);
     const d = await r.json();
-    if (d.running) {
-      dot.className = 'status-dot green';
-      txt.textContent = '● 运行中';
-    } else {
-      dot.className = 'status-dot red';
-      txt.textContent = '● 已停止';
-    }
-  } catch {
-    dot.className = 'status-dot red';
-    txt.textContent = '无法连接';
+    if (d.running) { dot.className = 'status-dot green'; txt.textContent = '● 运行中'; }
+    else { dot.className = 'status-dot red'; txt.textContent = '● 已停止'; }
+  } catch { dot.className = 'status-dot red'; txt.textContent = '无法连接'; }
+}
+
+/******* drawer *******/
+function toggleDrawer() { document.getElementById('drawer').classList.toggle('open'); document.getElementById('overlay').classList.toggle('open'); }
+function closeDrawer() { document.getElementById('drawer').classList.remove('open'); document.getElementById('overlay').classList.remove('open'); }
+
+/******* modal *******/
+let modalCallback = null;
+function showModal(msg, buttons) {
+  document.getElementById('modalMsg').textContent = msg;
+  const btns = document.getElementById('modalBtns');
+  btns.innerHTML = buttons.map((b,i) => `<button class="modal-btn ${b.cls||'default'}" data-idx="${i}">${b.label}</button>`).join('');
+  document.getElementById('modal').classList.add('open');
+  modalCallback = (idx) => { document.getElementById('modal').classList.remove('open'); btns.innerHTML=''; if(buttons[idx]) buttons[idx].fn && buttons[idx].fn(); };
+  btns.onclick = e => { const idx = e.target.dataset.idx; if(idx!==undefined) { const cb = modalCallback; modalCallback=null; cb(parseInt(idx)); }};
+}
+
+/******* field value snapshot *******/
+function getFieldValue(key, field) {
+  const el = document.getElementById(`f_${key}_${field.k}`);
+  if (!el) return field.v;
+  if (field.t === 'num') return parseFloat(el.value);
+  if (field.t === 'textlist') return el.value.split('\n').map(s=>s.trim()).filter(s=>s);
+  return el.value;
+}
+function getPluginValues(key) {
+  const p = currentPlugins[key]; if (!p) return {};
+  const vals = {};
+  for (const f of p.fields) vals[f.k] = getFieldValue(key, f);
+  return vals;
+}
+function valuesEqual(a, b) {
+  try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
+}
+function markClean(key) { dirtyPlugins[key] = false; updateDot(key); }
+function markDirty(key) { dirtyPlugins[key] = true; updateDot(key); }
+function isDirty(key) { return !!dirtyPlugins[key]; }
+function anyDirty() { return Object.values(dirtyPlugins).some(v=>v); }
+function updateDot(key) {
+  const item = document.querySelector(`[data-plugin-key="${key}"] .dot`);
+  if (item) { item.className = 'dot ' + (isDirty(key) ? 'dirty' : 'clean'); }
+}
+
+/******* on change tracking *******/
+function attachChangeTracking(key) {
+  const p = currentPlugins[key]; if (!p) return;
+  for (const f of p.fields) {
+    const el = document.getElementById(`f_${key}_${f.k}`);
+    if (!el) continue;
+    el.oninput = el.onchange = () => { if (!isDirty(key)) { markDirty(key); } };
   }
 }
 
+/******* render one plugin *******/
+function renderPlugin(key) {
+  const plugin = currentPlugins[key]; if (!plugin) return;
+  activePlugin = key;
+  const container = document.getElementById('fieldsContainer');
+  let html = '';
+  for (const field of plugin.fields) {
+    let inputHtml = '';
+    const fid = `f_${key}_${field.k}`;
+    if (field.t === 'num') {
+      inputHtml = `<input type="number" id="${fid}" value="${field.v}" min="${field.min||0}" max="${field.max||''}" step="${field.s||1}">`;
+    } else if (field.t === 'sel') {
+      const opts = field.o.map(o => `<option value="${o}" ${o===field.v?'selected':''}>${o}</option>`).join('');
+      inputHtml = `<select id="${fid}">${opts}</select>`;
+    } else if (field.t === 'textlist') {
+      const lines = Array.isArray(field.v) ? field.v.join('\n') : '';
+      inputHtml = `<textarea id="${fid}">${lines}</textarea>`;
+    } else if (field.t === 'password') {
+      inputHtml = `<input type="password" id="${fid}" value="${field.v}">`;
+    } else if (field.t === 'textarea') {
+      inputHtml = `<textarea id="${fid}" style="min-height:120px">${field.v}</textarea>`;
+    } else {
+      inputHtml = `<input type="text" id="${fid}" value="${field.v}">`;
+    }
+    html += `<div class="field"><label>${field.l}</label>${inputHtml}${field.hint?`<div class="hint">${field.hint}</div>`:''}</div>`;
+  }
+  container.innerHTML = `<div class="section"><div class="section-title"><span>${plugin.name}</span><span class="badge">${plugin.fields.length} 项</span></div>${html}</div>`;
+  attachChangeTracking(key);
+  // highlight active in drawer
+  document.querySelectorAll('.drawer-item').forEach(el => el.classList.toggle('active', el.dataset.pluginKey === key));
+}
+
+/******* switch plugin *******/
+function switchPlugin(key) {
+  if (key === activePlugin) { closeDrawer(); return; }
+  if (activePlugin && isDirty(activePlugin)) {
+    closeDrawer();
+    showModal('当前插件有未保存的修改，是否保存并切换？', [
+      { label:'取消', cls:'default', fn:()=>{} },
+      { label:'保存并切换', cls:'primary', fn:() => doSave(activePlugin, ()=>doSwitch(key)) }
+    ]);
+  } else {
+    doSwitch(key);
+  }
+}
+function doSwitch(key) {
+  closeDrawer();
+  if (currentPlugins[key]) renderPlugin(key);
+}
+
+/******* load *******/
 async function loadConfig() {
   document.getElementById('headerSub').textContent = `${botName} - 加载中...`;
   try {
     const r = await fetch(`/api/bot/${botNum}/plugins`);
     const d = await r.json();
     currentPlugins = d.plugins;
-    
     document.getElementById('headerSub').textContent = `${d.bot.name} (QQ:${d.bot.qq})`;
-    
-    const container = document.getElementById('fieldsContainer');
-    container.innerHTML = '';
-    
-    const keys = Object.keys(d.plugins);
-    if (keys.length === 0) {
-      container.innerHTML = '<div class="empty">暂无可配置的插件</div>';
-      return;
-    }
-    
-    for (const [key, plugin] of Object.entries(d.plugins)) {
-      const section = document.createElement('div');
-      section.className = 'section';
-      
-      let fieldsHtml = '';
-      for (const field of plugin.fields) {
-        let inputHtml = '';
-        if (field.t === 'num') {
-          inputHtml = `<input type="number" id="f_${key}_${field.k}" value="${field.v}" min="${field.min||0}" max="${field.max||''}" step="${field.s||1}">`;
-        } else if (field.t === 'sel') {
-          const options = field.o.map(o => `<option value="${o}" ${o===field.v?'selected':''}>${o}</option>`).join('');
-          inputHtml = `<select id="f_${key}_${field.k}">${options}</select>`;
-        } else if (field.t === 'textlist') {
-          const lines = Array.isArray(field.v) ? field.v.join('\n') : '';
-          inputHtml = `<textarea id="f_${key}_${field.k}">${lines}</textarea>`;
-        } else {
-          inputHtml = `<input type="text" id="f_${key}_${field.k}" value="${field.v}">`;
-        }
-        
-        fieldsHtml += `<div class="field">
-          <label>${field.l}</label>
-          ${inputHtml}
-          ${field.hint ? `<div class="hint">${field.hint}</div>` : ''}
-        </div>`;
-      }
-      
-      section.innerHTML = `<div class="section-title">
-        <span>${plugin.name}</span>
-        <span class="badge">${plugin.fields.length} 项</span>
-      </div>${fieldsHtml}`;
-      
-      container.appendChild(section);
-    }
+    pluginKeys = Object.keys(d.plugins);
+    dirtyPlugins = {};
+    snapshotValues = {};
+
+    // drawer list
+    const dl = document.getElementById('drawerList');
+    dl.innerHTML = pluginKeys.map(k => {
+      const p = d.plugins[k];
+      return `<div class="drawer-item" data-plugin-key="${k}" onclick="switchPlugin('${k}')"><span class="dot clean"></span>${p.name}</div>`;
+    }).join('');
+
+    // load first plugin
+    if (pluginKeys.length > 0) renderPlugin(pluginKeys[0]);
+    else document.getElementById('fieldsContainer').innerHTML = '<div class="empty">暂无可配置的插件</div>';
   } catch (e) {
     document.getElementById('headerSub').textContent = '加载失败';
     showToast('❌ 加载配置失败: ' + e.message);
   }
 }
 
-function collectConfig() {
+/******* collect & save a single plugin *******/
+function collectSingle(key) {
   const cfg = {};
-  for (const [key, plugin] of Object.entries(currentPlugins)) {
-    cfg[key] = {};
-    for (const field of plugin.fields) {
-      const el = document.getElementById(`f_${key}_${field.k}`);
-      if (!el) continue;
-      let val;
-      if (field.t === 'num') {
-        val = parseFloat(el.value);
-      } else if (field.t === 'textlist') {
-        val = el.value.split('\n').map(s => s.trim()).filter(s => s);
-      } else {
-        val = el.value;
-      }
-      cfg[key][field.k] = val;
-    }
+  const plugin = currentPlugins[key];
+  if (!plugin) return null;
+  for (const field of plugin.fields) {
+    const el = document.getElementById(`f_${key}_${field.k}`);
+    if (!el) continue;
+    let val;
+    if (field.t === 'num') val = parseFloat(el.value);
+    else if (field.t === 'textlist') val = el.value.split('\n').map(s=>s.trim()).filter(s=>s);
+    else val = el.value;
+    cfg[field.k] = val;
   }
   return cfg;
 }
-
-async function saveConfig() {
-  const cfg = collectConfig();
+async function doSave(key, then) {
+  const cfg = collectSingle(key);
+  if (!cfg) return;
   showToast('💾 正在保存...');
   try {
-    for (const [plugin, data] of Object.entries(cfg)) {
-      const r = await fetch(`/api/bot/${botNum}/config`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({plugin, cfg: data})
-      });
-      const d = await r.json();
-      if (!d.ok) throw new Error(d.error || '保存失败');
-    }
-    showToast('✅ 所有配置已保存！');
+    const r = await fetch(`/api/bot/${botNum}/config`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({plugin:key, cfg}) });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error || '保存失败');
+    markClean(key);
+    showToast('✅ 已保存');
     checkStatus();
-  } catch (e) {
-    showToast('❌ ' + e.message);
+    if (then) then();
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+function saveCurrent() {
+  if (!activePlugin) return;
+  doSave(activePlugin);
+}
+async function saveAll(then) {
+  let ok = true;
+  for (const key of pluginKeys) {
+    if (!isDirty(key)) continue;
+    const cfg = collectSingle(key);
+    if (!cfg) continue;
+    try {
+      const r = await fetch(`/api/bot/${botNum}/config`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({plugin:key, cfg}) });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error);
+      markClean(key);
+    } catch(e) { showToast('❌ 保存 ' + key + ' 失败: ' + e.message); ok = false; }
   }
+  if (then) then(ok);
 }
 
-async function restartBot() {
-  // Save first
-  const cfg = collectConfig();
+/******* save & exit (save current plugin, then go back) *******/
+async function saveAndExit() {
+  if (!activePlugin) return;
+  const cfg = collectSingle(activePlugin);
+  if (!cfg) return;
   showToast('💾 保存中...');
   try {
-    for (const [plugin, data] of Object.entries(cfg)) {
-      await fetch(`/api/bot/${botNum}/config`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({plugin, cfg: data})
-      });
-    }
-    showToast('🔄 已保存，正在重启...');
-    setTimeout(async () => {
-      try {
-        const r = await fetch(`/api/bot/${botNum}/restart`, {method: 'POST'});
-        const d = await r.json();
-        if (d.ok) {
-          showToast(d.msg);
-          setTimeout(checkStatus, 3000);
-        } else throw new Error(d.error);
-      } catch (e) {
-        showToast('❌ 重启失败: ' + e.message);
-      }
-    }, 500);
-  } catch (e) {
-    showToast('❌ ' + e.message);
-  }
+    const r = await fetch(`/api/bot/${botNum}/config`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({plugin:activePlugin, cfg}) });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    markClean(activePlugin);
+    showToast('✅ 已保存');
+    setTimeout(() => { window.location.href = document.getElementById('backBtn').href; }, 500);
+  } catch(e) { showToast('❌ ' + e.message); }
 }
 
+/******* back button *******/
+function onBack() {
+  if (anyDirty()) {
+    showModal('有配置未保存，是否保存并退出？', [
+      { label:'取消', cls:'default', fn:()=>{} },
+      { label:'保存并退出', cls:'primary', fn:() => saveAll(() => window.location.href = document.getElementById('backBtn').href) }
+    ]);
+    return false;
+  }
+  return true;
+}
+document.getElementById('backBtn').onclick = function(e) {
+  if (!onBack()) e.preventDefault();
+};
+
+/******* beforeunload *******/
+window.addEventListener('beforeunload', function(e) {
+  if (anyDirty()) { e.preventDefault(); e.returnValue = ''; }
+});
+
+/******* toast *******/
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show';
+  t.textContent = msg; t.className = 'toast show';
   setTimeout(() => t.className = 'toast', 3000);
 }
 

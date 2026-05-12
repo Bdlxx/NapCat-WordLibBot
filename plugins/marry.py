@@ -40,7 +40,8 @@ def rep(k, d='', **kw):
     return r or d
 
 def setting(k, d=None):
-    return _CFG.get('settings', {}).get(k) or d
+    v = _CFG.get('settings', {}).get(k)
+    return v if v is not None else d
 
 def _save():
     with open(_CFG_FILE, "w", encoding="utf-8") as f:
@@ -95,22 +96,6 @@ def load_marriage():
             data = json.load(f)
         data.pop("_note", None)
         _purge_old_days(data)
-        repaired = False
-        for group_key, days in data.items():
-            for date_key, marriages in days.items():
-                new_marriages = {}
-                for k, v in marriages.items():
-                    if str(v) in new_marriages:
-                        new_marriages[k] = v
-                    else:
-                        new_marriages[k] = v
-                        new_marriages[str(v)] = int(k)
-                        repaired = True
-                if repaired:
-                    days[date_key] = new_marriages
-        if repaired:
-            save_marriage(data)
-            print("[修复] 已将婚姻数据转换为双向存储格式")
         return data
     except Exception as e:
         print(f"加载婚姻数据失败: {e}")
@@ -219,10 +204,7 @@ def handle_marriage(event, target_qq=None, mode="娶"):
         return True
 
     marriage_data = load_marriage()
-    if group_key not in marriage_data:
-        marriage_data[group_key] = {}
-    if today not in marriage_data[group_key]:
-        marriage_data[group_key][today] = {}
+    marriage_data.setdefault(group_key, {}).setdefault(today, {})
 
     if str(user_id) in marriage_data[group_key][today]:
         send_message(event, rep("just_married", "你刚刚已经结婚了，请稍后再试。"))
@@ -377,6 +359,24 @@ def handle(event):
         return False
 
     raw_msg = event.get("raw_message", "").strip()
+    user_id = event.get("user_id")
+
+    _l()
+    # 主人开关命令
+    if is_master(user_id):
+        if raw_msg == cmd("enable", "开启结婚") or raw_msg.endswith(cmd("enable", "开启结婚")):
+            _CFG.setdefault("settings", {})["enabled"] = True
+            _save()
+            send_message(event, "结婚已开启")
+            return True
+        if raw_msg == cmd("disable", "关闭结婚") or raw_msg.endswith(cmd("disable", "关闭结婚")):
+            _CFG.setdefault("settings", {})["enabled"] = False
+            _save()
+            send_message(event, "结婚已关闭")
+            return True
+
+    if not setting("enabled", True):
+        return False
 
     if raw_msg.startswith(cmd("set_prob", "设置结婚概率")):
         return handle_set_prob(event)
