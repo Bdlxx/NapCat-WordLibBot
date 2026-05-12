@@ -212,12 +212,16 @@ def get_context_for_ai(event, current_user_id=None):
     window = CONFIG.get("context_window", 20)
     recent = history[-window:] if len(history) > window else history
 
+    # 加载昵称表，用于给每条用户消息附带昵称和QQ
+    nicknames = load_nicknames()
+
     context = []
     for record in recent:
         msg = {"role": record["role"], "content": record["content"]}
-        # 附带触发者QQ号作为用户标识
         if record["role"] == "user" and record.get("user_id"):
-            msg["name"] = f"u{record['user_id']}"
+            uid = str(record["user_id"])
+            nick = nicknames.get(uid, "")
+            msg["name"] = f"{nick}({uid})" if nick else f"u{uid}"
         context.append(msg)
 
     return context
@@ -332,6 +336,10 @@ def call_ai(prompt, context, images, user_id=None, event=None):
             messages = [{"role": "system", "content": system_prompt}]
             messages.extend(context)
 
+            # 当前发送者的昵称和QQ
+            caller_nick = get_nickname(user_id) if user_id else None
+            caller_name = f"{caller_nick}({user_id})" if caller_nick and user_id else (f"u{user_id}" if user_id else None)
+
             if images:
                 user_content = []
                 for img_url in images:
@@ -341,13 +349,13 @@ def call_ai(prompt, context, images, user_id=None, event=None):
                 if prompt:
                     user_content.append({"type": "text", "text": prompt})
                 msg = {"role": "user", "content": user_content}
-                if user_id:
-                    msg["name"] = f"u{user_id}"
+                if caller_name:
+                    msg["name"] = caller_name
                 messages.append(msg)
             else:
                 msg = {"role": "user", "content": prompt}
-                if user_id:
-                    msg["name"] = f"u{user_id}"
+                if caller_name:
+                    msg["name"] = caller_name
                 messages.append(msg)
 
             print(f"[伪人] 尝试模型: {attempt}, 消息: {len(messages)}, 图片: {len(images)}")
