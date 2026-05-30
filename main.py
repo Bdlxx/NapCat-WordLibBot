@@ -6,8 +6,18 @@ import json
 import threading
 import sys
 import os
+import argparse
 import plugins
 import utils.ws
+
+# ====== 命令行参数（机器人昵称 + QQ，各插件直接调用 config 模块读取）======
+parser = argparse.ArgumentParser(description="NapCat 机器人")
+parser.add_argument("--bot-name", default=None, help="机器人昵称（如 羽笙/依星）")
+parser.add_argument("--bot-qq", default=None, help="机器人 QQ 号")
+args = parser.parse_args()
+
+from utils.config import set_cli_params
+set_cli_params(bot_name=args.bot_name, bot_qq=args.bot_qq)
 
 # ====== 日志文件 ======
 LOG_FILE = os.path.join(os.path.dirname(__file__), "runtime.log")
@@ -23,11 +33,20 @@ class Tee:
 
 sys.stdout = Tee()
 sys.stderr = Tee()
-# ===========================  # 用于存储全局 WebSocket 对象
+# ===========================
 
-# WebSocket 连接地址（根据你的 NapCat 配置修改，已包含 token）
+# WebSocket 连接地址
 from utils.config import get_config as _get_cfg
+from utils.command_table import build_command_table
+from utils.api import send_message
+
 WS_URL = _get_cfg("WS_URL", "ws://127.0.0.1:3003/?access_token=pdlKE8P2vfQD0nVZ")
+
+def _is_master(user_id):
+    ml = _get_cfg("MASTER_QQ", [])
+    if not isinstance(ml, list):
+        ml = [ml]
+    return str(user_id) in [str(m) for m in ml]
 
 # 加载所有插件
 plugin_handlers = []
@@ -42,6 +61,24 @@ def on_message(ws, message):
         event = json.loads(message)
         if "echo" in event:
             return
+
+        # 主人私聊「命令表」命令
+        if (event.get("post_type") == "message"
+                and event.get("message_type") == "private"
+                and _is_master(event.get("user_id"))):
+            raw = event.get("raw_message", "").strip()
+            if raw == "命令表":
+                bot_name = _get_cfg("BOT_NAME", "羽笙")
+                table = build_command_table(bot_name=bot_name)
+                paragraphs = table.split("\n\n")
+                for para in paragraphs:
+                    chunk = para.strip()
+                    if chunk:
+                        send_message(event, chunk)
+                        time.sleep(0.5)
+                print(f"[命令表] 已发送 {len(paragraphs)} 段给主人")
+                return
+
         for handler in plugin_handlers:
             if handler(event):
                 break

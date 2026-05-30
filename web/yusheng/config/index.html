@@ -208,7 +208,7 @@ function renderPlugin(key) {
       const lines = Array.isArray(field.v) ? field.v.join('\n') : '';
       inputHtml = `<textarea id="${fid}">${lines}</textarea>`;
     } else if (field.t === 'password') {
-      inputHtml = `<input type="password" id="${fid}" value="${field.v}">`;
+      inputHtml = `<input type="password" id="${fid}" value="${field.v}" autocomplete="off">`;
     } else if (field.t === 'textarea') {
       inputHtml = `<textarea id="${fid}" style="min-height:120px">${field.v}</textarea>`;
     } else {

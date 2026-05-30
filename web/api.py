@@ -167,22 +167,10 @@ def bot_action(n, action):
     if n not in BOTS: return jsonify({'error': '无效编号'}), 404
     b = BOTS[n]
     try:
-        if action == 'stop':
-            subprocess.run("screen -S " + b['screen'] + " -X quit 2>/dev/null", shell=True, timeout=5)
-            return jsonify({'success': True, 'message': b['name'] + ' 已停止'})
-        elif action == 'start':
-            py_cmd = 'python3'
-            if os.path.exists(os.path.join(b['dir'], 'venv/bin/python3')):
-                py_cmd = './venv/bin/python3'
-            subprocess.run("cd " + b['dir'] + " && screen -dmS " + b['screen'] + " " + py_cmd + " main.py", shell=True, timeout=5)
-            return jsonify({'success': True, 'message': b['name'] + ' 已启动'})
-        elif action == 'restart':
-            subprocess.run("screen -S " + b['screen'] + " -X quit 2>/dev/null", shell=True, timeout=5)
-            py_cmd = 'python3'
-            if os.path.exists(os.path.join(b['dir'], 'venv/bin/python3')):
-                py_cmd = './venv/bin/python3'
-            subprocess.run("cd " + b['dir'] + " && screen -dmS " + b['screen'] + " " + py_cmd + " main.py", shell=True, timeout=5)
-            return jsonify({'success': True, 'message': b['name'] + ' 已重启'})
+        if action in ('stop', 'start', 'restart'):
+            r = subprocess.run(['bot', action, str(n)], capture_output=True, text=True, timeout=15)
+            msg = r.stdout.strip() or r.stderr.strip() or f'{b["name"]} {action} 完成'
+            return jsonify({'success': r.returncode == 0, 'message': msg})
         else:
             return jsonify({'error': '未知操作'}), 400
     except Exception as e:
@@ -197,61 +185,6 @@ def get_plugins(num):
     dd = os.path.join(b['dir'], 'data')
     pd = os.path.join(b['dir'], 'plugins')
     plugins = {}
-    if os.path.exists(os.path.join(pd, 'marry.py')):
-        mc = read_json(os.path.join(dd, 'marry_config.json'))
-        settings = mc.get('settings', {})
-        fields = [
-            {'k': 'success_rate', 'l': '结婚成功率(%)', 't': 'num', 'min': 0, 'max': 100, 'v': settings.get('success_rate', 80), 'hint': '数字越大求婚越容易成功，设为0则必定失败'},
-            {'k': 'divorce_cd_hours', 'l': '离婚CD(小时)', 't': 'num', 'min': 0, 'v': settings.get('divorce_cd_hours', 0.25), 'hint': '离婚后需要等待多久才能再次结婚，设为0则无限制'},
-            {'k': 'enabled', 'l': '插件开关', 't': 'sel', 'o': ['true', 'false'], 'v': str(settings.get('enabled', True)).lower(), 'hint': '关闭后所有人无法使用结婚相关功能'},
-        ]
-        marry_cmd_hints = {
-    'marry': '随机娶一位群友',
-    'marry_t': '娶指定的群友（需@对方）',
-    'marry_f': '随机嫁给一位群友',
-    'marry_ft': '嫁给指定的群友（需@对方）',
-    'divorce': '和今天的对象离婚',
-    'my_object': '查看今天你的对象是谁',
-    'set_prob': '设置结婚成功率（主人专用）',
-    'set_cd': '设置离婚冷却时间（主人专用）',
-    'enable': '开启结婚插件',
-    'disable': '关闭结婚插件',
-}
-        marry_rep_hints = {
-            'only_group': '非群聊环境下的提示',
-            'no_members': '无法获取群成员列表时的提示',
-            'already_married': '自己已有对象时的提示',
-            'no_one_left': '群内无人可选时的提示',
-            'self_marry': '试图娶/嫁自己时的提示',
-            'not_in_group': '对方不在本群时的提示',
-            'target_married': '对方已有对象时的提示',
-            'failed': '求婚失败时的提示',
-            'just_married': '刚刚结婚又尝试结婚时的提示',
-            'target_just_married': '对方刚刚结婚时的提示',
-            'divorce_cooldown': '离婚冷却中提示，支持{hours}{minutes}变量',
-            'no_divorce': '没有对象却试图离婚时的提示',
-            'divorce_success': '离婚成功时的提示',
-            'no_object': '查看对象但今天没有时的提示',
-            'master_only': '非主人尝试设置概率时的提示',
-            'master_only_cd': '非主人尝试设置CD时的提示',
-            'format_prob': '设置概率命令格式错误时的提示',
-            'prob_range': '概率超出0-100范围时的提示',
-            'prob_set': '概率设置成功时的提示，支持{rate}变量',
-            'format_cd': '设置CD命令格式错误时的提示',
-            'cd_non_neg': 'CD为负数时的提示',
-            'cd_set': 'CD设置成功时的提示，支持{hours}变量',
-            'not_number': '输入不是有效数字时的提示',
-        }
-        def _add_marry_hints(fields):
-            for f in fields:
-                if f['k'].startswith('marry_cmd_'):
-                    key = f['k'].replace('marry_cmd_', '')
-                    f['hint'] = marry_cmd_hints.get(key, '触发该功能的聊天关键词')
-                if f['k'].startswith('marry_rep_'):
-                    key = f['k'].replace('marry_rep_', '')
-                    f['hint'] = marry_rep_hints.get(key, '')
-            return fields
-        plugins['marry'] = {'name': '结婚插件', 'fields': _add_marry_hints(fields + build_fields_from_cfg(mc, 'marry'))}
     if os.path.exists(os.path.join(pd, 'wordlib.py')):
         wc = read_json(os.path.join(dd, 'wordlib_config.json'))
         a = wc.get('admins', [])
@@ -333,55 +266,15 @@ def get_plugins(num):
             field_type = 'textarea' if len(v) > 30 else 'text'
             base_fields.append({'k': 'wl_msg_' + k, 'l': '回复「' + k + '」', 't': field_type, 'v': v, 'hint': wl_msg_hints.get(k, '')})
         plugins['wordlib'] = {'name': '词库插件', 'fields': base_fields}
-    if os.path.exists(os.path.join(pd, 'pseudo_persona.py')):
-        p = read_json(os.path.join(dd, 'persona_config.json'))
-        glm_cfg = p.get('glm', {})
-        gemini_cfg = p.get('gemini', {})
-        plugins['pseudo'] = {'name': '伪人模式', 'fields': [
-            {'k': 'enabled', 'l': '插件开关', 't': 'sel', 'o': ['true', 'false'], 'v': str(p.get('enabled', True)).lower(), 'hint': '关闭后机器人不再主动回复任何消息'},
-            {'k': 'current_model', 'l': '当前模型', 't': 'sel', 'o': ['glm', 'gemini'], 'v': p.get('current_model', 'gemini'), 'hint': '选择使用哪个AI模型回复消息'},
-            {'k': 'reply_probability', 'l': '主动回复概率', 't': 'num', 'min': 0, 'max': 1, 's': 0.1, 'v': p.get('reply_probability', 1.0), 'hint': '被@或提及时回复的概率，1.0=必定回复'},
-            {'k': 'random_reply_probability', 'l': '随机回复概率', 't': 'num', 'min': 0, 'max': 1, 's': 0.1, 'v': p.get('random_reply_probability', 0.0), 'hint': '未被提及时主动插话的概率，0=不主动说话'},
-            {'k': 'split_count', 'l': '消息拆分数量', 't': 'num', 'min': 1, 'v': p.get('split_count', 3), 'hint': 'AI回复含|#|#|时分段发送，最多拆成这么多条'},
-            {'k': 'split_delay_min', 'l': '拆分最小延迟(秒)', 't': 'num', 'min': 0, 'v': p.get('split_delay_min', 1), 'hint': '分段发送时每条消息之间的最短间隔'},
-            {'k': 'split_delay_max', 'l': '拆分最大延迟(秒)', 't': 'num', 'min': 1, 'v': p.get('split_delay_max', 3), 'hint': '分段发送时每条消息之间的最长间隔'},
-            {'k': 'max_history', 'l': '最大历史记录', 't': 'num', 'min': 1, 'v': p.get('max_history', 50), 'hint': '每个聊天窗口最多保留的消息条数，超出后删除最早的'},
-            {'k': 'context_window', 'l': '上下文窗口', 't': 'num', 'min': 1, 'v': p.get('context_window', 20), 'hint': '每次发送给AI的最近消息数量，越大越费钱但上下文更完整'},
-            {'k': 'glm_api_url', 'l': 'GLM API地址', 't': 'text', 'v': glm_cfg.get('api_url', ''), 'hint': 'GLM模型兼容OpenAI格式的API地址'},
-            {'k': 'glm_api_key', 'l': 'GLM API密钥', 't': 'password', 'v': glm_cfg.get('api_key', ''), 'hint': '调用GLM接口的身份凭证，请保密'},
-            {'k': 'glm_model', 'l': 'GLM 模型名', 't': 'text', 'v': glm_cfg.get('model', 'glm-4v-flash'), 'hint': '选择的GLM具体模型名称，如glm-4v-flash'},
-            {'k': 'gemini_api_url', 'l': 'Gemini API地址', 't': 'text', 'v': gemini_cfg.get('api_url', ''), 'hint': 'Gemini模型兼容OpenAI格式的API地址'},
-            {'k': 'gemini_api_key', 'l': 'Gemini API密钥', 't': 'password', 'v': gemini_cfg.get('api_key', ''), 'hint': '调用Gemini接口的身份凭证，请保密'},
-            {'k': 'gemini_model', 'l': 'Gemini 模型名', 't': 'text', 'v': gemini_cfg.get('model', 'gemini-2.5-flash'), 'hint': '选择的Gemini具体模型名称，如gemini-2.5-flash-preview-05-20'},
-            {'k': 'temperature', 'l': 'AI 温度(temperature)', 't': 'num', 'min': 0, 'max': 2, 's': 0.1, 'v': p.get('temperature', 0.8), 'hint': 'AI创造力，0=精确保守，1=平衡，2=天马行空'},
-            {'k': 'max_tokens', 'l': 'AI 最大输出(max_tokens)', 't': 'num', 'min': 1, 'v': p.get('max_tokens', 500), 'hint': 'AI单次回复最多生成的字数，越长越耗时'},
-            {'k': 'api_timeout', 'l': 'API 超时(秒)', 't': 'num', 'min': 10, 'v': p.get('api_timeout', 90), 'hint': '请求AI接口的最大等待秒数，超时后自动切换备用模型'},
-            {'k': 'user_persona', 'l': '用户人设(角色设定)', 't': 'textarea', 'v': p.get('user_persona', ''), 'hint': '自定义角色设定，用于修改AI的性格和说话风格，留空使用默认机器人提示词'},
-        ] + [{'k': 'cmd_' + k, 'l': '指令「' + k + '」', 't': 'text', 'v': v, 'hint': {
-    'enable': '开启/关闭伪人模式的触发词',
-    'disable': '开启/关闭伪人模式的触发词',
-    'switch_glm': '切换AI模型为GLM',
-    'switch_glm_alt': '切换AI模型为GLM（备选指令）',
-    'switch_gemini': '切换AI模型为Gemini',
-    'switch_gemini_alt': '切换AI模型为Gemini（备选指令）',
-    'current_model': '查看当前使用的AI模型',
-    'current_model_alt': '查看当前AI模型（备选指令）',
-    'clear_history': '清除当前聊天的对话历史',
-    'clear_history_alt': '清除当前聊天历史（备选指令）',
-    'clear_history_alt2': '清除当前聊天历史（备选指令）',
-    'clear_all': '清除所有群/私聊的对话历史',
-    'clear_all_alt': '清除所有聊天历史（备选指令）',
-    'clear_all_alt2': '清除所有聊天历史（备选指令）',
-}.get(k, '触发该功能的聊天关键词')} for k, v in p.get('commands', {}).items()] + [{'k': 'msg_' + k, 'l': '回复「' + k + '」', 't': 'textarea' if len(v) > 20 else 'text', 'v': v, 'hint': {
-            'switch_glm': '切换到GLM模型成功时的回复',
-            'switch_gemini': '切换到Gemini模型成功时的回复',
-            'current_model': '查看当前模型时的回复，支持{model}变量',
-            'history_cleared': '清除当前会话历史成功时的回复',
-            'all_history_cleared': '清除所有历史成功时的回复',
-            'no_reply': 'AI没有返回内容时的保底回复',
-            'whats_up': '被@但没有输入文字时的回复',
-            'check_image': '被@并发了图片但没有文字时的回复',
-        }.get(k, '')} for k, v in p.get('messages', {}).items()]}
+    # 分群开关表
+    import utils.plugin_toggle as _pt
+    gf = {}
+    for gid, toggles in _pt.get_all_toggles().items():
+        desc = ' '.join(f'{p}={chr(10003) if v else chr(10007)}' for p, v in toggles.items() if v)
+        if desc:
+            gf[gid] = {'_line': f'群 {gid}: {desc}'}
+    if gf:
+        plugins['group_toggles'] = {'name': '分群开关', 'fields': gf}
     return jsonify({'bot': b, 'plugins': plugins})
 
 @app.route('/api/bot/<int:num>/config', methods=['POST'])
@@ -423,24 +316,6 @@ def save_config(num):
                 elif k == 'admins':
                     wc['admins'] = v
             write_json(os.path.join(dd, 'wordlib_config.json'), wc)
-        elif plugin == 'pseudo':
-            old = read_json(os.path.join(dd, 'persona_config.json'))
-            for k, v in cfg.items():
-                if k.startswith('msg_'):
-                    old.setdefault('messages', {})[k.replace('msg_', '')] = v
-                elif k.startswith('cmd_'):
-                    old.setdefault('commands', {})[k.replace('cmd_', '')] = v
-                elif k == 'enabled':
-                    old['enabled'] = v == 'true'
-                elif k in ('reply_probability', 'random_reply_probability', 'max_history', 'context_window', 'split_count', 'split_delay_min', 'split_delay_max', 'temperature', 'max_tokens', 'api_timeout'):
-                    old[k] = float(v) if '.' in str(v) else int(v)
-                elif k.startswith('glm_'):
-                    old.setdefault('glm', {})[k.replace('glm_', '')] = v
-                elif k.startswith('gemini_'):
-                    old.setdefault('gemini', {})[k.replace('gemini_', '')] = v
-                elif k in ('user_persona', 'current_model'):
-                    old[k] = v
-            write_json(os.path.join(dd, 'persona_config.json'), old)
         else:
             return jsonify({'error': '未知插件'}), 400
         return jsonify({'ok': True, 'msg': '配置已保存，请点击重启按钮生效'})
@@ -453,12 +328,9 @@ def restart_bot(num):
     if num not in BOTS: return jsonify({'error': '无效编号'}), 404
     b = BOTS[num]
     try:
-        subprocess.run("screen -S " + b['screen'] + " -X quit 2>/dev/null", shell=True, timeout=5)
-        py_cmd = 'python3'
-        if os.path.exists(os.path.join(b['dir'], 'venv/bin/python3')):
-            py_cmd = './venv/bin/python3'
-        subprocess.run("cd " + b['dir'] + " && screen -dmS " + b['screen'] + " " + py_cmd + " main.py", shell=True, timeout=5)
-        return jsonify({'ok': True, 'msg': '已重启 ' + b['name']})
+        r = subprocess.run(['bot', 'restart', str(num)], capture_output=True, text=True, timeout=15)
+        msg = r.stdout.strip() or r.stderr.strip() or '已重启 ' + b['name']
+        return jsonify({'ok': True, 'msg': msg})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

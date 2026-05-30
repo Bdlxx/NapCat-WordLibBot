@@ -1,3 +1,4 @@
+# utils/api.py
 import json
 import time
 import requests
@@ -39,6 +40,7 @@ def send_message(event, message):
     else:
         print("WebSocket 未连接，无法发送")
 
+# 如果你还需要通过 HTTP 主动调用 API（如获取群成员列表），可保留以下函数
 def http_get(action, params=None):
     """通过 HTTP GET 调用 NapCat API（用于主动查询）"""
     url = f"{HTTP_URL}/{action}"

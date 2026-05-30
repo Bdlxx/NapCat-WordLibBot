@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils.api import send_message
 from utils.config import get_master_qq, get_bot_qq, get_bot_name
+from utils.plugin_toggle import is_enabled as _pt_enabled, set_enabled as _pt_set
 
 # ========== 配置 ==========
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
@@ -845,20 +846,37 @@ def handle(event: dict) -> bool:
 
     if post_type == "message":
         _l()
-        # 主人开关命令
+        group_id = event.get("group_id")
+        is_group = event.get("message_type") == "group"
+
+        # 主人开关命令（在群内→分群开关，私聊→全局）
         if is_master(user_id):
-            if raw_msg == cmd("enable", "开启词库") or raw_msg.endswith(cmd("enable", "开启词库")):
-                _CFG.setdefault("settings", {})["enabled"] = True
-                _save()
-                send_message(event, "词库已开启")
+            enable_cmd = cmd("enable", "开启词库")
+            disable_cmd = cmd("disable", "关闭词库")
+            if raw_msg == enable_cmd or raw_msg.endswith(enable_cmd):
+                if is_group:
+                    _pt_set(group_id, "wordlib", True)
+                    send_message(event, "词库已在本群开启")
+                else:
+                    _CFG.setdefault("settings", {})["enabled"] = True
+                    _save()
+                    send_message(event, "词库已开启")
                 return True
-            if raw_msg == cmd("disable", "关闭词库") or raw_msg.endswith(cmd("disable", "关闭词库")):
-                _CFG.setdefault("settings", {})["enabled"] = False
-                _save()
-                send_message(event, "词库已关闭")
+            if raw_msg == disable_cmd or raw_msg.endswith(disable_cmd):
+                if is_group:
+                    _pt_set(group_id, "wordlib", False)
+                    send_message(event, "词库已在本群关闭")
+                else:
+                    _CFG.setdefault("settings", {})["enabled"] = False
+                    _save()
+                    send_message(event, "词库已关闭")
                 return True
 
+        # 全局禁用检查
         if not setting("enabled", True):
+            return False
+        # 分群检查
+        if is_group and not _pt_enabled(group_id, "wordlib"):
             return False
         data = load_data()
         return handle_message(event, data)

@@ -44,28 +44,3 @@
 | `[total]` | `rank_item` | 签到总次数 |
 | `[code]` | `encode_result` | 转码后的CQ码 |
 
----
-
-## 结婚插件 (marry) — `{变量名}` 格式 (Python str.format)
-
-| 变量 | 所属回复模板 | 说明 |
-|------|-------------|------|
-| `{rate}` | `prob_set` | 设置的结婚成功率 |
-| `{hours}` | `cd_set`, `divorce_cooldown` | 设置的CD小时数 / 剩余冷却小时 |
-| `{minutes}` | `divorce_cooldown` | 剩余冷却分钟（不足1小时时显示） |
-
----
-
-## 伪人插件 (pseudo_persona) — `{变量名}` 格式 (Python str.format)
-
-| 变量 | 所属回复模板 | 说明 |
-|------|-------------|------|
-| `{model}` | `current_model` | 当前使用的AI模型名称 |
-
----
-
-## 插件提示词 (persona) — `[占位符]` 格式
-
-| 占位符 | 说明 |
-|--------|------|
-| `[nick]` | 对方的自定义昵称（自动替换） |
