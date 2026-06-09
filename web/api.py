@@ -394,4 +394,24 @@ def stat(p):
     return send_from_directory(STATIC_DIR, p)
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000, debug=False)
+    import argparse
+    _parser = argparse.ArgumentParser(description='MyBot Web Panel')
+    _parser.add_argument('--host', default='127.0.0.1', help='监听地址（0.0.0.0 开放公网）')
+    _parser.add_argument('--port', type=int, default=8080, help='监听端口')
+    _parser.add_argument('--bot-dir', default=None, help='单实例模式：机器人项目目录')
+    _parser.add_argument('--bot-name', default=None, help='单实例模式：机器人名称')
+    _parser.add_argument('--bot-qq', default=None, help='单实例模式：机器人QQ号')
+    _parser.add_argument('--bot-screen', default='bot', help='单实例模式：screen会话名')
+    _args = _parser.parse_args()
+    # 单实例模式：用传入参数覆盖 BOTS
+    if _args.bot_dir:
+        BOTS.clear()
+        BOTS[1] = {
+            'name': _args.bot_name or 'Bot',
+            'screen': _args.bot_screen,
+            'dir': _args.bot_dir,
+            'qq': _args.bot_qq or '',
+            'master': '',
+            'napcat_port': 6099,
+        }
+    app.run(host=_args.host, port=_args.port, debug=False)
