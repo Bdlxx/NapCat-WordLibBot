@@ -1,0 +1,46 @@
+{
+  "_note": "NapCat OneBot 配置模板 — 由安装脚本自动生成，替换 __HTTP_PORT__ / __WS_PORT__ / __HTTP_TOKEN__ / __WS_TOKEN__ / __HOST__",
+  "network": {
+    "httpServers": [
+      {
+        "enable": true,
+        "name": "http-api",
+        "host": "__HOST__",
+        "port": __HTTP_PORT__,
+        "enableCors": true,
+        "enableWebsocket": false,
+        "messagePostFormat": "array",
+        "token": "__HTTP_TOKEN__",
+        "debug": false
+      }
+    ],
+    "httpSseServers": [],
+    "httpClients": [],
+    "websocketServers": [
+      {
+        "enable": true,
+        "name": "ws-event",
+        "host": "__HOST__",
+        "port": __WS_PORT__,
+        "reportSelfMessage": true,
+        "enableForcePushEvent": true,
+        "messagePostFormat": "array",
+        "token": "__WS_TOKEN__",
+        "debug": false,
+        "heartInterval": 30000
+      }
+    ],
+    "websocketClients": [],
+    "plugins": []
+  },
+  "musicSignUrl": "",
+  "enableLocalFile2Url": true,
+  "parseMultMsg": false,
+  "imageDownloadProxy": "",
+  "timeout": {
+    "baseTimeout": 10000,
+    "uploadSpeedKBps": 256,
+    "downloadSpeedKBps": 256,
+    "maxTimeout": 1800000
+  }
+}
