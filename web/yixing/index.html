@@ -556,12 +556,19 @@ fetchStatus();
 renderPage();
 setInterval(fetchStatus, 15000);
 
-// 事件委托：配置标签页(data-sk)和导航(data-page)点击切换
+// 事件委托：配置标签页(data-sk)、导航(data-page)、群组开关(data-nav)
 document.addEventListener('click', function(e) {
   var el = e.target.closest('[data-sk]');
   if (el) { switchConfigTab(el.getAttribute('data-sk')); return; }
   el = e.target.closest('[data-page]');
-  if (el) { navigate(el.getAttribute('data-page')); }
+  if (el) { navigate(el.getAttribute('data-page')); return; }
+  el = e.target.closest('[data-nav]');
+  if (el) {
+    var act = el.getAttribute('data-nav');
+    if (act === 'tgsave') { tgSave(); }
+    else if (act === 'groups') { renderGroups(); }
+    return;
+  }
 });
 </script>
 </body>
