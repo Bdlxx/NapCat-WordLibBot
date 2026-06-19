@@ -353,13 +353,13 @@ def get_plugins(num):
             field_type = 'textarea' if len(v) > 30 else 'text'
             base_fields.append({'k': 'wl_msg_' + k, 'l': '回复「' + k + '」', 't': field_type, 'v': v, 'hint': wl_msg_hints.get(k, '')})
         plugins['wordlib'] = {'name': '词库插件', 'fields': base_fields}
-    # 分群开关表
+    # 分群开关表（注意：fields 必须是数组，前端用 for-of 遍历）
     import utils.plugin_toggle as _pt
-    gf = {}
+    gf = []
     for gid, toggles in _pt.get_all_toggles().items():
         desc = ' '.join(f'{p}={chr(10003) if v else chr(10007)}' for p, v in toggles.items() if v)
         if desc:
-            gf[gid] = {'_line': f'群 {gid}: {desc}'}
+            gf.append({'_line': f'群 {gid}: {desc}'})
     if gf:
         plugins['group_toggles'] = {'name': '分群开关', 'fields': gf}
     return jsonify({'bot': b, 'plugins': plugins})

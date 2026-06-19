@@ -330,7 +330,7 @@ async function renderConfig() {
   try {
     const r = await fetch('/api/bot/' + botNum + '/plugins');
     const d = await r.json();
-    configPlugins = d.plugins; configKeys = Object.keys(d.plugins); dirtyPlugins = {};
+    configPlugins = d.plugins; configKeys = Object.keys(d.plugins).filter(k => k !== 'group_toggles'); dirtyPlugins = {};
     if (configKeys.length === 0) { document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>暂无可用配置</p></div>'; return; }
     let html = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">';
     for (const key of configKeys) html += '<button class="btn ' + (key===configKeys[0]?'btn-primary':'btn-default') + '" onclick="switchConfigTab(\'' + key + '\')" id="tab_' + key + '">' + (configPlugins[key].name||key) + '</button>';
