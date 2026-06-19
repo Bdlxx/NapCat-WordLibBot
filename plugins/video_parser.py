@@ -143,76 +143,164 @@ def _parse_bilibili(bvid):
     return {'video_url': video_url, 'image_list': [], 'title': title, 'author': author}
 
 
-# ========== 抖音：hellotik.app API ==========
-HELLOTIK_API = "https://www.hellotik.app/api"
+# ========== 抖音：Playwright 浏览器自动化 (hellotik.app) ==========
+import asyncio
 
 def _parse_douyin(url):
-    """抖音：通过 hellotik.app 解析无水印视频"""
-    headers = {
-        'User-Agent': ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+    """抖音：用 Playwright 打开 hellotik.app，自动粘贴链接→解析→取结果"""
+    try:
+        return asyncio.run(_parse_douyin_async(url))
+    except Exception as e:
+        print(f"[视频解析] 抖音 Playwright 异常: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+async def _parse_douyin_async(url):
+    """异步：浏览器操作 hellotik.app"""
+    from playwright.async_api import async_playwright
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-blink-features=AutomationControlled',
+            ]
+        )
+        ctx = await browser.new_context(
+            user_agent=('Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                        'AppleWebKit/537.36 (KHTML, like Gecko) '
                        'Chrome/120.0.0.0 Safari/537.36'),
-        'Origin': 'https://www.hellotik.app',
-        'Referer': 'https://www.hellotik.app/zh/douyin',
-        'Content-Type': 'application/json',
-    }
-    try:
-        # Step 1: 获取 parse ticket
-        auth_resp = requests.post(
-            f'{HELLOTIK_API}/parse-auth',
-            json={"requestURL": url, "isBatch": False, "mode": "single"},
-            headers=headers, timeout=15
+            locale='zh-CN',
+            viewport={'width': 1280, 'height': 800},
+            # 去除 webdriver 特征
+            permissions=[],
         )
-        if auth_resp.status_code != 200:
-            print(f"[视频解析] hellotik auth 失败: {auth_resp.status_code}")
-            return None
-        auth_data = auth_resp.json()
-        ticket = auth_data.get('ticketData', {}).get('ticket')
-        if not ticket:
-            print(f"[视频解析] hellotik 未获取到 ticket: {auth_data}")
-            return None
+        # 注入 stealth 脚本
+        await ctx.add_init_script('''() => {
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh'] });
+        }''')
 
-        # Step 2: 用 unencryptedFallback 提交解析
-        parse_resp = requests.post(
-            f'{HELLOTIK_API}/parse',
-            json={
-                "parseTicket": ticket,
-                "unencryptedFallback": True,
-                "requestURL": url,
-            },
-            headers=headers, timeout=30
-        )
-        if parse_resp.status_code != 200:
-            print(f"[视频解析] hellotik parse 失败: {parse_resp.status_code}")
-            return None
-        parse_data = parse_resp.json()
-        if parse_data.get('status') != 0:
-            print(f"[视频解析] hellotik 解析返回错误: {parse_data}")
+        page = await ctx.new_page()
+
+        print(f"[视频解析] 打开 hellotik.app ...")
+        try:
+            await page.goto('https://www.hellotik.app/zh/douyin',
+                           wait_until='networkidle', timeout=20000)
+        except Exception as e:
+            print(f"[视频解析] hellotik 页面加载超时，继续: {e}")
+
+        await page.wait_for_timeout(1500)
+
+        # 检查页面是否正常
+        body_text = await page.evaluate('() => document.body.innerText')
+        if '解析' not in body_text:
+            print(f"[视频解析] hellotik 页面异常: {body_text[:200]}")
+            await browser.close()
             return None
 
-        data = parse_data.get('data', {})
-        videos = data.get('videos', [])
-        video_url = ''
-        if videos:
-            video_url = videos[0].get('url', '')
+        # 用原生 setter 设置输入框（React 需要正确的 input 事件）
+        print(f"[视频解析] 填入链接...")
+        await page.evaluate(f'''() => {{
+            const input = document.querySelector('input[type="text"], input:not([type="hidden"])');
+            if (!input) return false;
+            // React 兼容的输入方式
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value'
+            ).set;
+            nativeInputValueSetter.call(input, '{url}');
+            input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+            input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+            return true;
+        }}''')
+        await page.wait_for_timeout(500)
 
-        # 图片列表（图文类抖音）
-        images = [{'url': p} for p in data.get('pics', []) if p]
+        # 点击解析按钮
+        print(f"[视频解析] 点击解析...")
+        clicked = await page.evaluate('''() => {
+            const btn = document.querySelector('button[type="submit"]')
+                     || document.querySelector('button:has-text("解析")')
+                     || [...document.querySelectorAll('button')].find(b => b.textContent.includes('解析'));
+            if (btn) { btn.click(); return true; }
+            return false;
+        }''')
+        if not clicked:
+            print("[视频解析] 未找到解析按钮")
+            await browser.close()
+            return None
 
-        title = data.get('title', '')
-        author = data.get('author', '')
+        # 等待解析结果（最多等 20 秒）
+        print(f"[视频解析] 等待解析结果...")
+        result = None
+        for _ in range(20):
+            await page.wait_for_timeout(1000)
 
-        print(f"[视频解析] hellotik 解析成功: {title[:30] or '无标题'}")
-        return {'video_url': video_url, 'image_list': images, 'title': title, 'author': author}
+            result = await page.evaluate('''() => {
+                // 找 video 标签
+                const v = document.querySelector('video');
+                if (v && v.getAttribute('src') && v.getAttribute('src').length > 20
+                    && !v.getAttribute('src').includes('uuu_')) {
+                    return {type: 'video', url: v.getAttribute('src')};
+                }
 
-    except requests.exceptions.Timeout:
-        print(f"[视频解析] hellotik API 超时")
+                // 找下载按钮/链接
+                const links = document.querySelectorAll('a[href*=".mp4"], a[download]');
+                for (const a of links) {
+                    if (a.href) return {type: 'link', url: a.href};
+                }
+
+                // 找页面文本中的 mp4 链接
+                const text = document.body.innerText;
+                const m = text.match(/https?:\\/\\/[^\\s"'<>]+\\.mp4[^\\s"'<>]*/);
+                if (m) return {type: 'text', url: m[0]};
+
+                // 没找到但还在加载
+                if (text.includes('解析失败') || text.includes('错误')) {
+                    return {type: 'error', text: text.substring(0, 200)};
+                }
+
+                // 还在处理中
+                if (text.includes('解析中') || text.includes('处理')) {
+                    return {type: 'loading'};
+                }
+
+                return null; // 继续等
+            }''')
+
+            if result and result.get('type') in ('video', 'link', 'text'):
+                video_url = result['url']
+                print(f"[视频解析] 获取到视频链接")
+
+                # 获取标题和作者信息
+                info = await page.evaluate('''() => {
+                    const text = document.body.innerText;
+                    const lines = text.split('\\n').filter(l => l.trim());
+                    const title = lines.find(l => l.length > 5 && l.length < 100) || '';
+                    return {title};
+                }''')
+
+                await browser.close()
+                return {
+                    'video_url': video_url,
+                    'image_list': [],
+                    'title': info.get('title', '') or '',
+                    'author': '',
+                }
+
+            if result and result.get('type') == 'error':
+                print(f"[视频解析] hellotik 解析失败: {result.get('text', '')}")
+                await browser.close()
+                return None
+
+        # 超时
+        print("[视频解析] hellotik 解析超时")
+        await browser.close()
         return None
-    except requests.exceptions.ConnectionError as e:
-        print(f"[视频解析] hellotik 连接失败: {e}")
-        return None
-    except Exception as e:
-        print(f"[视频解析] hellotik 解析异常: {e}")
         import traceback
         traceback.print_exc()
         return None
