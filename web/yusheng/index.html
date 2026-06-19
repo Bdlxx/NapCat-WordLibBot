@@ -554,7 +554,15 @@ function renderPage() {
 }
 
 fetchStatus();
+// 加载超时兜底：10秒后如果还是加载中，显示刷新按钮
+const _loadTimer = setTimeout(() => {
+  const pc = document.getElementById('pageContent');
+  if (pc && pc.textContent.includes('⏳')) {
+    pc.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>页面加载超时，请检查服务状态</p><button class="btn btn-primary" onclick="location.reload()" style="margin-top:12px">🔄 刷新页面</button></div>';
+  }
+}, 10000);
 renderPage();
+clearTimeout(_loadTimer);
 setInterval(fetchStatus, 15000);
 </script>
 </body>
