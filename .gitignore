@@ -36,3 +36,7 @@ package.json
 
 # 本地设置
 .claude/
+
+# 未发布的插件
+plugins/pseudo_persona.py
+plugins/video_parser.py

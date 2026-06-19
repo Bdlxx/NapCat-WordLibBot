@@ -33,18 +33,6 @@ PLUGIN_META = {
         "config_file": "marry_config.json",
         "description": "群内每日结婚/离婚系统",
     },
-    "pseudo": {
-        "name_cn": "伪人插件",
-        "name_en": "pseudo_persona",
-        "config_file": "persona_config.json",
-        "description": "AI 对话回复、角色扮演",
-    },
-    "video_parser": {
-        "name_cn": "视频解析",
-        "name_en": "video_parser",
-        "config_file": "video_parser_config.json",
-        "description": "抖音/B站/快手等视频解析去水印",
-    },
 }
 
 PLUGINS = list(PLUGIN_META.keys())
