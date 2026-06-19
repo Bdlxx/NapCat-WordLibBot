@@ -115,6 +115,25 @@ def build_fields_from_cfg(cfg, prefix='cmd'):
     return fields
 
 # ====== 鉴权接口 ======
+def _verify_password(pwd):
+    """验证密码，支持明文和MD5两种配置格式
+    返回 (成功, bot_name) 或 (False, None)
+    """
+    pwd_md5 = hashlib.md5(pwd.encode()).hexdigest()
+    # 先试明文匹配
+    if pwd in PASSWORDS:
+        return True, PASSWORDS[pwd]
+    # 再试MD5匹配
+    if pwd_md5 in PASSWORDS:
+        return True, PASSWORDS[pwd_md5]
+    return False, None
+
+def _bot_path(bot_name):
+    """根据bot名称返回路径名"""
+    if '星' in bot_name: return 'yixing'
+    if '笙' in bot_name: return 'yusheng'
+    return bot_name
+
 @app.route('/api/portal-login', methods=['POST'])
 def portal_login():
     data = request.get_json()
@@ -128,23 +147,18 @@ def portal_login():
     if not allowed:
         return jsonify({'success': False, 'message': f'登录尝试过于频繁，请 {wait} 秒后重试'}), 429
 
-    if pwd in PASSWORDS:
+    ok, bot_name = _verify_password(pwd)
+    if ok:
         _record_login_attempt(client_ip, success=True)
         session.clear()
         session.permanent = True
         session['authenticated'] = True
-        session['bot_name'] = PASSWORDS[pwd]
-        # 用 bot_name 确定跳转路径，不用密码
-        target = PASSWORDS[pwd]
-        if target == 'yixing':
-            return jsonify({'success': True, 'message': '正在进入依星面板', 'redirect': '/yixing/'}), 200
-        elif target == 'yusheng':
-            return jsonify({'success': True, 'message': '正在进入羽笙面板', 'redirect': '/yusheng/'}), 200
-        else:
-            return jsonify({'success': True, 'message': '登录成功', 'redirect': '/' + target + '/'}), 200
+        session['bot_name'] = bot_name
+        path = _bot_path(bot_name)
+        return jsonify({'success': True, 'message': f'正在进入{bot_name}面板', 'redirect': f'/{path}/'}), 200
     else:
         _record_login_attempt(client_ip, success=False)
-        time.sleep(1)  # 防止时序攻击
+        time.sleep(1)  # 防时序攻击
         return jsonify({'success': False, 'message': '密码错误'}), 200
 
 @app.route('/api/check-auth')
