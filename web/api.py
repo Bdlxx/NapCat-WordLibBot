@@ -1,6 +1,8 @@
 import os
 import json
 import subprocess
+import time
+import hashlib
 from functools import wraps
 from flask import Flask, jsonify, request, send_from_directory, session
 
@@ -23,12 +25,60 @@ PASSWORDS = auth_config.get('passwords', {})
 
 app = Flask(__name__, static_folder=STATIC_DIR)
 app.secret_key = auth_config.get('secret_key', os.urandom(24).hex())
+app.permanent_session_lifetime = 86400  # 24小时过期
 
+# ====== 登录限流 ======
+LOGIN_ATTEMPTS = {}  # ip -> [timestamp, ...]
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_BLOCK_SECONDS = 900  # 15分钟
+
+def _check_login_rate_limit(ip):
+    now = time.time()
+    if ip in LOGIN_ATTEMPTS:
+        # 清理过期记录
+        LOGIN_ATTEMPTS[ip] = [t for t in LOGIN_ATTEMPTS[ip] if now - t < LOGIN_BLOCK_SECONDS]
+        if len(LOGIN_ATTEMPTS[ip]) >= MAX_LOGIN_ATTEMPTS:
+            return False, int(LOGIN_BLOCK_SECONDS - (now - LOGIN_ATTEMPTS[ip][0]))
+    return True, 0
+
+def _record_login_attempt(ip, success):
+    if success:
+        LOGIN_ATTEMPTS.pop(ip, None)
+    else:
+        LOGIN_ATTEMPTS.setdefault(ip, [])
+        LOGIN_ATTEMPTS[ip].append(time.time())
+
+# ====== CSRF 防护 ======
+def _check_csrf():
+    """检查请求来源，防止跨站请求伪造"""
+    # AJAX 请求必须带 X-Requested-With 头
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        # 对 POST/PUT/DELETE 请求强制检查
+        if request.method in ('POST', 'PUT', 'DELETE'):
+            # 允许同源请求（从页面发起的表单提交）
+            origin = request.headers.get('Origin', '')
+            referer = request.headers.get('Referer', '')
+            allowed = False
+            if origin and 'xn--kivt1l.online' in origin:
+                allowed = True
+            if referer and 'xn--kivt1l.online' in referer:
+                allowed = True
+            if not allowed:
+                return False
+    return True
+
+# ====== 鉴权装饰器 ======
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get('authenticated'):
             return jsonify({'error': '未登录', 'need_login': True}), 401
+        # 会话自动续期
+        session.permanent = True
+        session.modified = True
+
+        if not _check_csrf():
+            return jsonify({'error': '请求来源无效，拒绝操作'}), 403
         return f(*args, **kwargs)
     return decorated
 
@@ -70,13 +120,31 @@ def portal_login():
     data = request.get_json()
     if not data:
         return jsonify({'success': False, 'message': '请输入密码'}), 200
-    pwd = data.get('password', '').strip().lower()
+    pwd = data.get('password', '').strip()
+
+    # 限流检查
+    client_ip = request.remote_addr or '127.0.0.1'
+    allowed, wait = _check_login_rate_limit(client_ip)
+    if not allowed:
+        return jsonify({'success': False, 'message': f'登录尝试过于频繁，请 {wait} 秒后重试'}), 429
+
     if pwd in PASSWORDS:
+        _record_login_attempt(client_ip, success=True)
         session.clear()
+        session.permanent = True
         session['authenticated'] = True
         session['bot_name'] = PASSWORDS[pwd]
-        return jsonify({'success': True, 'message': '正在进入' + PASSWORDS[pwd] + '面板', 'redirect': '/' + pwd + '/'}), 200
+        # 用 bot_name 确定跳转路径，不用密码
+        target = PASSWORDS[pwd]
+        if target == 'yixing':
+            return jsonify({'success': True, 'message': '正在进入依星面板', 'redirect': '/yixing/'}), 200
+        elif target == 'yusheng':
+            return jsonify({'success': True, 'message': '正在进入羽笙面板', 'redirect': '/yusheng/'}), 200
+        else:
+            return jsonify({'success': True, 'message': '登录成功', 'redirect': '/' + target + '/'}), 200
     else:
+        _record_login_attempt(client_ip, success=False)
+        time.sleep(1)  # 防止时序攻击
         return jsonify({'success': False, 'message': '密码错误'}), 200
 
 @app.route('/api/check-auth')

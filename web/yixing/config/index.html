@@ -370,6 +370,14 @@ const botNum = window.location.pathname.match(/\/yusheng\/config/)?2:1;
 const BOT_NAME = botNum === 1 ? '依星' : '羽笙';
 fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
 
+// 所有API请求自动带CSRF防护头
+const _origFetch = window.fetch;
+window.fetch = function(url, opts) {
+  opts = opts || {};
+  opts.headers = opts.headers || {};
+  opts.headers["X-Requested-With"] = "XMLHttpRequest";
+  return _origFetch.call(this, url, opts);
+};
 // ===== Theme =====
 function toggleTheme() {
   const html = document.documentElement;

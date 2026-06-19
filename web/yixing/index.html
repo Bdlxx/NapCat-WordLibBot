@@ -142,6 +142,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 <script>
 const botNum = window.location.pathname.startsWith('/yixing') ? 1 : 2;
 const BOT_NAME = botNum === 1 ? '依星' : '羽笙';
+// 所有API请求自动带CSRF防护头
+const _origFetch = window.fetch;
+window.fetch = function(url, opts) {
+  opts = opts || {};
+  opts.headers = opts.headers || {};
+  opts.headers['X-Requested-With'] = 'XMLHttpRequest';
+  return _origFetch.call(this, url, opts);
+};
 fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
 // 加载头像、昵称、QQ号
 fetch('/api/bot/' + botNum + '/info').then(r=>r.json()).then(d=>{
