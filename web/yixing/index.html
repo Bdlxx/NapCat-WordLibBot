@@ -555,6 +555,14 @@ function renderPage() {
 fetchStatus();
 renderPage();
 setInterval(fetchStatus, 15000);
+
+// 事件委托：配置标签页(data-sk)和导航(data-page)点击切换
+document.addEventListener('click', function(e) {
+  var el = e.target.closest('[data-sk]');
+  if (el) { switchConfigTab(el.getAttribute('data-sk')); return; }
+  el = e.target.closest('[data-page]');
+  if (el) { navigate(el.getAttribute('data-page')); }
+});
 </script>
 </body>
 </html>
