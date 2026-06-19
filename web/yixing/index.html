@@ -3,299 +3,436 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>依星 - 机器人管理</title><link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⭐</text></svg>">
+<title>依星 - 管理面板</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⭐</text></svg>">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);min-height:100vh;padding:20px}
-.container{max-width:480px;margin:0 auto}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
-.header .title{color:#ffd700;font-size:28px;font-weight:700}
-.logout-btn{background:rgba(255,80,80,0.15);color:#ff6464;border:1px solid rgba(255,80,80,0.3);padding:8px 16px;border-radius:10px;cursor:pointer;font-size:13px;transition:.2s}
-.logout-btn:hover{background:rgba(255,80,80,0.25)}
-
-/* Status cards */
-.status-grid{display:flex;gap:12px;margin-bottom:20px}
-.status-card{flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px;text-align:center}
-.status-card .label{color:rgba(255,255,255,0.4);font-size:12px;margin-bottom:8px}
-.status-card .value{font-size:22px;font-weight:700}
-.status-card .sub{font-size:12px;margin-top:4px}
-.status-online .value{color:#4ade80}
-.status-offline .value{color:#f87171}
-.status-online .sub{color:rgba(74,222,128,0.6)}
-.status-offline .sub{color:rgba(248,113,113,0.6)}
-
-/* Info card */
-.info-card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:20px;margin-bottom:20px}
-.info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
-.info-row:last-child{border-bottom:none}
-.info-label{color:rgba(255,255,255,0.4);font-size:13px}
-.info-value{color:#fff;font-weight:500;font-size:13px}
-
-/* Buttons */
-.btn-group{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
-.btn{flex:1;padding:12px;border:none;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;min-width:80px;text-align:center;text-decoration:none;transition:all .2s}
-.btn:hover{filter:brightness(1.2);transform:translateY(-1px)}
-.btn:active{transform:translateY(0)}
-.btn:disabled{opacity:.4;cursor:not-allowed;filter:none;transform:none}
-.btn-start{background:rgba(0,200,100,0.2);color:#4ade80}
-.btn-stop{background:rgba(255,100,100,0.2);color:#f87171}
-.btn-restart{background:rgba(100,150,255,0.2);color:#6496ff}
-.btn-config{background:rgba(100,200,255,0.2);color:#64c8ff}
-.btn-napcat{background:rgba(150,100,255,0.2);color:#a78bfa}
-.btn-qr{background:rgba(255,180,50,0.2);color:#fbbf24}
-
-.btn-log{background:rgba(100,255,200,0.2);color:#64ffc8}
-
-
-/* Loading */
-.loading{text-align:center;color:rgba(255,255,255,0.3);padding:60px 20px;font-size:15px}
-.loading .spinner{display:inline-block;width:32px;height:32px;border:3px solid rgba(255,255,255,0.1);border-top-color:#ffd700;border-radius:50%;animation:spin .8s linear infinite;margin-bottom:12px}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* QR Modal */
-.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:100;justify-content:center;align-items:center}
-.modal-overlay.active{display:flex}
-.modal{background:#1a1a2e;border:1px solid rgba(255,215,0,0.3);border-radius:18px;padding:30px;max-width:320px;width:90%;text-align:center}
-.modal h3{color:#ffd700;font-size:18px;margin-bottom:6px}
-.modal p{color:rgba(255,255,255,0.4);font-size:13px;margin-bottom:20px}
-.modal .qr-img{width:220px;height:220px;margin:0 auto 20px;background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.modal .qr-img img{width:200px;height:200px}
-.modal .qr-img .no-qr{color:#666;font-size:13px}
-.modal .qr-actions{display:flex;gap:10px}
-.modal .qr-actions button{flex:1;padding:10px;border:none;border-radius:10px;font-size:14px;cursor:pointer;font-weight:600}
-.btn-close-modal{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6)}
-.btn-refresh{background:rgba(100,200,255,0.2);color:#64c8ff}
-.log-modal{max-width:540px;width:95%}
-.log-container{background:#0a0a14;border-radius:10px;padding:12px;max-height:350px;overflow-y:auto;text-align:left;font-family:'Courier New',Consolas,monospace;font-size:12px;line-height:1.6;color:#a0e8a0;white-space:pre-wrap;word-break:break-all}
-.log-container .no-qr{color:#666;text-align:center;padding:40px 0;font-size:13px}
+:root {
+  --bg-page: #f0f2f5; --bg-sidebar: #fff; --bg-header: #fff; --bg-card: #fff;
+  --bg-input: #f5f7fa; --bg-hover: #f0f2ff; --bg-active: #ecf5ff;
+  --text-primary: #303133; --text-regular: #606266; --text-secondary: #909399;
+  --border-color: #e4e7ed; --border-light: #ebeef5;
+  --color-primary: #409eff; --color-primary-light: #66b1ff;
+  --color-success: #67c23a; --color-warning: #e6a23c; --color-danger: #f56c6c;
+  --shadow-card: 0 2px 12px 0 rgba(0,0,0,.06);
+  --radius: 8px; --radius-lg: 12px; --sidebar-width: 220px;
+}
+[data-theme="dark"] {
+  --bg-page: #141414; --bg-sidebar: #1d1d1d; --bg-header: #1d1d1d; --bg-card: #1d1d1d;
+  --bg-input: #2a2a2a; --bg-hover: #2a2a3a; --bg-active: #1a2a3a;
+  --text-primary: #e5eaf3; --text-regular: #cfd3dc; --text-secondary: #a3a6ad;
+  --border-color: #333; --border-light: #2a2a2a;
+  --shadow-card: 0 2px 12px 0 rgba(0,0,0,.3);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans SC',sans-serif;font-size:14px;color:var(--text-primary);background:var(--bg-page);-webkit-font-smoothing:antialiased}
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:var(--sidebar-width);background:var(--bg-sidebar);border-right:1px solid var(--border-color);display:flex;flex-direction:column;flex-shrink:0;z-index:10}
+.sidebar-logo{padding:18px 16px;font-size:16px;font-weight:700;border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px}
+.sidebar-logo .logo-text{color:var(--color-primary)}
+.sidebar-nav{flex:1;overflow-y:auto;padding:8px 0}
+.sidebar-nav::-webkit-scrollbar{width:4px}
+.sidebar-nav::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:2px}
+.nav-group-title{padding:14px 16px 6px;font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;color:var(--text-regular);transition:all .2s;border-left:3px solid transparent;margin:2px 0;font-size:13px;border-radius:0 8px 8px 0;margin-right:8px}
+.nav-item:hover{background:var(--bg-hover);color:var(--text-primary)}
+.nav-item.active{background:var(--bg-active);color:var(--color-primary);border-left-color:var(--color-primary);font-weight:600}
+.nav-item .icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.header{background:var(--bg-header);border-bottom:1px solid var(--border-color);padding:0 24px;height:56px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.header-breadcrumb{font-size:14px;color:var(--text-secondary)}
+.header-breadcrumb .current{color:var(--text-primary);font-weight:500}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.el-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:500}
+.el-tag.success{background:rgba(103,194,58,.15);color:var(--color-success)}
+.el-tag.danger{background:rgba(245,108,108,.15);color:var(--color-danger)}
+.el-tag.warning{background:rgba(230,162,60,.15);color:var(--color-warning)}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.status-dot.green{background:var(--color-success)}
+.status-dot.red{background:var(--color-danger)}
+.status-dot.yellow{background:var(--color-warning);animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.theme-btn{width:32px;height:32px;border-radius:50%;border:1px solid var(--border-color);background:var(--bg-input);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--text-regular);transition:all .2s}
+.theme-btn:hover{border-color:var(--color-primary);color:var(--color-primary)}
+.header-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border-color);background:var(--bg-input);cursor:pointer;font-size:12px;color:var(--text-regular);transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.header-btn:hover{border-color:var(--color-primary);color:var(--color-primary)}
+.content{flex:1;overflow-y:auto;padding:20px}
+.content::-webkit-scrollbar{width:6px}
+.content::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:3px}
+.card{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);border:1px solid var(--border-light);margin-bottom:16px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border-light);display:flex;align-items:center;justify-content:space-between}
+.card-header h3{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.card-body{padding:16px 20px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+.stat-card{background:var(--bg-card);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow-card);border:1px solid var(--border-light);display:flex;align-items:flex-start;gap:16px}
+.stat-card:hover{box-shadow:0 4px 16px 0 rgba(0,0,0,.1)}
+.stat-icon{width:44px;height:44px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.stat-icon.blue{background:rgba(64,158,255,.12)}
+.stat-icon.green{background:rgba(103,194,58,.12)}
+.stat-icon.orange{background:rgba(230,162,60,.12)}
+.stat-icon.purple{background:rgba(144,107,224,.12)}
+.stat-info{flex:1;min-width:0}
+.stat-info .label{font-size:12px;color:var(--text-secondary);margin-bottom:4px}
+.stat-info .value{font-size:22px;font-weight:700;color:var(--text-primary)}
+.stat-info .desc{font-size:12px;color:var(--text-secondary);margin-top:4px}
+.el-table{width:100%;border-collapse:collapse;font-size:13px}
+.el-table th{padding:12px 16px;text-align:left;font-weight:600;background:var(--bg-input);color:var(--text-regular);border-bottom:1px solid var(--border-color)}
+.el-table td{padding:12px 16px;border-bottom:1px solid var(--border-light)}
+.el-table tr:hover td{background:var(--bg-hover)}
+.btn{padding:9px 20px;border-radius:var(--radius);border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--color-primary);color:#fff}
+.btn-primary:hover{background:var(--color-primary-light)}
+.btn-success{background:var(--color-success);color:#fff}
+.btn-default{background:var(--bg-input);color:var(--text-regular);border:1px solid var(--border-color)}
+.btn-default:hover{color:var(--color-primary);border-color:var(--color-primary)}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:var(--radius);font-size:14px;z-index:9999;opacity:0;transition:all .3s;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.15);white-space:nowrap}
+.toast.show{opacity:1;pointer-events:auto}
+.toast.success{background:var(--color-success);color:#fff}
+.toast.error{background:var(--color-danger);color:#fff}
+.toast.info{background:var(--color-primary);color:#fff}
+.log-viewer{background:#1e1e1e;color:#d4d4d4;font-family:Consolas,Monaco,monospace;font-size:12px;padding:16px;border-radius:var(--radius);max-height:500px;overflow-y:auto;line-height:1.6;white-space:pre-wrap;word-break:break-all}
+.log-viewer .error{color:#f44747}
+.log-viewer .info{color:#9cdcfe}
+.log-viewer .warn{color:#ce9178}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-secondary)}
+.empty-state .icon{font-size:48px;margin-bottom:16px;opacity:.4}
+@media(max-width:768px){
+  .sidebar{position:fixed;left:-260px;top:0;bottom:0;transition:left .3s;z-index:100}
+  .sidebar.open{left:0}
+  .sidebar-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:99;display:none}
+  .sidebar-overlay.open{display:block}
+  .content{padding:12px}
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .mobile-menu-btn{display:flex!important}
+}
+.mobile-menu-btn{display:none}
 </style>
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <div class="title">⭐ 依星</div>
-    <button class="logout-btn" onclick="handleLogout()">← 退出</button>
-  </div>
-
-  <div id="loading">
-    <div class="spinner"></div>
-    <div>加载中...</div>
-  </div>
-
-  <div id="mainContent" style="display:none">
-    <div class="status-grid">
-      <div class="status-card" id="mybotCard">
-        <div class="label">🤖 MyBot</div>
-        <div class="value">-</div>
-        <div class="sub">检测中</div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo"><span style="font-size:22px;">⭐</span> <span class="logo-text">羽笙管理</span></div>
+    <nav class="sidebar-nav" id="sidebarNav"></nav>
+  </aside>
+  <div class="main">
+    <header class="header">
+      <button class="header-btn mobile-menu-btn" onclick="toggleSidebar()" style="border:none;background:transparent;font-size:18px;">☰</button>
+      <div class="header-breadcrumb" id="breadcrumb"><span class="current">仪表盘</span></div>
+      <div class="header-right">
+        <span class="el-tag" id="statusTag"><span class="status-dot yellow"></span> 检测中</span>
+        <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
+        <a class="header-btn" onclick="handleLogout()" style="cursor:pointer;">🚪 退出</a>
       </div>
-      <div class="status-card" id="napcatCard">
-        <div class="label">🐱 NapCat</div>
-        <div class="value">-</div>
-        <div class="sub">检测中</div>
-      </div>
-    </div>
-
-    <div class="info-card">
-      <div class="info-row"><span class="info-label">QQ 号</span><span class="info-value" id="qqDisplay">-</span></div>
-      <div class="info-row"><span class="info-label">主人 QQ</span><span class="info-value" id="masterDisplay">-</span></div>
-      <div class="info-row"><span class="info-label">工作目录</span><span class="info-value" id="dirDisplay">-</span></div>
-      <div class="info-row"><span class="info-label">NapCat 端口</span><span class="info-value" id="portDisplay">-</span></div>
-    </div>
-
-    <div class="btn-group">
-      <button class="btn btn-start" onclick="botAction('start')">▶ 启动</button>
-      <button class="btn btn-stop" onclick="botAction('stop')">⏹ 停止</button>
-      <button class="btn btn-restart" onclick="botAction('restart')">🔄 重启</button>
-    </div>
-    <div class="btn-group">
-      <a class="btn btn-config" href="/yixing/config/">⚙️ 配置</a>
-      <button class="btn btn-log" onclick="showLog()">📋 日志</button>
-      <a class="btn btn-napcat" href="https://yixing.xn--kivt1l.online/" target="_blank">🌐 NapCat</a>
-      <button class="btn btn-qr" onclick="showQR()">📱 登录</button>
-    </div>
-
-    <div id="msg" style="text-align:center;margin-top:12px;font-size:13px;min-height:24px"></div>
+    </header>
+    <div class="content" id="pageContent"></div>
   </div>
 </div>
-
-<!-- QR Modal -->
-<div class="modal-overlay" id="qrModal">
-  <div class="modal">
-    <h3>📱 NapCat 扫码登录</h3>
-    <p>使用手机 QQ 扫描二维码</p>
-    <div class="qr-img" id="qrImgContainer">
-      <div class="no-qr" id="qrPlaceholder">获取二维码中...</div>
-    </div>
-    <div class="qr-actions">
-      <button class="btn-refresh" onclick="refreshQR()">🔄 刷新</button>
-      <button class="btn-close-modal" onclick="closeQR()">关闭</button>
-    </div>
-  </div>
-</div>
+<div class="toast" id="toast"></div>
 
 <script>
-const BOT_NUM = 1;
-
+const botNum = window.location.pathname.startsWith('/yixing') ? 1 : 2;
+const BOT_NAME = botNum === 1 ? '依星' : '羽笙';
 fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
+document.querySelector('.sidebar-logo .logo-text').textContent = BOT_NAME + '管理';
+if (botNum === 1) document.querySelector('.sidebar-logo').innerHTML = '<span style="font-size:22px;">⭐</span> <span class="logo-text">依星管理</span>';
 
-async function loadData() {
-  try {
-    const [botRes, ncRes] = await Promise.all([
-      fetch('/api/bot/' + BOT_NUM + '/info'),
-      fetch('/api/bot/' + BOT_NUM + '/napcat-status')
-    ]);
-    const botData = await botRes.json();
-    const ncData = await ncRes.json();
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'dark') { document.documentElement.setAttribute('data-theme','dark'); document.getElementById('themeBtn').textContent = '☀️'; }
 
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('mainContent').style.display = 'block';
+let currentPage = 'dashboard';
 
-    if (botData.success) {
-      setMyBotStatus(botData.running);
-      document.getElementById('qqDisplay').textContent = botData.qq || '-';
-      document.getElementById('masterDisplay').textContent = botData.master || '-';
-      document.getElementById('dirDisplay').textContent = botData.dir || '-';
-      document.getElementById('portDisplay').textContent = botData.napcat_port ? ':' + botData.napcat_port : '-';
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? '' : 'dark');
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+  document.getElementById('themeBtn').textContent = isDark ? '🌙' : '☀️';
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+function showToast(msg, type) {
+  type = type || 'info';
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type + ' show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.className = 'toast', 3000);
+}
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+function handleLogout() { fetch('/api/logout',{method:'POST'}).then(()=>window.location.href='/'); }
+
+const NAV_ITEMS = [
+  { id:'dashboard', icon:'📊', label:'仪表盘', group:'概览' },
+  { id:'manage',    icon:'🛠️',  label:'运行管理', group:'管理' },
+  { id:'config',    icon:'⚙️',  label:'词库配置', group:'管理' },
+  { id:'groups',    icon:'👥',  label:'群组开关', group:'管理' },
+  { id:'logs',      icon:'📋',  label:'运行日志', group:'管理' },
+];
+
+function navigate(page) {
+  currentPage = page;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  renderPage();
+}
+
+function renderSidebar() {
+  const nav = document.getElementById('sidebarNav');
+  const groups = {};
+  NAV_ITEMS.forEach(item => {
+    if (!groups[item.group]) groups[item.group] = [];
+    groups[item.group].push(item);
+  });
+  let html = '';
+  for (const [g, items] of Object.entries(groups)) {
+    html += '<div class="nav-group-title">' + g + '</div>';
+    for (const item of items) {
+      html += '<div class="nav-item ' + (currentPage===item.id?'active':'') + '" data-page="' + item.id + '" onclick="navigate(\'' + item.id + '\')"><span class="icon">' + item.icon + '</span> ' + item.label + '</div>';
     }
-    setNapCatStatus(ncData.running);
+  }
+  nav.innerHTML = html;
+}
+
+async function fetchStatus() {
+  try {
+    const r = await fetch('/api/bot/' + botNum + '/status');
+    const d = await r.json();
+    const tag = document.getElementById('statusTag');
+    if (d.running) { tag.innerHTML = '<span class="status-dot green"></span> 运行中'; tag.className = 'el-tag success'; }
+    else { tag.innerHTML = '<span class="status-dot red"></span> 已停止'; tag.className = 'el-tag danger'; }
+  } catch { tag.innerHTML = '<span class="status-dot yellow"></span> 连接失败'; tag.className = 'el-tag warning'; }
+}
+
+// === Dashboard ===
+async function renderDashboard() {
+  document.getElementById('breadcrumb').innerHTML = '<span class="current">仪表盘</span>';
+  renderSidebar();
+  document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
+  try {
+    const [infoR, napcatR] = await Promise.all([
+      fetch('/api/bot/' + botNum + '/info').catch(()=>null),
+      fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
+    ]);
+    const info = infoR ? await infoR.json() : {};
+    const napcat = napcatR ? await napcatR.json() : {};
+    document.getElementById('pageContent').innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-icon blue">🤖</div><div class="stat-info"><div class="label">Bot 状态</div><div class="value">${info.running?'运行中':'已停止'}</div><div class="desc">${info.name||BOT_NAME}</div></div></div>
+        <div class="stat-card"><div class="stat-icon green">🐱</div><div class="stat-info"><div class="label">NapCat 状态</div><div class="value">${napcat.running?'运行中':'已停止'}</div><div class="desc">容器 ${napcat.container||'-'}</div></div></div>
+        <div class="stat-card"><div class="stat-icon orange">📦</div><div class="stat-info"><div class="label">工作目录</div><div class="value" style="font-size:16px">${info.dir||'-'}</div><div class="desc">Screen: ${info.screen||'-'}</div></div></div>
+        <div class="stat-card"><div class="stat-icon purple">⚡</div><div class="stat-info"><div class="label">快捷操作</div><div class="value" style="font-size:14px;font-weight:500"><a href="#" onclick="navigate(\'manage\');return false" style="color:var(--color-primary)">🛠️ 管理</a> · <a href="#" onclick="navigate(\'config\');return false" style="color:var(--color-primary)">⚙️ 配置</a></div><div class="desc">点击进入</div></div></div>
+      </div>
+      <div class="card"><div class="card-header"><h3>🔍 系统信息</h3></div><div class="card-body"><table class="el-table"><tr><th width="120">项目</th><th>值</th></tr>
+        <tr><td>机器人</td><td>${info.name||BOT_NAME} (QQ:${info.qq||'-'})</td></tr>
+        <tr><td>主人 QQ</td><td>${info.master||'-'}</td></tr>
+        <tr><td>运行目录</td><td>${info.dir||'-'}</td></tr>
+        <tr><td>Screen</td><td>${info.screen||'-'}</td></tr>
+        <tr><td>NapCat 容器</td><td>${napcat.container||'-'} · ${napcat.status||'-'}</td></tr>
+      </table></div></div>`;
   } catch(e) {
-    document.getElementById('loading').innerHTML = '<div style="color:#f87171">❌ 加载失败</div>';
+    document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
   }
 }
 
-function setMyBotStatus(running) {
-  const card = document.getElementById('mybotCard');
-  card.className = 'status-card ' + (running ? 'status-online' : 'status-offline');
-  card.querySelector('.value').textContent = running ? '运行中' : '已停止';
-  card.querySelector('.sub').textContent = running ? '● 在线' : '● 离线';
+// === Manage ===
+async function renderManage() {
+  document.getElementById('breadcrumb').innerHTML = '<span class="current">运行管理</span>';
+  renderSidebar();
+  document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
+  try {
+    const [infoR, napcatR] = await Promise.all([
+      fetch('/api/bot/' + botNum + '/info').catch(()=>null),
+      fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
+    ]);
+    const info = infoR ? await infoR.json() : {};
+    const napcat = napcatR ? await napcatR.json() : {};
+    document.getElementById('pageContent').innerHTML = `
+      <div class="card"><div class="card-header"><h3>🤖 Bot 管理</h3></div><div class="card-body">
+        <div style="margin-bottom:12px"><span class="el-tag ${info.running?'success':'danger'}"><span class="status-dot ${info.running?'green':'red'}"></span> ${info.running?'运行中':'已停止'}</span> ${info.name||BOT_NAME}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="doBotAction('start')">▶ 启动</button>
+          <button class="btn btn-default" onclick="doBotAction('stop')">⏹ 停止</button>
+          <button class="btn btn-default" onclick="doBotAction('restart')">🔄 重启</button>
+        </div>
+      </div></div>
+      <div class="card"><div class="card-header"><h3>📱 NapCat 登录</h3></div><div class="card-body">
+        <div style="margin-bottom:12px"><span class="el-tag ${napcat.running?'success':'danger'}"><span class="status-dot ${napcat.running?'green':'red'}"></span> ${napcat.running?'运行中':'已停止'}</span> ${napcat.container||'-'}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="showQR()">📱 查看二维码</button>
+        </div>
+      </div></div>
+      <div id="qrArea" style="display:none;text-align:center">
+        <div class="card"><div class="card-header"><h3>📱 二维码</h3></div><div class="card-body" id="qrContainer">加载中...</div></div>
+      </div>
+      <div id="manageMsg" style="text-align:center;font-size:13px;color:var(--text-secondary);min-height:24px"></div>`;
+  } catch(e) {
+    document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
+  }
 }
 
-function setNapCatStatus(running) {
-  const card = document.getElementById('napcatCard');
-  card.className = 'status-card ' + (running ? 'status-online' : 'status-offline');
-  card.querySelector('.value').textContent = running ? '运行中' : '已停止';
-  card.querySelector('.sub').textContent = running ? '● 在线' : '● 离线';
-}
-
-async function botAction(action) {
-  const msg = document.getElementById('msg');
-  msg.style.color = 'rgba(255,255,255,0.5)';
+async function doBotAction(action) {
+  const msg = document.getElementById('manageMsg');
   msg.textContent = '操作中...';
-
   try {
-    const r = await fetch('/api/bot/' + BOT_NUM + '/' + action, {method:'POST'});
+    const r = await fetch('/api/bot/' + botNum + '/' + action, {method:'POST'});
     const d = await r.json();
-    if (d.success || d.ok) {
-      msg.style.color = '#4ade80';
-      msg.textContent = d.message || d.msg || action + '成功';
-      setTimeout(async () => {
-        try {
-          const r2 = await fetch('/api/bot/' + BOT_NUM + '/info');
-          const d2 = await r2.json();
-          if (d2.success) setMyBotStatus(d2.running);
-        } catch(e) {}
-      }, 2000);
-    } else {
-      msg.style.color = '#f87171';
-      msg.textContent = d.error || action + '失败';
+    msg.textContent = d.message || d.msg || action + '成功';
+    setTimeout(fetchStatus, 2000);
+  } catch(e) { msg.textContent = '操作失败'; }
+}
+
+async function showQR() {
+  document.getElementById('qrArea').style.display = 'block';
+  document.getElementById('qrContainer').innerHTML = '获取中...';
+  try {
+    const r = await fetch('/api/bot/' + botNum + '/napcat-qr');
+    const d = await r.json();
+    if (d.qr) document.getElementById('qrContainer').innerHTML = '<img src="data:image/png;base64,' + d.qr + '" style="max-width:240px;border-radius:8px" alt="QR">';
+    else document.getElementById('qrContainer').innerHTML = '<div style="color:var(--text-secondary)">暂无二维码<br>NapCat 可能未启动</div>';
+  } catch(e) { document.getElementById('qrContainer').innerHTML = '<div style="color:var(--color-danger)">获取失败</div>'; }
+}
+
+// === Config ===
+let configPlugins = {}, configKeys = [], activePlugin = null, dirtyPlugins = {};
+function isDirty(k) { return !!dirtyPlugins[k]; }
+function markClean(k) { dirtyPlugins[k] = false; }
+async function renderConfig() {
+  document.getElementById('breadcrumb').innerHTML = '<span class="current">词库配置</span>';
+  renderSidebar();
+  document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
+  try {
+    const r = await fetch('/api/bot/' + botNum + '/plugins');
+    const d = await r.json();
+    configPlugins = d.plugins; configKeys = Object.keys(d.plugins); dirtyPlugins = {};
+    if (configKeys.length === 0) { document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>暂无可用配置</p></div>'; return; }
+    let html = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">';
+    for (const key of configKeys) html += '<button class="btn ' + (key===configKeys[0]?'btn-primary':'btn-default') + '" onclick="switchConfigTab(\'' + key + '\')" id="tab_' + key + '">' + (configPlugins[key].name||key) + '</button>';
+    html += '</div><div style="display:flex;gap:10px;margin-bottom:16px"><button class="btn btn-primary" onclick="saveCurrentConfig()">💾 保存</button><button class="btn btn-success" onclick="saveAndRestartConfig()">💾 保存并重启</button></div><div id="configContent"></div>';
+    document.getElementById('pageContent').innerHTML = html;
+    activePlugin = null;
+    switchConfigTab(configKeys[0]);
+  } catch(e) { document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>'; }
+}
+function switchConfigTab(key) {
+  activePlugin = key;
+  document.querySelectorAll('[id^="tab_"]').forEach(el => el.className = 'btn ' + (el.id === 'tab_'+key ? 'btn-primary' : 'btn-default'));
+  const plugin = configPlugins[key]; if (!plugin) return;
+  let html = '<div class="card"><div class="card-header"><h3>' + plugin.name + '</h3><span class="badge" style="font-size:11px;padding:2px 10px;border-radius:10px;background:var(--bg-active);color:var(--color-primary)">' + plugin.fields.length + ' 项</span></div>';
+  for (const field of plugin.fields) {
+    const fid = 'f_' + key + '_' + field.k;
+    let inp = '';
+    if (field.t === 'num') inp = '<input type="number" id="' + fid + '" value="' + field.v + '" min="' + (field.min||0) + '" max="' + (field.max||'') + '" step="' + (field.s||1) + '" style="width:120px;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none">';
+    else if (field.t === 'sel' && field.o && field.o.length === 2 && field.o.includes('true')) {
+      const ch = String(field.v) === 'true';
+      inp = '<label class="el-switch" style="display:inline-flex;align-items:center;cursor:pointer;gap:8px"><input type="checkbox" id="' + fid + '" ' + (ch?'checked':'') + ' onchange="onCfgChange()"><span class="track" style="width:40px;height:20px;border-radius:10px;background:' + (ch?'var(--color-primary)':'var(--border-color)') + ';transition:all .2s;position:relative;display:inline-block"></span><span style="font-size:12px;color:var(--text-secondary)">' + (ch?'已开启':'已关闭') + '</span></label>';
+    } else if (field.t === 'sel') {
+      const opts = field.o.map(o => '<option value="' + o + '" ' + (String(o)===String(field.v)?'selected':'') + '>' + o + '</option>').join('');
+      inp = '<select id="' + fid + '" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none;max-width:240px">' + opts + '</select>';
+    } else if (field.t === 'textlist') inp = '<textarea id="' + fid + '" placeholder="每行一个" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none;resize:vertical;min-height:80px">' + (Array.isArray(field.v)?field.v.join('\n'):'') + '</textarea>';
+    else if (field.t === 'password') inp = '<input type="password" id="' + fid + '" value="' + field.v + '" autocomplete="off" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none">';
+    else if (field.t === 'textarea') inp = '<textarea id="' + fid + '" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none;resize:vertical;min-height:120px">' + field.v + '</textarea>';
+    else inp = '<input type="text" id="' + fid + '" value="' + (field.v||'') + '" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none">';
+    html += '<div class="card-body" style="border-bottom:1px solid var(--border-light);padding:14px 20px"><label style="display:block;font-size:13px;font-weight:500;margin-bottom:8px">' + field.l + '</label>' + inp + (field.hint?'<div style="font-size:12px;color:var(--text-secondary);margin-top:6px">' + field.hint + '</div>':'') + '</div>';
+  }
+  html += '</div>';
+  document.getElementById('configContent').innerHTML = html;
+  for (const field of plugin.fields) {
+    const el = document.getElementById('f_' + key + '_' + field.k);
+    if (el) el.oninput = el.onchange = function() { if (!isDirty(key)) { dirtyPlugins[key]=true; } };
+  }
+}
+function onCfgChange() { if (activePlugin && !isDirty(activePlugin)) dirtyPlugins[activePlugin] = true; }
+function collectCfg(key) {
+  const cfg = {}, plugin = configPlugins[key]; if (!plugin) return null;
+  for (const field of plugin.fields) {
+    const el = document.getElementById('f_' + key + '_' + field.k); if (!el) continue;
+    if (field.t === 'num') cfg[field.k] = parseFloat(el.value);
+    else if (field.t === 'textlist') cfg[field.k] = el.value.split('\n').map(s=>s.trim()).filter(s=>s);
+    else if (el.type === 'checkbox') cfg[field.k] = el.checked ? 'true' : 'false';
+    else cfg[field.k] = el.value;
+  }
+  return cfg;
+}
+async function saveCurrentConfig() {
+  if (!activePlugin) return; const cfg = collectCfg(activePlugin); if (!cfg) return;
+  showToast('💾 保存中...','info');
+  try {
+    const r = await fetch('/api/bot/' + botNum + '/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plugin:activePlugin,cfg})});
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error||'保存失败');
+    dirtyPlugins[activePlugin] = false; showToast('✅ 已保存','success'); fetchStatus();
+  } catch(e) { showToast('❌ '+e.message,'error'); }
+}
+async function saveAndRestartConfig() {
+  if (!activePlugin) return; const cfg = collectCfg(activePlugin); if (!cfg) return;
+  showToast('💾 保存中...','info');
+  try {
+    await fetch('/api/bot/' + botNum + '/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plugin:activePlugin,cfg})});
+    showToast('✅ 已保存，正在重启...','success');
+    setTimeout(async () => { await fetch('/api/bot/' + botNum + '/restart',{method:'POST'}); showToast('🔄 已重启','success'); fetchStatus(); }, 500);
+  } catch(e) { showToast('❌ '+e.message,'error'); }
+}
+
+// === Groups ===
+async function renderGroups() {
+  document.getElementById('breadcrumb').innerHTML = '<span class="current">群组开关</span>';
+  renderSidebar();
+  document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
+  try {
+    const r = await fetch('/api/bot/' + botNum + '/plugins');
+    const d = await r.json();
+    const toggles = d.plugins.group_toggles;
+    if (!toggles || !toggles.fields || !toggles.fields.length) {
+      document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">🔀</div><p>暂无群组开关数据</p><div style="margin-top:8px;font-size:12px;color:var(--text-secondary)">在群内发送「开启词库」等命令后自动生成</div></div>'; return;
     }
-  } catch(e) {
-    msg.style.color = '#f87171';
-    msg.textContent = '请求失败';
+    let html = '<div class="card"><div class="card-header"><h3>👥 分群插件开关</h3><span class="badge" style="font-size:11px;padding:2px 10px;border-radius:10px;background:var(--bg-active);color:var(--color-primary)">' + toggles.fields.length + ' 个群</span></div><table class="el-table"><tr><th>群号</th><th>已开启插件</th></tr>';
+    for (const field of toggles.fields) {
+      const parts = (field._line||'').match(/群 (\d+): (.+)/);
+      if (parts) html += '<tr><td>' + parts[1] + '</td><td>' + parts[2] + '</td></tr>';
+    }
+    html += '</table></div><div class="card"><div class="card-header"><h3>💡 说明</h3></div><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.8">所有插件在每个群默认关闭。<br>在群内发送对应命令开启：<code>开启词库</code> / <code>关闭词库</code><br>私聊发送 = 全局控制。</div></div>';
+    document.getElementById('pageContent').innerHTML = html;
+  } catch(e) { document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>'; }
+}
+
+// === Logs ===
+async function renderLogs() {
+  document.getElementById('breadcrumb').innerHTML = '<span class="current">运行日志</span>';
+  renderSidebar();
+  document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
+  try {
+    const r = await fetch('/api/bot/' + botNum + '/screen-log');
+    const d = await r.json();
+    const lines = (d.log||'暂无日志').split('\n');
+    let logHtml = '';
+    for (const line of lines) {
+      let cls = '';
+      if (line.match(/error|exception|trace|失败|✗/i)) cls = 'error';
+      else if (line.match(/warn/i)) cls = 'warn';
+      else if (line.match(/✓|成功|启动|连接|加载/i)) cls = 'info';
+      logHtml += '<div class="' + cls + '">' + escapeHtml(line) + '</div>';
+    }
+    document.getElementById('pageContent').innerHTML = '<div class="card"><div class="card-header"><h3>📋 运行日志</h3><span style="font-size:12px;color:var(--text-secondary)">runtime.log</span></div><div class="card-body"><div class="log-viewer">' + logHtml + '</div></div></div><button class="btn btn-default" onclick="renderLogs()">🔄 刷新</button>';
+  } catch(e) { document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>'; }
+}
+
+function renderPage() {
+  switch (currentPage) {
+    case 'dashboard': renderDashboard(); break;
+    case 'manage':    renderManage(); break;
+    case 'config':    renderConfig(); break;
+    case 'groups':    renderGroups(); break;
+    case 'logs':      renderLogs(); break;
+    default: renderDashboard();
   }
 }
 
-function showQR() {
-  document.getElementById('qrModal').classList.add('active');
-  refreshQR();
-}
-
-function closeQR() {
-  document.getElementById('qrModal').classList.remove('active');
-}
-
-async function refreshQR() {
-  const container = document.getElementById('qrImgContainer');
-  const placeholder = document.getElementById('qrPlaceholder');
-  placeholder.textContent = '获取中...';
-  try {
-    const r = await fetch('/api/bot/' + BOT_NUM + '/napcat-qr');
-    const d = await r.json();
-    if (d.qr) {
-      container.innerHTML = '<img src="data:image/png;base64,' + d.qr + '" alt="QR Code">';
-    } else {
-      placeholder.textContent = '暂无二维码\nNapCat 可能未启动';
-    }
-  } catch(e) {
-    placeholder.textContent = '获取失败';
-  }
-}
-
-function handleLogout() {
-  fetch('/api/logout', {method:'POST'}).then(()=>{window.location.href='/'});
-}
-
-loadData();
-setInterval(async () => {
-  try {
-    const [r1, r2] = await Promise.all([
-      fetch('/api/bot/' + BOT_NUM + '/info'),
-      fetch('/api/bot/' + BOT_NUM + '/napcat-status')
-    ]);
-    const d1 = await r1.json();
-    const d2 = await r2.json();
-    if (d1.success) setMyBotStatus(d1.running);
-    setNapCatStatus(d2.running);
-  } catch(e) {}
-}, 15000);
-
-async function refreshLog() {
-  const container = document.getElementById('logContainer');
-  const placeholder = document.getElementById('logPlaceholder');
-  if (placeholder) placeholder.textContent = '获取中...';
-  try {
-    const r = await fetch('/api/bot/' + BOT_NUM + '/screen-log');
-    const d = await r.json();
-    if (d.log) {
-      container.innerHTML = '<pre style="margin:0;white-space:pre-wrap;word-break:break-all">' + escapeHtml(d.log) + '</pre>';
-    } else {
-      container.innerHTML = '<div class="no-qr">暂无日志</div>';
-    }
-  } catch(e) {
-    container.innerHTML = '<div class="no-qr">获取失败: ' + e.message + '</div>';
-  }
-}
-
-function showLog() {
-  document.getElementById('logModal').classList.add('active');
-  refreshLog();
-}
-
-function closeLog() {
-  document.getElementById('logModal').classList.remove('active');
-}
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
+fetchStatus();
+renderPage();
+setInterval(fetchStatus, 15000);
 </script>
-<!-- Log Modal -->
-<div class="modal-overlay" id="logModal">
-  <div class="modal log-modal">
-    <h3>📋 依星 运行日志</h3>
-    <p>最近日志（自动刷新）</p>
-    <div class="log-container" id="logContainer">
-      <div class="no-qr" id="logPlaceholder">加载中...</div>
-    </div>
-    <div class="qr-actions" style="margin-top:12px">
-      <button class="btn-refresh" onclick="refreshLog()">🔄 刷新</button>
-      <button class="btn-close-modal" onclick="closeLog()">关闭</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
