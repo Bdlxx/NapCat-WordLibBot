@@ -8,6 +8,52 @@ from utils.config import get_napcat_http, get_access_token
 HTTP_URL = get_napcat_http()
 ACCESS_TOKEN = get_access_token()
 
+def send_forward_msg(event, nodes):
+    """发送合并转发消息（通过 WebSocket）
+    nodes: [{"name": "昵称", "uin": "QQ号", "content": [消息段列表]}, ...]
+    """
+    msg_type = event.get("message_type")
+    user_id = event.get("user_id")
+    group_id = event.get("group_id") if msg_type == "group" else None
+
+    if msg_type == "private":
+        action = "send_private_forward_msg"
+        params = {"user_id": user_id}
+    elif msg_type == "group":
+        action = "send_group_forward_msg"
+        params = {"group_id": group_id}
+    else:
+        return
+
+    messages = []
+    for node in nodes:
+        messages.append({
+            "type": "node",
+            "data": {
+                "name": node.get("name", "机器人"),
+                "uin": node.get("uin", ""),
+                "content": node.get("content", [])
+            }
+        })
+
+    params["messages"] = messages
+
+    request = {
+        "action": action,
+        "params": params,
+        "echo": str(time.time())
+    }
+
+    request_str = json.dumps(request, ensure_ascii=False)
+    print(f"发送合并转发请求: {request_str[:200]}...")
+
+    if utils.ws.ws:
+        utils.ws.ws.send(request_str)
+        print(f"通过 WebSocket 发送合并转发: {action}")
+    else:
+        print("WebSocket 未连接，无法发送")
+
+
 def send_message(event, message):
     """通过 WebSocket 发送消息，message 可以是字符串或消息段列表"""
     msg_type = event.get("message_type")
