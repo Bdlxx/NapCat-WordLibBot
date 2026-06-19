@@ -271,98 +271,103 @@ def get_plugins(num):
     b = BOTS[num]
     dd = os.path.join(b['dir'], 'data')
     pd = os.path.join(b['dir'], 'plugins')
-    plugins = {}
-    if os.path.exists(os.path.join(pd, 'wordlib.py')):
-        wc = read_json(os.path.join(dd, 'wordlib_config.json'))
-        a = wc.get('admins', [])
-        base_fields = []
-        if a is not None:
-            base_fields.append({'k': 'admins', 'l': '管理员QQ（每行一个）', 't': 'textlist', 'v': a or [], 'hint': '每行填一个QQ号，管理员可以增删词条'})
-        for k, v in wc.get('commands', {}).items():
-            base_fields.append({'k': 'wl_cmd_' + k, 'l': '命令「' + k + '」', 't': 'text', 'v': v, 'hint': {
-            'add': '向词库添加新词条（关键词+回答）',
-            'delete': '从词库删除指定词条',
-            'query': '查询词库中的词条或查看列表',
-            'encode': '将消息转码为CQ码格式',
-            'sign1': '每日签到获取好感度',
-            'sign2': '每日签到（备选指令）',
-            'nickname': '设置自己的自定义昵称（需好感度）',
-            'rank': '查看签到排行榜',
-            'praise1': '让机器人给你点赞',
-            'add_fuzzy': '添加模糊匹配词条（含有关键词即触发）',
-            'enable': '开启词库插件功能',
-            'disable': '关闭词库插件功能',
-        }.get(k, '')})
-        wl_hints = {
-            'favor_add_min': '签到最少增加的好感度',
-            'favor_add_max': '签到最多增加的好感度',
-            'favor_minus_min': '重复签到最少扣除的好感度',
-            'favor_minus_max': '重复签到最多扣除的好感度',
-            'nickname_need_favor': '设置自定义昵称所需的最低好感度',
-            'rank_top_n': '签到排行榜最多显示人数',
-            'praise_count': '每次「赞我」增加的点赞次数',
-            'encode_timeout': '转码等待超时秒数，超时后自动取消',
-        }
-        for k, v in wc.get('settings', {}).items():
-            if k == 'enabled':
-                base_fields.append({'k': 'wl_setting_enabled', 'l': '插件开关', 't': 'sel', 'o': ['true', 'false'], 'v': str(v).lower(), 'hint': '关闭后所有人无法使用词库相关功能'})
-            else:
-                base_fields.append({'k': 'wl_setting_' + k, 'l': '参数「' + k + '」', 't': 'num', 'v': v, 'hint': wl_hints.get(k, '')})
-        wl_msg_hints = {
-            'sign_success': '签到成功时的回复，支持[add][favor]变量',
-            'sign_already': '重复签到时的回复，支持[minus][favor]变量',
-            'nickname_fail': '好感度不足无法设置昵称时的回复，支持[need]变量',
-            'nickname_set': '昵称设置成功时的回复，支持[nick]变量',
-            'nickname_format_error': '昵称命令格式错误时的提示',
-            'nickname_empty': '昵称为空时的提示',
-            'praise_success': '点赞成功时的回复，支持[count]变量',
-            'praise_already': '今天已点赞过时的提示',
-            'praise_fail': '点赞失败时的提示',
-            'rank_empty': '签到排行榜为空时的提示',
-            'rank_title': '排行榜标题模板，支持[top]变量',
-            'rank_item': '排行榜每行格式，支持[idx][name][uid][total]变量',
-            'add_step1': '两步式添加词条-第1步（输入关键词）',
-            'add_step2': '两步式添加词条-第2步（输入回答）',
-            'add_step3': '两步式添加词条-第3步（选择匹配模式）',
-            'add_success_exact': '精准词条添加成功时的回复，支持[keyword][count]变量',
-            'add_success_fuzzy': '模糊词条添加成功时的回复，支持[keyword][count]变量',
-            'add_format_error': '添加词条格式错误时的提示',
-            'add_empty': '关键词或回答为空时的提示',
-            'keyword_empty': '关键词为空时的提示',
-            'reply_empty': '回答为空时的提示',
-            'mode_invalid': '匹配模式选择错误时的提示',
-            'delete_success': '词条删除成功时的回复，支持[keyword]变量',
-            'delete_reply_success': '单条回复删除成功时的回复，支持[keyword][idx][content]变量',
-            'delete_not_found': '关键词不存在时的提示',
-            'delete_idx_invalid': '删除序号无效时的提示，支持[count]变量',
-            'delete_reply_idx_invalid': '回复序号无效时的提示，支持[count]变量',
-            'delete_idx_must_number': '序号必须是数字时的提示',
-            'delete_idx_positive': '序号必须为正整数时的提示',
-            'delete_format_error': '删除命令格式错误时的提示，支持[cmd]变量',
-            'wordlib_empty': '词库为空时的提示',
-            'query_list_title': '词库列表标题模板，支持[top]变量',
-            'query_list_item': '词库列表每行格式，支持[idx][keyword][count]变量',
-            'query_detail_title': '关键词详情标题，支持[keyword][count]变量',
-            'query_detail_item': '关键词详情每行格式，支持[idx][mode][content]变量',
-            'query_no_reply': '关键词暂无回复时的提示',
-            'encode_start': '转码开始时的提示',
-            'encode_result': '转码结果模板，支持[code]变量',
-            'encode_timeout': '转码超时时的提示',
-        }
-        for k, v in wc.get('messages', {}).items():
-            field_type = 'textarea' if len(v) > 30 else 'text'
-            base_fields.append({'k': 'wl_msg_' + k, 'l': '回复「' + k + '」', 't': field_type, 'v': v, 'hint': wl_msg_hints.get(k, '')})
-        plugins['wordlib'] = {'name': '词库插件', 'fields': base_fields}
-    # 分群开关表（注意：fields 必须是数组，前端用 for-of 遍历）
     import utils.plugin_toggle as _pt
-    gf = []
-    for gid, toggles in _pt.get_all_toggles().items():
-        desc = ' '.join(f'{p}={chr(10003) if v else chr(10007)}' for p, v in toggles.items() if v)
-        if desc:
-            gf.append({'_line': f'群 {gid}: {desc}'})
-    if gf:
-        plugins['group_toggles'] = {'name': '分群开关', 'fields': gf}
+
+    plugins = {}
+
+    # 1. 遍历所有注册插件，检测文件存在性
+    for pkey, meta in _pt.get_available_plugins(pd):
+        pp = {'name_cn': meta['name_cn'], 'name_en': meta['name_en'], 'fields': [], 'has_config': False}
+
+        cf = meta.get('config_file')
+        if cf and os.path.exists(os.path.join(dd, cf)):
+            pp['has_config'] = True
+            config_data = read_json(os.path.join(dd, cf))
+
+            # 命令段
+            for cmd_key, cmd_val in config_data.get('commands', {}).items():
+                pp['fields'].append({
+                    'k': f'cmd_{cmd_key}', 'l': f'指令「{cmd_key}」',
+                    't': 'text', 'v': cmd_val,
+                    'hint': f'触发「{meta["name_cn"]}」的{cmd_key}命令',
+                })
+
+            # 设置段
+            for set_key, set_val in config_data.get('settings', {}).items():
+                if isinstance(set_val, bool):
+                    pp['fields'].append({
+                        'k': f'setting_{set_key}',
+                        'l': '插件开关' if set_key == 'enabled' else f'参数「{set_key}」',
+                        't': 'sel', 'o': ['true', 'false'],
+                        'v': str(set_val).lower(),
+                        'hint': '全局开关，关闭后所有人无法使用' if set_key == 'enabled' else '',
+                    })
+                elif isinstance(set_val, (int, float)):
+                    pp['fields'].append({
+                        'k': f'setting_{set_key}', 'l': f'参数「{set_key}」',
+                        't': 'num', 'v': set_val, 'hint': '',
+                    })
+                else:
+                    pp['fields'].append({
+                        'k': f'setting_{set_key}', 'l': f'参数「{set_key}」',
+                        't': 'text', 'v': str(set_val) if set_val else '',
+                    })
+
+            # 回复段
+            for msg_key, msg_val in config_data.get('messages', {}).items():
+                is_long = isinstance(msg_val, str) and len(msg_val) > 30
+                pp['fields'].append({
+                    'k': f'msg_{msg_key}', 'l': f'回复「{msg_key}」',
+                    't': 'textarea' if is_long else 'text', 'v': msg_val,
+                    'hint': f'触发{msg_key}时的回复',
+                })
+
+            # 管理员
+            admins = config_data.get('admins')
+            if admins is not None:
+                pp['fields'].append({
+                    'k': 'admins', 'l': '管理员QQ（每行一个）',
+                    't': 'textlist', 'v': admins if isinstance(admins, list) else [],
+                    'hint': '每行填一个QQ号，管理员可管理插件',
+                })
+
+            # 扁平配置兜底：不在 commands/settings/messages 中的其他字段
+            handled_cats = {'commands', 'settings', 'messages', 'admins', '_note'}
+            for ck in config_data.get('commands', {}): handled_cats.add(ck)
+            for sk in config_data.get('settings', {}): handled_cats.add(sk)
+            for mk in config_data.get('messages', {}): handled_cats.add(mk)
+            for fk, fv in config_data.items():
+                if fk in handled_cats: continue
+                if isinstance(fv, bool):
+                    pp['fields'].append({
+                        'k': f'cfg_{fk}', 'l': f'参数「{fk}」',
+                        't': 'sel', 'o': ['true', 'false'], 'v': str(fv).lower(),
+                    })
+                elif isinstance(fv, (int, float)):
+                    pp['fields'].append({
+                        'k': f'cfg_{fk}', 'l': f'参数「{fk}」',
+                        't': 'num', 'v': fv,
+                    })
+                elif isinstance(fv, str):
+                    field_type = 'password' if ('cookie' in fk.lower() or 'key' in fk.lower() or 'token' in fk.lower()) else 'text'
+                    pp['fields'].append({
+                        'k': f'cfg_{fk}', 'l': f'参数「{fk}」',
+                        't': field_type, 'v': fv,
+                    })
+                elif isinstance(fv, list):
+                    pp['fields'].append({
+                        'k': f'cfg_{fk}', 'l': f'参数「{fk}」',
+                        't': 'textlist', 'v': fv,
+                    })
+
+        plugins[pkey] = pp
+
+    # 2. 群组开关表格数据
+    plugins['_toggles'] = _pt.get_toggles_matrix()
+    plugins['_toggles']['_pluginMeta'] = {k: {'name_cn': v['name_cn'], 'name_en': v['name_en']} for k, v in _pt.get_plugin_meta().items()}
+
     return jsonify({'bot': b, 'plugins': plugins})
+
 
 @app.route('/api/bot/<int:num>/config', methods=['POST'])
 @login_required
@@ -373,42 +378,63 @@ def save_config(num):
     cfg = data.get('cfg', {})
     b = BOTS[num]
     dd = os.path.join(b['dir'], 'data')
-    pd = os.path.join(b['dir'], 'plugins')
-    try:
-        if plugin == 'marry':
-            merged = read_json(os.path.join(dd, 'marry_config.json'))
-            for k, v in cfg.items():
-                if k.startswith('marry_cmd_'):
-                    merged.setdefault('commands', {})[k.replace('marry_cmd_', '')] = v
-                elif k.startswith('marry_rep_'):
-                    merged.setdefault('replies', {})[k.replace('marry_rep_', '')] = v
-                else:
-                    merged.setdefault('settings', {})[k] = v
-            write_json(os.path.join(dd, 'marry_config.json'), merged)
-        elif plugin == 'wordlib':
-            wc = read_json(os.path.join(dd, 'wordlib_config.json'))
-            for k, v in cfg.items():
-                if k.startswith('wl_cmd_'):
-                    wc.setdefault('commands', {})[k.replace('wl_cmd_', '')] = v
-                elif k.startswith('wl_msg_'):
-                    wc.setdefault('messages', {})[k.replace('wl_msg_', '')] = v
-                elif k.startswith('wl_setting_'):
-                    key = k.replace('wl_setting_', '')
-                    if key == 'enabled':
-                        v = v == 'true'
-                    else:
-                        try: v = int(v)
-                        except: pass
-                    wc.setdefault('settings', {})[key] = v
-                elif k == 'admins':
-                    wc['admins'] = v
-            write_json(os.path.join(dd, 'wordlib_config.json'), wc)
-        else:
-            return jsonify({'error': '未知插件'}), 400
-        return jsonify({'ok': True, 'msg': '配置已保存，请点击重启按钮生效'})
-    except Exception as e:
-        return jsonify({'error': '保存失败: ' + str(e)}), 500
 
+    import utils.plugin_toggle as _pt
+    meta = _pt.get_plugin_meta(plugin)
+    if not meta:
+        return jsonify({'error': f'未知插件: {plugin}'}), 400
+
+    cf = meta.get('config_file')
+    if not cf:
+        return jsonify({'ok': True, 'msg': '该插件无需配置'})
+
+    config_path = os.path.join(dd, cf)
+    merged = read_json(config_path)
+
+    for k, v in cfg.items():
+        if k == 'admins':
+            merged['admins'] = v
+        elif k.startswith('cmd_'):
+            merged.setdefault('commands', {})[k.replace('cmd_', '', 1)] = v
+        elif k.startswith('msg_'):
+            merged.setdefault('messages', {})[k.replace('msg_', '', 1)] = v
+        elif k.startswith('setting_'):
+            key = k.replace('setting_', '', 1)
+            if key == 'enabled':
+                v = (str(v).lower() == 'true')
+            elif isinstance(v, str) and v.replace('.', '', 1).replace('-', '', 1).isdigit():
+                v2 = float(v) if '.' in v else int(v)
+                old = merged.get('settings', {}).get(key)
+                if isinstance(old, (int, float)):
+                    v = type(old)(v2)
+                else:
+                    v = v2
+            merged.setdefault('settings', {})[key] = v
+        elif k.startswith('cfg_'):
+            key = k.replace('cfg_', '', 1)
+            if isinstance(v, str) and v.replace('.', '', 1).replace('-', '', 1).isdigit():
+                try: v = int(v)
+                except: pass
+            merged[key] = v
+        else:
+            merged[k] = v
+
+    write_json(config_path, merged)
+    return jsonify({'ok': True, 'msg': '配置已保存，请重启生效'})
+
+
+@app.route('/api/bot/<int:num>/group-toggles', methods=['POST'])
+@login_required
+def save_group_toggles(num):
+    """批量保存群组开关"""
+    if num not in BOTS: return jsonify({'error': '无效编号'}), 404
+    data = request.get_json()
+    toggles = data.get('toggles', {})
+    if not toggles:
+        return jsonify({'error': '参数无效'}), 400
+    import utils.plugin_toggle as _pt
+    _pt.set_batch_toggles(toggles)
+    return jsonify({'ok': True, 'msg': '群组开关已保存'})
 @app.route('/api/bot/<int:num>/restart', methods=['POST'])
 @login_required
 def restart_bot(num):
