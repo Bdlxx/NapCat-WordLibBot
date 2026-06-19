@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>羽笙 - 管理面板</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪶</text></svg>">
+<title>依星 - 管理面板</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⭐</text></svg>">
 <style>
 /* ========== CSS Variables ========== */
 :root {
@@ -604,15 +604,18 @@ function markClean(key) { dirtyPlugins[key] = false; }
 function markDirty(key) { dirtyPlugins[key] = true; }
 
 async function renderConfig() {
-  updateBreadcrumb('词库配置');
+  updateBreadcrumb('插件配置');
   updateSidebarActive();
   document.getElementById('pageContent').innerHTML = '<div class="loading-skeleton" style="height:200px;"></div>';
 
   try {
-    const r = await fetch(`/api/bot/${botNum}/plugins`);
+    const r = await fetch('/api/bot/' + botNum + '/plugins');
     const d = await r.json();
-    configPlugins = d.plugins;
-    configKeys = Object.keys(d.plugins);
+    configPlugins = {};
+    for (const [key, val] of Object.entries(d.plugins)) {
+      if (key !== '_toggles') configPlugins[key] = val;
+    }
+    configKeys = Object.keys(configPlugins);
     dirtyPlugins = {};
 
     if (configKeys.length === 0) {
@@ -625,7 +628,7 @@ async function renderConfig() {
     let tabsHtml = '<div class="el-tabs"><div class="el-tabs-header">';
     for (const key of configKeys) {
       const p = configPlugins[key];
-      tabsHtml += `<div class="el-tab" data-tab="${key}" onclick="switchConfigTab('${key}')">${p.name}</div>`;
+      tabsHtml += '<div class="el-tab" data-tab="' + key + '" onclick="switchConfigTab('' + key + '')">' + (p.name_cn||key) + '</div>';
     }
     tabsHtml += '</div></div><div id="configContent"></div>';
     document.getElementById('pageContent').innerHTML = tabsHtml;
@@ -651,7 +654,16 @@ function switchConfigTab(key) {
   const plugin = configPlugins[key];
   if (!plugin) return;
 
-  let html = '<div class="card"><div class="card-header"><h3>' + plugin.name + '</h3><span class="badge">' + plugin.fields.length + ' 项</span></div>';
+  let html = '<div class="card"><div class="card-header"><h3>' + (plugin.name_cn||key) + '</h3><span class="badge">' + (plugin.fields?plugin.fields.length:'0') + ' 项</span></div>';
+  if (plugin.name_en) {
+    html += '<div style="padding:0 20px 8px;font-size:12px;color:var(--text-secondary);border-bottom:1px solid var(--border-light)">' + plugin.name_en + '</div>';
+  }
+
+  if (!plugin.has_config || !plugin.fields || plugin.fields.length === 0) {
+    html += '<div class="card-body"><div style="text-align:center;padding:30px;color:var(--text-secondary)">📭 该插件无可配置项</div></div></div>';
+    document.getElementById('configContent').innerHTML = html;
+    return;
+  }
 
   for (const field of plugin.fields) {
     const fid = 'f_' + key + '_' + field.k;
@@ -659,14 +671,12 @@ function switchConfigTab(key) {
 
     if (field.t === 'num') {
       inputHtml = '<input type="number" id="' + fid + '" value="' + field.v + '" min="' + (field.min||0) + '" max="' + (field.max||'') + '" step="' + (field.s||1) + '">';
+    } else if (field.t === 'sel' && field.o && field.o.length === 2 && field.o.includes('true') && field.o.includes('false')) {
+      const checked = String(field.v) === 'true';
+      inputHtml = '<label class="el-switch"><input type="checkbox" id="' + fid + '" ' + (checked?'checked':'') + ' onchange="onConfigChange()"><span class="track"></span><span style="font-size:12px;color:var(--text-secondary)">' + (checked?'已开启':'已关闭') + '</span></label>';
     } else if (field.t === 'sel') {
-      if (field.o && field.o.length === 2 && field.o.includes('true') && field.o.includes('false')) {
-        const checked = String(field.v) === 'true';
-        inputHtml = '<label class="el-switch"><input type="checkbox" id="' + fid + '" ' + (checked?'checked':'') + ' onchange="onConfigChange()"><span class="track"></span><span style="font-size:12px;color:var(--text-secondary)">' + (checked?'已开启':'已关闭') + '</span></label>';
-      } else {
-        const opts = field.o.map(o => '<option value="' + o + '" ' + (String(o)===String(field.v)?'selected':'') + '>' + o + '</option>').join('');
-        inputHtml = '<select id="' + fid + '">' + opts + '</select>';
-      }
+      const opts = field.o.map(o => '<option value="' + o + '" ' + (String(o)===String(field.v)?'selected':'') + '>' + o + '</option>').join('');
+      inputHtml = '<select id="' + fid + '">' + opts + '</select>';
     } else if (field.t === 'textlist') {
       const lines = Array.isArray(field.v) ? field.v.join('\n') : '';
       inputHtml = '<textarea id="' + fid + '" placeholder="每行一个">' + lines + '</textarea>';
@@ -761,41 +771,109 @@ async function renderGroups() {
   document.getElementById('pageContent').innerHTML = '<div class="loading-skeleton" style="height:200px;"></div>';
 
   try {
-    const r = await fetch(`/api/bot/${botNum}/plugins`);
+    const r = await fetch('/api/bot/' + botNum + '/plugins');
     const d = await r.json();
-    const toggles = d.plugins.group_toggles;
+    const tg = d.plugins._toggles;
 
-    if (!toggles) {
-      document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">🔀</div><p>暂无群组开关数据</p><div style="margin-top:8px;font-size:12px;">在群内发送「开启词库」等命令后自动生成</div></div>';
+    if (!tg || !tg.groups || !tg.groups.length) {
+      document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">🔀</div><p>暂无群组数据</p><div style="margin-top:8px;font-size:12px;">在群内发送「开启词库」等命令后自动生成</div></div>';
       return;
     }
 
-    const fields = toggles.fields || [];
-    let html = '<div class="card"><div class="card-header"><h3>👥 分群插件开关</h3><span class="badge">' + fields.length + ' 个群</span></div>';
-    if (fields.length === 0) {
-      html += '<div class="card-body"><div class="empty-state"><div class="icon">🔀</div><p>暂无已配置的群组</p></div></div>';
-    } else {
-      html += '<table class="el-table"><tr><th>群号</th><th>已开启插件</th><th>操作</th></tr>';
-      for (const field of fields) {
-        const line = field._line || '';
-        const parts = line.match(/群 (\d+): (.+)/);
-        if (parts) {
-          html += '<tr><td>' + parts[1] + '</td><td>' + parts[2] + '</td><td><span class="el-tag success">☑ 已配置</span></td></tr>';
-        }
+    const groups = tg.groups;
+    const plugins = tg.plugins;
+    const toggles = tg.toggles;
+    const meta = tg._pluginMeta || {};
+
+    // 初始化本地状态
+    if (!window._tgState) window._tgState = {};
+    for (const g of groups) {
+      if (!window._tgState[g]) window._tgState[g] = {};
+      for (const p of plugins) {
+        window._tgState[g][p] = toggles[g] ? !!toggles[g][p] : false;
       }
-      html += '</table>';
     }
-    html += '</div><div class="card"><div class="card-header"><h3>💡 说明</h3></div><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.8;">所有插件在每个群默认关闭，需要在群内发送对应开启命令。<br>例如：<code>开启词库</code>、<code>关闭词库</code><br>私聊发送开启/关闭命令 = 全局控制。</div></div>';
+
+    let html = '<div class="card"><div class="card-header"><h3>👥 分群插件开关</h3><span class="badge">' + groups.length + ' 个群</span></div>';
+    html += '<div class="card-body" style="overflow-x:auto"><table class="el-table" style="min-width:600px"><thead><tr><th style="position:sticky;left:0;background:var(--bg-card);z-index:1">群号</th>';
+    for (const p of plugins) {
+      const m = meta[p] || {};
+      html += '<th style="text-align:center;min-width:90px">' + (m.name_cn||p) + '<br><span style="font-weight:400;font-size:11px;color:var(--text-secondary)">' + p + '</span></th>';
+    }
+    html += '<th style="text-align:center;min-width:70px">全选</th></tr></thead><tbody>';
+
+    // 全选行
+    html += '<tr style="background:var(--bg-active)"><td style="font-weight:600">全选</td>';
+    for (const p of plugins) {
+      const allChecked = groups.every(g => window._tgState[g][p]);
+      html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" ' + (allChecked?'checked':'') + ' onchange="tgToggleAllPlugin(\'' + p + '\',this.checked)"><span class="track"></span></label></td>';
+    }
+    html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" onchange="tgToggleAll(this.checked)"><span class="track"></span></label></td></tr>';
+
+    // 数据行
+    for (const g of groups) {
+      const gAll = plugins.every(p => window._tgState[g][p]);
+      html += '<tr><td style="font-weight:500;position:sticky;left:0;background:var(--bg-card)">' + g + '</td>';
+      for (const p of plugins) {
+        const ch = window._tgState[g][p];
+        html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" ' + (ch?'checked':'') + ' onchange="tgToggle(\'' + g + '\',\'' + p + '\',this.checked)"><span class="track"></span></label></td>';
+      }
+      html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" ' + (gAll?'checked':'') + ' onchange="tgToggleGroup(\'' + g + '\',this.checked)"><span class="track"></span></label></td></tr>';
+    }
+    html += '</tbody></table></div></div>';
+    html += '<div style="display:flex;gap:10px;"><button class="btn btn-primary" onclick="tgSave()">💾 保存</button><button class="btn btn-default" onclick="renderGroups()">🔄 刷新</button></div>';
+    html += '<div class="card" style="margin-top:16px"><div class="card-header"><h3>💡 说明</h3></div><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.8;">所有插件在每个群默认关闭。<br>在群内发送对应命令开启：<code>开启词库</code> / <code>关闭词库</code><br>私聊发送 = 全局控制。横向「全选」列控制单个插件在所有群的状态，纵向「全选」行控制单个群的所有插件。</div></div>';
     document.getElementById('pageContent').innerHTML = html;
   } catch (e) {
     document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
   }
 }
 
+// ===== 群组开关辅助函数 =====
+function tgToggle(gid, plugin, checked) {
+  if (!window._tgState) return;
+  if (!window._tgState[gid]) window._tgState[gid] = {};
+  window._tgState[gid][plugin] = checked;
+}
+function tgToggleGroup(gid, checked) {
+  if (!window._tgState || !window._tgState[gid]) return;
+  for (const p of Object.keys(window._tgState[gid])) {
+    window._tgState[gid][p] = checked;
+  }
+  renderGroups();
+}
+function tgToggleAllPlugin(plugin, checked) {
+  if (!window._tgState) return;
+  for (const g of Object.keys(window._tgState)) {
+    window._tgState[g][plugin] = checked;
+  }
+}
+function tgToggleAll(checked) {
+  if (!window._tgState) return;
+  for (const g of Object.keys(window._tgState)) {
+    for (const p of Object.keys(window._tgState[g])) {
+      window._tgState[g][p] = checked;
+    }
+  }
+  renderGroups();
+}
+async function tgSave() {
+  if (!window._tgState || !Object.keys(window._tgState).length) return;
+  showToast('💾 保存群组开关...', 'info');
+  try {
+    const r = await fetch('/api/bot/' + botNum + '/group-toggles', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({toggles: window._tgState})
+    });
+    const d = await r.json();
+    if (d.ok) { showToast('✅ 已保存', 'success'); }
+    else { throw new Error(d.error || '保存失败'); }
+  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+}
+
 // ==========================================================
 // PAGE: Logs
-// ==========================================================
-async function renderLogs() {
+// ==========================================================async function renderLogs() {
   updateBreadcrumb('运行日志');
   updateSidebarActive();
   document.getElementById('pageContent').innerHTML = '<div class="loading-skeleton" style="height:200px;"></div>';
