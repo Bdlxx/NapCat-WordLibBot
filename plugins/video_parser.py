@@ -144,7 +144,6 @@ def _parse_bilibili(bvid):
 
 
 # ========== 抖音：Playwright 浏览器自动化 (hellotik.app) ==========
-import asyncio
 
 def _parse_douyin(url):
     """抖音：用 Playwright 打开 hellotik.app，自动粘贴链接→解析→取结果"""
@@ -504,6 +503,7 @@ def handle(event):
         return False
 
     print(f"[视频解析] {platform}: {url[:50]}...")
+    send_message(event, f"⏳ 正在解析{platform}视频，请稍候...")
     result = parse_video(url, platform)
     if not result:
         print(f"[视频解析] {platform} 解析失败")
