@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>依星 - 管理面板</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⭐</text></svg>">
+<title>羽笙 - 管理面板</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪶</text></svg>">
 <style>
 /* ========== CSS Variables ========== */
 :root {
@@ -401,7 +401,7 @@ if (savedTheme === 'dark') { document.documentElement.setAttribute('data-theme',
 apiFetch("/api/bot/" + botNum + "/info",{},8000).then(r=>r.json()).then(d=>{if(d.success){document.getElementById("botAvatar").src="https://q1.qlogo.cn/g?b=qq&nk="+d.qq+"&s=640";document.getElementById("botName").textContent=d.name||BOT_NAME;document.getElementById("botQQ").textContent="QQ "+d.qq;}}).catch(()=>{document.getElementById("botName").textContent=BOT_NAME;});
 
 // ===== SPA Router =====
-let currentPage = 'dashboard';
+let currentPage = 'config';
 let pageData = {};
 
 function navigate(page) {
@@ -637,7 +637,7 @@ async function renderConfig() {
     let tabsHtml = '<div class="el-tabs"><div class="el-tabs-header">';
     for (const key of configKeys) {
       const p = configPlugins[key];
-      tabsHtml += '<div class="el-tab" data-tab="' + key + '" onclick="switchConfigTab('' + key + '')">' + (p.name_cn||key) + '</div>';
+      tabsHtml += '<div class="el-tab" data-tab="' + key + '">' + (p.name_cn||key) + '</div>';
     }
     tabsHtml += '</div></div><div id="configContent"></div>';
     document.getElementById('pageContent').innerHTML = tabsHtml;
@@ -882,7 +882,8 @@ async function tgSave() {
 
 // ==========================================================
 // PAGE: Logs
-// ==========================================================async function renderLogs() {
+// ==========================================================
+async function renderLogs() {
   updateBreadcrumb('运行日志');
   updateSidebarActive();
   document.getElementById('pageContent').innerHTML = '<div class="loading-skeleton" style="height:200px;"></div>';
@@ -944,6 +945,11 @@ window.onerror = function(msg, url, line) {
     pc.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>页面发生错误</p></div>';
   }
 };
+// 配置标签页事件
+document.addEventListener('click', function(e) {
+  var tab = e.target.closest('.el-tab');
+  if (tab) switchConfigTab(tab.getAttribute('data-tab'));
+});
 window.addEventListener('unhandledrejection', function(e) {
   console.error('API请求失败:', e.reason);
 });
