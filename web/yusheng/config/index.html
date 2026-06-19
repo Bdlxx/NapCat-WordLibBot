@@ -322,9 +322,15 @@ a:hover { color: var(--color-primary-light); }
 <div class="app">
   <!-- ===== Sidebar ===== -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-      <span style="font-size:22px;">🪶</span>
-      <span class="logo-text">羽笙管理</span>
+    <div class="sidebar-logo" style="flex-direction:column;align-items:flex-start;gap:2px;">
+      <div style="display:flex;align-items:center;gap:8px;width:100%;">
+        <img id="botAvatar" src="" style="width:36px;height:36px;border-radius:50%;background:var(--bg-input);flex-shrink:0" alt="">
+        <div style="min-width:0;flex:1;">
+          <div class="logo-text" id="botName" style="font-size:14px;">加载中...</div>
+          <div style="font-size:11px;color:var(--text-secondary);" id="botQQ"></div>
+        </div>
+      </div>
+    </div>
     </div>
     <nav class="sidebar-nav" id="sidebarNav"></nav>
   </aside>
@@ -375,7 +381,7 @@ function toggleTheme() {
 const savedTheme = localStorage.getItem('theme');
 if (savedTheme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); document.getElementById('themeBtn').textContent = '☀️'; }
 // Fix logo
-document.querySelector('.sidebar-logo .logo-text').textContent = BOT_NAME + '管理';
+fetch("/api/bot/" + botNum + "/info").then(r=>r.json()).then(d=>{if(d.success){document.getElementById("botAvatar").src="https://q1.qlogo.cn/g?b=qq&nk="+d.qq+"&s=640";document.getElementById("botName").textContent=d.name||BOT_NAME;document.getElementById("botQQ").textContent="QQ "+d.qq;}}).catch(()=>{document.getElementById("botName").textContent=BOT_NAME;});
 
 // ===== SPA Router =====
 let currentPage = 'dashboard';
