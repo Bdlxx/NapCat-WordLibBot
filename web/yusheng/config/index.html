@@ -370,14 +370,23 @@ const botNum = window.location.pathname.match(/\/yusheng\/config/)?2:1;
 const BOT_NAME = botNum === 1 ? '依星' : '羽笙';
 fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
 
-// 所有API请求自动带CSRF防护头
-const _origFetch = window.fetch;
-window.fetch = function(url, opts) {
+// API 请求辅助函数（超时 + CSRF 头）
+function apiFetch(url, opts, timeoutMs) {
+  timeoutMs = timeoutMs || 15000;
   opts = opts || {};
   opts.headers = opts.headers || {};
-  opts.headers["X-Requested-With"] = "XMLHttpRequest";
-  return _origFetch.call(this, url, opts);
-};
+  opts.headers['X-Requested-With'] = 'XMLHttpRequest';
+  const controller = new AbortController();
+  opts.signal = controller.signal;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, opts).then(r => { clearTimeout(timer); return r; }).catch(e => {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') throw new Error('请求超时');
+    throw e;
+  });
+}
+
+
 // ===== Theme =====
 function toggleTheme() {
   const html = document.documentElement;
@@ -389,7 +398,7 @@ function toggleTheme() {
 const savedTheme = localStorage.getItem('theme');
 if (savedTheme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); document.getElementById('themeBtn').textContent = '☀️'; }
 // Fix logo
-fetch("/api/bot/" + botNum + "/info").then(r=>r.json()).then(d=>{if(d.success){document.getElementById("botAvatar").src="https://q1.qlogo.cn/g?b=qq&nk="+d.qq+"&s=640";document.getElementById("botName").textContent=d.name||BOT_NAME;document.getElementById("botQQ").textContent="QQ "+d.qq;}}).catch(()=>{document.getElementById("botName").textContent=BOT_NAME;});
+apiFetch("/api/bot/" + botNum + "/info",{},8000).then(r=>r.json()).then(d=>{if(d.success){document.getElementById("botAvatar").src="https://q1.qlogo.cn/g?b=qq&nk="+d.qq+"&s=640";document.getElementById("botName").textContent=d.name||BOT_NAME;document.getElementById("botQQ").textContent="QQ "+d.qq;}}).catch(()=>{document.getElementById("botName").textContent=BOT_NAME;});
 
 // ===== SPA Router =====
 let currentPage = 'dashboard';
@@ -470,7 +479,7 @@ function modalClick(idx) { if (modalCallback) { const cb = modalCallback; modalC
 async function fetchStatus() {
   const tag = document.getElementById('statusTag');
   try {
-    const r = await fetch(`/api/bot/${botNum}/status`);
+    const r = await apiFetch(`/api/bot/${botNum}/status`);
     const d = await r.json();
     if (d.running) { tag.innerHTML = '<span class="status-dot green"></span> 运行中'; tag.className = 'el-tag success'; }
     else { tag.innerHTML = '<span class="status-dot red"></span> 已停止'; tag.className = 'el-tag danger'; }
@@ -496,9 +505,9 @@ async function renderDashboard() {
 
   try {
     const [statusR, infoR, napcatR] = await Promise.all([
-      fetch(`/api/bot/${botNum}/status`).catch(() => null),
-      fetch(`/api/bot/${botNum}/info`).catch(() => null),
-      fetch(`/api/bot/${botNum}/napcat-status`).catch(() => null),
+      apiFetch(`/api/bot/${botNum}/status`).catch(() => null),
+      apiFetch(`/api/bot/${botNum}/info`).catch(() => null),
+      apiFetch(`/api/bot/${botNum}/napcat-status`).catch(() => null),
     ]);
     const status = statusR ? await statusR.json() : {};
     const info = infoR ? await infoR.json() : {};
@@ -609,7 +618,7 @@ async function renderConfig() {
   document.getElementById('pageContent').innerHTML = '<div class="loading-skeleton" style="height:200px;"></div>';
 
   try {
-    const r = await fetch('/api/bot/' + botNum + '/plugins');
+    const r = await apiFetch('/api/bot/' + botNum + '/plugins');
     const d = await r.json();
     configPlugins = {};
     for (const [key, val] of Object.entries(d.plugins)) {
@@ -727,7 +736,7 @@ async function saveCurrentConfig() {
   if (!cfg) return;
   showToast('💾 保存中...', 'info');
   try {
-    const r = await fetch('/api/bot/' + botNum + '/config', {
+    const r = await apiFetch('/api/bot/' + botNum + '/config', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({plugin: activePlugin, cfg})
     });
@@ -745,7 +754,7 @@ async function saveAndRestartConfig() {
   if (!cfg) return;
   showToast('💾 保存中...', 'info');
   try {
-    const r = await fetch('/api/bot/' + botNum + '/config', {
+    const r = await apiFetch('/api/bot/' + botNum + '/config', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({plugin: activePlugin, cfg})
     });
@@ -754,7 +763,7 @@ async function saveAndRestartConfig() {
     markClean(activePlugin);
     showToast('✅ 已保存，正在重启...', 'success');
     setTimeout(async () => {
-      await fetch('/api/bot/' + botNum + '/restart', { method: 'POST' });
+      await apiFetch('/api/bot/' + botNum + '/restart', { method: 'POST' });
       showToast('🔄 已重启', 'success');
       fetchStatus();
     }, 500);
@@ -771,7 +780,7 @@ async function renderGroups() {
   document.getElementById('pageContent').innerHTML = '<div class="loading-skeleton" style="height:200px;"></div>';
 
   try {
-    const r = await fetch('/api/bot/' + botNum + '/plugins');
+    const r = await apiFetch('/api/bot/' + botNum + '/plugins');
     const d = await r.json();
     const tg = d.plugins._toggles;
 
@@ -861,7 +870,7 @@ async function tgSave() {
   if (!window._tgState || !Object.keys(window._tgState).length) return;
   showToast('💾 保存群组开关...', 'info');
   try {
-    const r = await fetch('/api/bot/' + botNum + '/group-toggles', {
+    const r = await apiFetch('/api/bot/' + botNum + '/group-toggles', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({toggles: window._tgState})
     });
@@ -879,7 +888,7 @@ async function tgSave() {
   document.getElementById('pageContent').innerHTML = '<div class="loading-skeleton" style="height:200px;"></div>';
 
   try {
-    const r = await fetch(`/api/bot/${botNum}/screen-log`);
+    const r = await apiFetch(`/api/bot/${botNum}/screen-log`);
     const d = await r.json();
     const logText = d.log || '暂无日志';
 
@@ -927,6 +936,28 @@ fetchStatus();
 renderPage();
 setInterval(fetchStatus, 15000);
 
+// 全局错误捕获
+window.onerror = function(msg, url, line) {
+  console.error('页面错误:', msg, '行:', line);
+  const pc = document.getElementById('pageContent');
+  if (pc && pc.textContent.includes('⏳')) {
+    pc.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>页面发生错误</p></div>';
+  }
+};
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('API请求失败:', e.reason);
+});
+// 全局错误捕获
+window.onerror = function(msg, url, line) {
+  console.error('页面错误:', msg, '行:', line);
+  const pc = document.getElementById('pageContent');
+  if (pc && pc.textContent.includes('⏳')) {
+    pc.innerHTML = '<div class="empty-state"><div class="icon">\u26a0\ufe0f</div><p>页面发生错误</p></div>';
+  }
+};
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('API请求失败:', e.reason);
+});
 window.addEventListener('beforeunload', function(e) {
   if (Object.values(dirtyPlugins).some(v=>v)) { e.preventDefault(); e.returnValue = ''; }
 });

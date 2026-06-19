@@ -142,17 +142,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 <script>
 const botNum = window.location.pathname.startsWith('/yixing') ? 1 : 2;
 const BOT_NAME = botNum === 1 ? '依星' : '羽笙';
-// 所有API请求自动带CSRF防护头
-const _origFetch = window.fetch;
-window.fetch = function(url, opts) {
+// API 请求辅助函数（超时 + CSRF 头）
+function apiFetch(url, opts, timeoutMs) {
+  timeoutMs = timeoutMs || 15000;
   opts = opts || {};
   opts.headers = opts.headers || {};
   opts.headers['X-Requested-With'] = 'XMLHttpRequest';
-  return _origFetch.call(this, url, opts);
-};
-fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
+  // 使用 AbortController 实现超时
+  const controller = new AbortController();
+  opts.signal = controller.signal;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, opts).then(r => { clearTimeout(timer); return r; }).catch(e => {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') throw new Error('请求超时');
+    throw e;
+  });
+}
+apiFetch('/api/check-auth',{},8000).then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
 // 加载头像、昵称、QQ号
-fetch('/api/bot/' + botNum + '/info').then(r=>r.json()).then(d=>{
+apiFetch('/api/bot/' + botNum + '/info',{},8000).then(r=>r.json()).then(d=>{
   if (d.success) {
     document.getElementById('botAvatar').src = 'https://q1.qlogo.cn/g?b=qq&nk=' + d.qq + '&s=640';
     document.getElementById('botName').textContent = d.name || BOT_NAME;
@@ -186,7 +194,7 @@ function showToast(msg, type) {
   t._timer = setTimeout(() => t.className = 'toast', 3000);
 }
 function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
-function handleLogout() { fetch('/api/logout',{method:'POST'}).then(()=>window.location.href='/'); }
+function handleLogout() { apiFetch('/api/logout',{method:'POST'}).then(()=>window.location.href='/'); }
 
 const NAV_ITEMS = [
   { id:'dashboard', icon:'📊', label:'仪表盘', group:'概览' },
@@ -222,7 +230,7 @@ function renderSidebar() {
 
 async function fetchStatus() {
   try {
-    const r = await fetch('/api/bot/' + botNum + '/status');
+    const r = await apiFetch('/api/bot/' + botNum + '/status');
     const d = await r.json();
     const tag = document.getElementById('statusTag');
     if (d.running) { tag.innerHTML = '<span class="status-dot green"></span> 运行中'; tag.className = 'el-tag success'; }
@@ -237,8 +245,8 @@ async function renderDashboard() {
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
   try {
     const [infoR, napcatR] = await Promise.all([
-      fetch('/api/bot/' + botNum + '/info').catch(()=>null),
-      fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
+      apiFetch('/api/bot/' + botNum + '/info',{},10000).catch(()=>null),
+      apiFetch('/api/bot/' + botNum + '/napcat-status',{},10000).catch(()=>null),
     ]);
     const info = infoR ? await infoR.json() : {};
     const napcat = napcatR ? await napcatR.json() : {};
@@ -268,8 +276,8 @@ async function renderManage() {
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
   try {
     const [infoR, napcatR] = await Promise.all([
-      fetch('/api/bot/' + botNum + '/info').catch(()=>null),
-      fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
+      apiFetch('/api/bot/' + botNum + '/info',{},10000).catch(()=>null),
+      apiFetch('/api/bot/' + botNum + '/napcat-status',{},10000).catch(()=>null),
     ]);
     const info = infoR ? await infoR.json() : {};
     const napcat = napcatR ? await napcatR.json() : {};
@@ -301,7 +309,7 @@ async function doBotAction(action) {
   const msg = document.getElementById('manageMsg');
   msg.textContent = '操作中...';
   try {
-    const r = await fetch('/api/bot/' + botNum + '/' + action, {method:'POST'});
+    const r = await apiFetch('/api/bot/' + botNum + '/' + action, {method:'POST'});
     const d = await r.json();
     msg.textContent = d.message || d.msg || action + '成功';
     setTimeout(fetchStatus, 2000);
@@ -312,7 +320,7 @@ async function showQR() {
   document.getElementById('qrArea').style.display = 'block';
   document.getElementById('qrContainer').innerHTML = '获取中...';
   try {
-    const r = await fetch('/api/bot/' + botNum + '/napcat-qr');
+    const r = await apiFetch('/api/bot/' + botNum + '/napcat-qr');
     const d = await r.json();
     if (d.qr) document.getElementById('qrContainer').innerHTML = '<img src="data:image/png;base64,' + d.qr + '" style="max-width:240px;border-radius:8px" alt="QR">';
     else document.getElementById('qrContainer').innerHTML = '<div style="color:var(--text-secondary)">暂无二维码<br>NapCat 可能未启动</div>';
@@ -327,7 +335,7 @@ async function renderConfig() {
   renderSidebar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
   try {
-    const r = await fetch('/api/bot/' + botNum + '/plugins');
+    const r = await apiFetch('/api/bot/' + botNum + '/plugins');
     const d = await r.json();
     configPlugins = {};
     // 只取有插件文件存在的（排除 _toggles 元数据）
@@ -405,7 +413,7 @@ async function saveCurrentConfig() {
   if (!activePlugin) return; const cfg = collectCfg(activePlugin); if (!cfg) return;
   showToast('💾 保存中...','info');
   try {
-    const r = await fetch('/api/bot/' + botNum + '/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plugin:activePlugin,cfg})});
+    const r = await apiFetch('/api/bot/' + botNum + '/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plugin:activePlugin,cfg})});
     const d = await r.json();
     if (!d.ok) throw new Error(d.error||'保存失败');
     dirtyPlugins[activePlugin] = false; showToast('✅ 已保存','success'); fetchStatus();
@@ -417,7 +425,7 @@ async function saveAndRestartConfig() {
   try {
     await fetch('/api/bot/' + botNum + '/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plugin:activePlugin,cfg})});
     showToast('✅ 已保存，正在重启...','success');
-    setTimeout(async () => { await fetch('/api/bot/' + botNum + '/restart',{method:'POST'}); showToast('🔄 已重启','success'); fetchStatus(); }, 500);
+    setTimeout(async () => { await apiFetch('/api/bot/' + botNum + '/restart',{method:'POST'}); showToast('🔄 已重启','success'); fetchStatus(); }, 500);
   } catch(e) { showToast('❌ '+e.message,'error'); }
 }
 
@@ -427,7 +435,7 @@ async function renderGroups() {
   renderSidebar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
   try {
-    const r = await fetch('/api/bot/' + botNum + '/plugins');
+    const r = await apiFetch('/api/bot/' + botNum + '/plugins');
     const d = await r.json();
     const tg = d.plugins._toggles;
     if (!tg || !tg.groups || !tg.groups.length) {
@@ -514,7 +522,7 @@ async function tgSave() {
   if (!window._tgState || !Object.keys(window._tgState).length) return;
   showToast('💾 保存群组开关...', 'info');
   try {
-    const r = await fetch('/api/bot/' + botNum + '/group-toggles', {
+    const r = await apiFetch('/api/bot/' + botNum + '/group-toggles', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({toggles: window._tgState})
     });
@@ -527,7 +535,7 @@ async function tgSave() {
   renderSidebar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
   try {
-    const r = await fetch('/api/bot/' + botNum + '/screen-log');
+    const r = await apiFetch('/api/bot/' + botNum + '/screen-log');
     const d = await r.json();
     const lines = (d.log||'暂无日志').split('\n');
     let logHtml = '';
@@ -553,6 +561,18 @@ function renderPage() {
   }
 }
 
+// 全局错误捕获
+window.onerror = function(msg, url, line) {
+  console.error('页面错误:', msg, '行:', line);
+  const pc = document.getElementById('pageContent');
+  if (pc && pc.textContent.includes('⏳')) {
+    pc.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>页面发生错误，请刷新重试</p><button class="btn btn-primary" onclick="location.reload()" style="margin-top:12px">🔄 刷新页面</button></div>';
+  }
+};
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('API请求失败:', e.reason);
+  showToast('网络请求失败，请检查连接', 'error');
+});
 fetchStatus();
 // 加载超时兜底：10秒后如果还是加载中，显示刷新按钮
 const _loadTimer = setTimeout(() => {
