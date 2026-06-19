@@ -3,300 +3,200 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>羽笙 - 系统配置</title>
+<title>羽笙 - 管理面板</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪶</text></svg>">
 <style>
-/* ========== CSS Variables (Themes) ========== */
+/* ========== CSS Variables ========== */
 :root {
-  --bg-page: #f0f2f5;
-  --bg-sidebar: #fff;
-  --bg-header: #fff;
-  --bg-card: #fff;
-  --bg-input: #f5f7fa;
-  --bg-hover: #f0f2ff;
-  --bg-active: #ecf5ff;
-  --text-primary: #303133;
-  --text-regular: #606266;
-  --text-secondary: #909399;
-  --text-placeholder: #c0c4cc;
-  --border-color: #e4e7ed;
-  --border-light: #ebeef5;
-  --color-primary: #409eff;
-  --color-primary-light: #66b1ff;
-  --color-primary-dark: #3a8ee6;
-  --color-success: #67c23a;
-  --color-warning: #e6a23c;
-  --color-danger: #f56c6c;
+  --bg-page: #f0f2f5; --bg-sidebar: #fff; --bg-header: #fff; --bg-card: #fff;
+  --bg-input: #f5f7fa; --bg-hover: #f0f2ff; --bg-active: #ecf5ff;
+  --bg-warning-light: #fdf6ec;
+  --text-primary: #303133; --text-regular: #606266; --text-secondary: #909399;
+  --border-color: #e4e7ed; --border-light: #ebeef5;
+  --color-primary: #409eff; --color-primary-light: #66b1ff;
+  --color-success: #67c23a; --color-warning: #e6a23c; --color-danger: #f56c6c;
+  --color-info: #909399;
   --shadow-card: 0 2px 12px 0 rgba(0,0,0,.06);
-  --shadow-hover: 0 4px 16px 0 rgba(0,0,0,.1);
-  --radius: 8px;
-  --radius-lg: 12px;
-  --sidebar-width: 220px;
+  --radius: 8px; --radius-lg: 12px; --sidebar-width: 220px;
 }
-
-/* Dark theme */
 [data-theme="dark"] {
-  --bg-page: #141414;
-  --bg-sidebar: #1d1d1d;
-  --bg-header: #1d1d1d;
-  --bg-card: #1d1d1d;
-  --bg-input: #2a2a2a;
-  --bg-hover: #2a2a3a;
-  --bg-active: #1a2a3a;
-  --text-primary: #e5eaf3;
-  --text-regular: #cfd3dc;
-  --text-secondary: #a3a6ad;
-  --text-placeholder: #636466;
-  --border-color: #333;
-  --border-light: #2a2a2a;
+  --bg-page: #141414; --bg-sidebar: #1d1d1d; --bg-header: #1d1d1d; --bg-card: #1d1d1d;
+  --bg-input: #2a2a2a; --bg-hover: #2a2a3a; --bg-active: #1a2a3a; --bg-warning-light: #2a2a1a;
+  --text-primary: #e5eaf3; --text-regular: #cfd3dc; --text-secondary: #a3a6ad;
+  --border-color: #333; --border-light: #2a2a2a;
   --shadow-card: 0 2px 12px 0 rgba(0,0,0,.3);
-  --shadow-hover: 0 4px 16px 0 rgba(0,0,0,.4);
 }
 
-/* ========== Reset & Base ========== */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
-  font-size: 14px;
-  color: var(--text-primary);
-  background: var(--bg-page);
+  font-size: 14px; color: var(--text-primary); background: var(--bg-page);
   -webkit-font-smoothing: antialiased;
 }
+a { color: var(--color-primary); text-decoration: none; }
+a:hover { color: var(--color-primary-light); }
 
-/* ========== Layout ========== */
-.app-container {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-}
+/* ===== Layout ===== */
+.app { display: flex; height: 100vh; overflow: hidden; }
 
-/* ========== Sidebar ========== */
+/* ===== Sidebar ===== */
 .sidebar {
-  width: var(--sidebar-width);
-  background: var(--bg-sidebar);
+  width: var(--sidebar-width); background: var(--bg-sidebar);
   border-right: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  z-index: 10;
+  display: flex; flex-direction: column; flex-shrink: 0; z-index: 10;
 }
 .sidebar-logo {
-  padding: 18px 16px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-primary);
+  padding: 18px 16px; font-size: 16px; font-weight: 700;
   border-bottom: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
+  display: flex; align-items: center; gap: 8px;
 }
-.sidebar-logo span { font-size: 20px; }
-.sidebar-nav {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 0;
-}
+.sidebar-logo .logo-text { color: var(--color-primary); }
+.sidebar-nav { flex: 1; overflow-y: auto; padding: 8px 0; }
 .sidebar-nav::-webkit-scrollbar { width: 4px; }
 .sidebar-nav::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
 .nav-group-title {
-  padding: 12px 16px 6px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  padding: 14px 16px 6px; font-size: 11px; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
 }
 .nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  cursor: pointer;
-  color: var(--text-regular);
-  transition: all .2s;
-  border-left: 3px solid transparent;
-  margin: 2px 0;
-  font-size: 13px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; cursor: pointer; color: var(--text-regular);
+  transition: all .2s; border-left: 3px solid transparent;
+  margin: 2px 0; font-size: 13px; border-radius: 0 8px 8px 0;
+  margin-right: 8px;
 }
 .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
 .nav-item.active {
-  background: var(--bg-active);
-  color: var(--color-primary);
-  border-left-color: var(--color-primary);
-  font-weight: 600;
+  background: var(--bg-active); color: var(--color-primary);
+  border-left-color: var(--color-primary); font-weight: 600;
 }
 .nav-item .icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
-.nav-item .dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  margin-left: auto; flex-shrink: 0;
-}
-.nav-item .dot.dirty { background: var(--color-warning); }
-.nav-item .dot.clean { background: transparent; }
-
-/* ========== Main Area ========== */
-.main-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-width: 0;
+.nav-item .badge {
+  margin-left: auto; font-size: 11px; padding: 1px 6px; border-radius: 10px;
+  background: var(--color-danger); color: #fff; font-weight: 500;
 }
 
-/* ========== Header ========== */
+/* ===== Main ===== */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+/* ===== Header ===== */
 .header {
-  background: var(--bg-header);
-  border-bottom: 1px solid var(--border-color);
-  padding: 0 24px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-shrink: 0;
+  background: var(--bg-header); border-bottom: 1px solid var(--border-color);
+  padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 12px; flex-shrink: 0;
 }
-.header-title { font-size: 16px; font-weight: 600; color: var(--text-primary); }
-.header-sub { font-size: 12px; color: var(--text-secondary); margin-left: 4px; }
-.header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.header-breadcrumb { font-size: 14px; color: var(--text-secondary); }
+.header-breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
 /* Status badge */
-.status-badge {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; padding: 4px 12px; border-radius: 20px;
-  background: var(--bg-input); color: var(--text-regular);
+.el-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 500;
 }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.status-dot.green { background: var(--color-success); box-shadow: 0 0 6px rgba(103,194,58,.4); }
-.status-dot.red { background: var(--color-danger); box-shadow: 0 0 6px rgba(245,108,108,.4); }
+.el-tag.success { background: rgba(103,194,58,.15); color: var(--color-success); }
+.el-tag.danger { background: rgba(245,108,108,.15); color: var(--color-danger); }
+.el-tag.warning { background: rgba(230,162,60,.15); color: var(--color-warning); }
+.el-tag.info { background: rgba(144,147,153,.15); color: var(--color-info); }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.status-dot.green { background: var(--color-success); }
+.status-dot.red { background: var(--color-danger); }
 .status-dot.yellow { background: var(--color-warning); animation: pulse 1.2s infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 
-/* Theme toggle */
 .theme-btn {
   width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-color);
-  background: var(--bg-input); cursor: pointer; font-size: 16px; line-height: 1;
-  display: flex; align-items: center; justify-content: center;
-  transition: all .2s; color: var(--text-regular);
+  background: var(--bg-input); cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center; color: var(--text-regular);
+  transition: all .2s;
 }
 .theme-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
-
-/* Header action buttons */
 .header-btn {
   padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-color);
   background: var(--bg-input); cursor: pointer; font-size: 12px; color: var(--text-regular);
   transition: all .2s; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
 }
 .header-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
-.header-btn.primary {
-  background: var(--color-primary); color: #fff; border-color: var(--color-primary);
-}
-.header-btn.primary:hover { background: var(--color-primary-light); }
 
-/* ========== Content ========== */
-.content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-}
+/* ===== Content ===== */
+.content { flex: 1; overflow-y: auto; padding: 20px; }
 .content::-webkit-scrollbar { width: 6px; }
 .content::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
 
-/* ========== Card ========== */
+/* ===== Cards ===== */
 .card {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--border-light);
-  margin-bottom: 16px;
-  transition: box-shadow .2s;
+  background: var(--bg-card); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card); border: 1px solid var(--border-light);
+  margin-bottom: 16px; transition: box-shadow .2s;
 }
 .card-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-light);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--border-light);
+  display: flex; align-items: center; justify-content: space-between;
 }
-.card-header h3 {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.card-header h3 { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 .card-header .badge {
-  font-size: 11px;
-  padding: 2px 10px;
-  border-radius: 10px;
-  background: var(--bg-active);
-  color: var(--color-primary);
+  font-size: 11px; padding: 2px 10px; border-radius: 10px;
+  background: var(--bg-active); color: var(--color-primary);
 }
+.card-body { padding: 16px 20px; }
 
-/* ========== Form ========== */
+/* ===== Stat Cards ===== */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--bg-card); border-radius: var(--radius-lg);
+  padding: 20px; box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-light);
+  display: flex; align-items: flex-start; gap: 16px;
+  transition: box-shadow .2s;
+}
+.stat-card:hover { box-shadow: var(--shadow-hover); }
+.stat-icon {
+  width: 44px; height: 44px; border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+  flex-shrink: 0;
+}
+.stat-icon.blue { background: rgba(64,158,255,.12); }
+.stat-icon.green { background: rgba(103,194,58,.12); }
+.stat-icon.orange { background: rgba(230,162,60,.12); }
+.stat-icon.purple { background: rgba(144,107,224,.12); }
+.stat-info { flex: 1; min-width: 0; }
+.stat-info .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.stat-info .value { font-size: 22px; font-weight: 700; color: var(--text-primary); }
+.stat-info .desc { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+/* ===== Form ===== */
 .form-item {
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--border-light);
+  padding: 14px 20px; border-bottom: 1px solid var(--border-light);
   transition: background .2s;
 }
 .form-item:last-child { border-bottom: none; }
-.form-item:hover { background: var(--bg-hover); }
 .form-item label {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  margin-bottom: 8px;
+  display: block; font-size: 13px; font-weight: 500; margin-bottom: 8px;
 }
 .form-item .hint {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 6px;
-  line-height: 1.4;
+  font-size: 12px; color: var(--text-secondary); margin-top: 6px; line-height: 1.4;
 }
 .form-item input[type="text"],
 .form-item input[type="password"],
 .form-item textarea,
 .form-item select {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 13px;
-  outline: none;
-  transition: border .2s, box-shadow .2s;
-  font-family: inherit;
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border-color);
+  border-radius: var(--radius); background: var(--bg-input);
+  color: var(--text-primary); font-size: 13px; outline: none;
+  transition: border .2s, box-shadow .2s; font-family: inherit;
 }
-.form-item input:focus,
-.form-item textarea:focus,
-.form-item select:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(64,158,255,.2);
+.form-item input:focus, .form-item textarea:focus, .form-item select:focus {
+  border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(64,158,255,.2);
 }
-.form-item textarea {
-  min-height: 80px;
-  resize: vertical;
-  line-height: 1.5;
-}
+.form-item textarea { min-height: 80px; resize: vertical; line-height: 1.5; }
 .form-item input[type="number"] {
-  width: 120px;
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 13px;
-  outline: none;
-  transition: border .2s;
+  width: 120px; padding: 8px 12px; border: 1px solid var(--border-color);
+  border-radius: var(--radius); background: var(--bg-input);
+  color: var(--text-primary); font-size: 13px; outline: none;
 }
-.form-item input[type="number"]:focus { border-color: var(--color-primary); }
 
 /* Switch */
-.el-switch {
-  position: relative; display: inline-flex; align-items: center;
-  cursor: pointer; gap: 8px;
-}
+.el-switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; gap: 8px; }
 .el-switch input { display: none; }
 .el-switch .track {
   width: 40px; height: 20px; border-radius: 10px;
@@ -305,39 +205,20 @@ body {
 .el-switch .track::after {
   content: ''; position: absolute; top: 2px; left: 2px;
   width: 16px; height: 16px; border-radius: 50%;
-  background: #fff; transition: all .2s;
-  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  background: #fff; transition: all .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2);
 }
 .el-switch input:checked + .track { background: var(--color-primary); }
 .el-switch input:checked + .track::after { left: 22px; }
 
-/* Select */
-.form-item select {
-  appearance: auto;
-  cursor: pointer;
-  max-width: 240px;
-}
-
-/* ========== Footer Buttons ========== */
+/* ===== Buttons ===== */
 .footer-bar {
-  padding: 16px 20px;
-  border-top: 1px solid var(--border-light);
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  flex-shrink: 0;
+  padding: 16px 20px; border-top: 1px solid var(--border-light);
+  display: flex; gap: 12px; align-items: center; flex-shrink: 0;
 }
 .btn {
-  padding: 9px 20px;
-  border-radius: var(--radius);
-  border: none;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all .2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  padding: 9px 20px; border-radius: var(--radius); border: none;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: all .2s; display: inline-flex; align-items: center; gap: 6px;
 }
 .btn:active { transform: scale(.97); }
 .btn-primary { background: var(--color-primary); color: #fff; }
@@ -345,28 +226,24 @@ body {
 .btn-success { background: var(--color-success); color: #fff; }
 .btn-success:hover { filter: brightness(1.1); }
 .btn-warning { background: var(--color-warning); color: #fff; }
-.btn-warning:hover { filter: brightness(1.1); }
-.btn-default {
-  background: var(--bg-input); color: var(--text-regular); border: 1px solid var(--border-color);
-}
+.btn-danger { background: var(--color-danger); color: #fff; }
+.btn-default { background: var(--bg-input); color: var(--text-regular); border: 1px solid var(--border-color); }
 .btn-default:hover { color: var(--color-primary); border-color: var(--color-primary); }
 
-/* ========== Toast ========== */
+/* ===== Toast ===== */
 .toast {
   position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-  padding: 12px 24px; border-radius: var(--radius);
-  font-size: 14px; z-index: 9999;
-  opacity: 0; transition: all .3s;
-  pointer-events: none; white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  padding: 12px 24px; border-radius: var(--radius); font-size: 14px; z-index: 9999;
+  opacity: 0; transition: all .3s; pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15); white-space: nowrap;
 }
 .toast.show { opacity: 1; pointer-events: auto; }
-.toast.info { background: var(--color-primary); color: #fff; }
 .toast.success { background: var(--color-success); color: #fff; }
 .toast.error { background: var(--color-danger); color: #fff; }
 .toast.warning { background: var(--color-warning); color: #fff; }
+.toast.info { background: var(--color-primary); color: #fff; }
 
-/* ========== Modal ========== */
+/* ===== Modal ===== */
 .modal-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,.5); z-index: 9998;
@@ -378,92 +255,102 @@ body {
   padding: 24px; max-width: 400px; width: 90%;
   box-shadow: 0 8px 24px rgba(0,0,0,.2);
 }
-.modal-msg { font-size: 14px; color: var(--text-primary); margin-bottom: 20px; line-height: 1.6; }
+.modal-msg { font-size: 14px; margin-bottom: 20px; line-height: 1.6; }
 .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
 
-/* ========== Empty State ========== */
-.empty-state {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; padding: 60px 20px; color: var(--text-secondary);
+/* ===== Table ===== */
+.el-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.el-table th {
+  padding: 12px 16px; text-align: left; font-weight: 600;
+  background: var(--bg-input); color: var(--text-regular);
+  border-bottom: 1px solid var(--border-color);
 }
-.empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: .5; }
-.empty-state p { font-size: 14px; }
+.el-table td { padding: 12px 16px; border-bottom: 1px solid var(--border-light); }
+.el-table tr:hover td { background: var(--bg-hover); }
 
-/* ========== Responsive ========== */
+/* ===== Tabs ===== */
+.el-tabs { margin-bottom: 16px; }
+.el-tabs-header {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border-color);
+  margin-bottom: 16px;
+}
+.el-tab {
+  padding: 10px 20px; cursor: pointer; font-size: 14px;
+  color: var(--text-regular); border-bottom: 2px solid transparent;
+  margin-bottom: -1px; transition: all .2s;
+}
+.el-tab:hover { color: var(--color-primary); }
+.el-tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 500; }
+
+/* ===== Empty ===== */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: .4; }
+
+/* ===== Log viewer ===== */
+.log-viewer {
+  background: #1e1e1e; color: #d4d4d4; font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px; padding: 16px; border-radius: var(--radius);
+  max-height: 500px; overflow-y: auto; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+}
+.log-viewer .time { color: #6a9955; }
+.log-viewer .info { color: #9cdcfe; }
+.log-viewer .warn { color: #ce9178; }
+.log-viewer .error { color: #f44747; }
+.log-line { padding: 0; }
+.log-line:hover { background: rgba(255,255,255,.03); }
+
+/* ===== Loading ===== */
+.loading-skeleton { animation: shimmer 1.5s infinite; background: linear-gradient(90deg, var(--bg-input) 25%, var(--bg-hover) 50%, var(--bg-input) 75%); background-size: 200% 100%; border-radius: var(--radius); height: 20px; margin: 8px 0; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ===== Responsive ===== */
 @media (max-width: 768px) {
   .sidebar { position: fixed; left: -260px; top: 0; bottom: 0; transition: left .3s; z-index: 100; }
   .sidebar.open { left: 0; }
   .sidebar-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.4); z-index: 99; display: none; }
   .sidebar-overlay.open { display: block; }
   .header { padding: 0 12px; }
-  .header-title { font-size: 14px; }
   .content { padding: 12px; }
+  .stat-grid { grid-template-columns: 1fr 1fr; }
   .mobile-menu-btn { display: flex !important; }
 }
 .mobile-menu-btn { display: none; }
-
-/* ========== Loading skeleton ========== */
-.skeleton { animation: shimmer 1.5s infinite; background: linear-gradient(90deg, var(--bg-input) 25%, var(--bg-hover) 50%, var(--bg-input) 75%); background-size: 200% 100%; border-radius: var(--radius); }
-@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>
 </head>
 <body>
-
-<!-- Mobile sidebar overlay -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-
-<div class="app-container">
+<div class="app">
   <!-- ===== Sidebar ===== -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <span>🪶</span> 羽笙管理
+      <span style="font-size:22px;">🪶</span>
+      <span class="logo-text">羽笙管理</span>
     </div>
-    <nav class="sidebar-nav" id="sidebarNav">
-      <!-- Dynamically populated -->
-    </nav>
+    <nav class="sidebar-nav" id="sidebarNav"></nav>
   </aside>
 
   <!-- ===== Main ===== -->
-  <div class="main-area">
-    <!-- Header -->
+  <div class="main">
     <header class="header">
-      <button class="header-btn mobile-menu-btn" onclick="toggleSidebar()" style="border:none;background:transparent;font-size:20px;">☰</button>
-      <span class="header-title">词库配置</span>
-      <span class="header-sub" id="headerSub">加载中...</span>
+      <button class="header-btn mobile-menu-btn" onclick="toggleSidebar()" style="border:none;background:transparent;font-size:18px;">☰</button>
+      <div class="header-breadcrumb" id="breadcrumb"><span class="current">仪表盘</span></div>
       <div class="header-right">
-        <span class="status-badge">
-          <span class="status-dot yellow" id="statusDot"></span>
-          <span id="statusText">检测中</span>
-        </span>
+        <span class="el-tag" id="statusTag"><span class="status-dot yellow"></span> 检测中</span>
         <button class="theme-btn" onclick="toggleTheme()" id="themeBtn" title="切换主题">🌙</button>
-        <a class="header-btn" href="/yusheng/">← 返回</a>
+        <a class="header-btn" href="/yusheng/">← 返回首页</a>
       </div>
     </header>
 
-    <!-- Content -->
-    <div class="content" id="fieldsContainer">
-      <div class="empty-state">
-        <div class="icon">⏳</div>
-        <p>加载配置中...</p>
-      </div>
-    </div>
+    <div class="content" id="pageContent"></div>
 
-    <!-- Footer -->
     <div class="footer-bar" id="footerBar" style="display:none;">
-      <div style="flex:1;font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;" id="footerInfo">
-        <span id="footerPluginName"></span>
-        <span class="dot" id="footerDirtyDot" style="width:7px;height:7px;border-radius:50%;background:transparent;"></span>
-      </div>
-      <button class="btn btn-primary" onclick="saveCurrent()">💾 保存</button>
-      <button class="btn btn-success" onclick="saveAndRestart()">💾 保存 & 重启</button>
+      <span style="font-size:12px;color:var(--text-secondary);" id="footerInfo"></span>
+      <div style="margin-left:auto;display:flex;gap:8px;" id="footerActions"></div>
     </div>
   </div>
 </div>
 
-<!-- Toast -->
 <div class="toast" id="toast"></div>
-
-<!-- Modal -->
 <div class="modal-overlay" id="modal">
   <div class="modal-box">
     <div class="modal-msg" id="modalMsg"></div>
@@ -472,19 +359,12 @@ body {
 </div>
 
 <script>
-// ========== Bot Number ==========
+// ===== Config =====
 const botNum = window.location.pathname.match(/\/yusheng\/config/)?2:1;
+const BOT_NAME = botNum === 1 ? '依星' : '羽笙';
 fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
-const botName = botNum === 1 ? '依星' : '羽笙';
 
-// ========== State ==========
-let currentPlugins = {};
-let pluginKeys = [];
-let activePlugin = null;
-let dirtyPlugins = {};
-let navGroups = {};  // {groupName: [pluginKey, ...]}
-
-// ========== Theme ==========
+// ===== Theme =====
 function toggleTheme() {
   const html = document.documentElement;
   const isDark = html.getAttribute('data-theme') === 'dark';
@@ -492,239 +372,322 @@ function toggleTheme() {
   localStorage.setItem('theme', isDark ? 'light' : 'dark');
   document.getElementById('themeBtn').textContent = isDark ? '🌙' : '☀️';
 }
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); document.getElementById('themeBtn').textContent = '☀️'; }
+// Fix logo
+document.querySelector('.sidebar-logo .logo-text').textContent = BOT_NAME + '管理';
 
-// ========== Sidebar ==========
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('sidebarOverlay').classList.toggle('open');
+// ===== SPA Router =====
+let currentPage = 'dashboard';
+let pageData = {};
+
+function navigate(page) {
+  currentPage = page;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  renderPage();
 }
 
-// ========== Toast ==========
-function showToast(msg, type) {
-  type = type || 'info';
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast ' + type + ' show';
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.className = 'toast', 3000);
-}
+const NAV_ITEMS = [
+  { id: 'dashboard', icon: '📊', label: '仪表盘', group: '概览' },
+  { id: 'config',    icon: '⚙️',  label: '词库配置', group: '管理' },
+  { id: 'groups',    icon: '👥',  label: '群组开关', group: '管理' },
+  { id: 'logs',      icon: '📋',  label: '运行日志', group: '管理' },
+];
 
-// ========== Modal ==========
-let modalCallback = null;
-function showModal(msg, buttons) {
-  document.getElementById('modalMsg').textContent = msg;
-  const btns = document.getElementById('modalBtns');
-  btns.innerHTML = buttons.map((b,i) =>
-    `<button class="btn ${b.cls||'btn-default'}" onclick="modalClick(${i})">${b.label}</button>`
-  ).join('');
-  document.getElementById('modal').classList.add('open');
-  modalCallback = (idx) => {
-    document.getElementById('modal').classList.remove('open');
-    btns.innerHTML = '';
-    if (buttons[idx]) buttons[idx].fn && buttons[idx].fn();
-  };
-}
-function modalClick(idx) { if (modalCallback) { const cb = modalCallback; modalCallback = null; cb(idx); } }
-
-// ========== Status ==========
-async function checkStatus() {
-  const dot = document.getElementById('statusDot');
-  const txt = document.getElementById('statusText');
-  dot.className = 'status-dot yellow';
-  txt.textContent = '检测中';
-  try {
-    const r = await fetch(`/api/bot/${botNum}/status`);
-    const d = await r.json();
-    if (d.running) { dot.className = 'status-dot green'; txt.textContent = '运行中'; }
-    else { dot.className = 'status-dot red'; txt.textContent = '已停止'; }
-  } catch { dot.className = 'status-dot red'; txt.textContent = '连接失败'; }
-}
-
-// ========== Dirty Tracking ==========
-function markClean(key) { dirtyPlugins[key] = false; updateNavDot(key); }
-function markDirty(key) { dirtyPlugins[key] = true; updateNavDot(key); }
-function isDirty(key) { return !!dirtyPlugins[key]; }
-function anyDirty() { return Object.values(dirtyPlugins).some(v=>v); }
-function updateNavDot(key) {
-  const item = document.querySelector(`[data-plugin="${key}"] .dot`);
-  if (item) item.className = 'dot ' + (isDirty(key) ? 'dirty' : 'clean');
-  updateFooterDirty();
-}
-function updateFooterDirty() {
-  const dot = document.getElementById('footerDirtyDot');
-  if (activePlugin && isDirty(activePlugin)) {
-    dot.style.background = 'var(--color-warning)';
-  } else {
-    dot.style.background = 'transparent';
-  }
-}
-
-// ========== Render Sidebar ==========
-function buildSidebar() {
+function renderSidebar() {
   const nav = document.getElementById('sidebarNav');
-  const groups = {
-    'wordlib': { group: '词库管理', icon: '🎯', order: 0 },
-    'group_toggles': { group: '系统设置', icon: '⚙️', order: 1 },
-  };
-
-  // Custom icons per plugin key
-  const pluginIcons = {
-    'wordlib': '🎯',
-    'group_toggles': '🔀',
-  };
-  const pluginGroups = {
-    'wordlib': '词库管理',
-    'group_toggles': '系统设置',
-  };
-
-  // Group plugins
-  const grouped = {};
-  for (const key of pluginKeys) {
-    const g = pluginGroups[key] || '其他';
-    if (!grouped[g]) grouped[g] = [];
-    grouped[g].push(key);
+  const groups = {};
+  for (const item of NAV_ITEMS) {
+    if (!groups[item.group]) groups[item.group] = [];
+    groups[item.group].push(item);
   }
-
   let html = '';
-  const groupOrder = ['词库管理', '系统设置', '其他'];
-  for (const g of groupOrder) {
-    if (!grouped[g]) continue;
+  for (const [g, items] of Object.entries(groups)) {
     html += `<div class="nav-group-title">${g}</div>`;
-    for (const key of grouped[g]) {
-      const p = currentPlugins[key];
-      const icon = pluginIcons[key] || '📄';
-      html += `<div class="nav-item" data-plugin="${key}" onclick="switchPlugin('${key}')">
-        <span class="icon">${icon}</span>
-        ${p ? p.name : key}
-        <span class="dot clean"></span>
+    for (const item of items) {
+      const active = currentPage === item.id ? 'active' : '';
+      html += `<div class="nav-item ${active}" data-page="${item.id}" onclick="navigate('${item.id}')">
+        <span class="icon">${item.icon}</span> ${item.label}
       </div>`;
     }
   }
   nav.innerHTML = html;
 }
 
-// ========== Render Content ==========
-function renderPlugin(key) {
-  const plugin = currentPlugins[key];
-  if (!plugin) return;
-  activePlugin = key;
-
-  // Update sidebar active state
+function updateBreadcrumb(title) {
+  document.getElementById('breadcrumb').innerHTML = `<span class="current">${title}</span>`;
+}
+function updateSidebarActive() {
   document.querySelectorAll('.nav-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.plugin === key);
+    el.classList.toggle('active', el.dataset.page === currentPage);
   });
-
-  // Update footer
-  document.getElementById('footerBar').style.display = 'flex';
-  document.getElementById('footerPluginName').textContent = plugin.name;
-  updateFooterDirty();
-
-  const container = document.getElementById('fieldsContainer');
-  let html = `<div class="card"><div class="card-header"><h3>${plugin.name}</h3><span class="badge">${plugin.fields.length} 项</span></div>`;
-
-  for (const field of plugin.fields) {
-    const fid = `f_${key}_${field.k}`;
-    let inputHtml = '';
-
-    if (field.t === 'num') {
-      inputHtml = `<input type="number" id="${fid}" value="${field.v}" min="${field.min||0}" max="${field.max||''}" step="${field.s||1}">`;
-    } else if (field.t === 'sel') {
-      const opts = field.o.map(o => `<option value="${o}" ${String(o)===String(field.v)?'selected':''}>${o}</option>`).join('');
-      inputHtml = `<select id="${fid}">${opts}</select>`;
-    } else if (field.t === 'textlist') {
-      const lines = Array.isArray(field.v) ? field.v.join('\n') : '';
-      inputHtml = `<textarea id="${fid}" placeholder="每行一个">${lines}</textarea>`;
-    } else if (field.t === 'password') {
-      inputHtml = `<input type="password" id="${fid}" value="${field.v}" autocomplete="off">`;
-    } else if (field.t === 'textarea') {
-      inputHtml = `<textarea id="${fid}" style="min-height:120px">${field.v}</textarea>`;
-    } else {
-      inputHtml = `<input type="text" id="${fid}" value="${field.v}">`;
-    }
-
-    // For settings named "enabled" or containing "开启"/"开关" - use switch
-    const isToggle = field.k.endsWith('_enabled') || field.k === 'enabled' || field.t === 'sel';
-    if (isToggle && field.t === 'sel' && field.o && field.o.length === 2) {
-      // Render as switch
-      const checked = String(field.v) === 'true';
-      inputHtml = `<label class="el-switch">
-        <input type="checkbox" id="${fid}" ${checked?'checked':''} onchange="onFieldChange('${key}')">
-        <span class="track"></span>
-        <span style="font-size:12px;color:var(--text-secondary)">${checked?'已开启':'已关闭'}</span>
-      </label>`;
-    }
-
-    html += `<div class="form-item"><label>${field.l}</label>${inputHtml}`;
-    if (field.hint) html += `<div class="hint">${field.hint}</div>`;
-    html += `</div>`;
-  }
-
-  html += '</div>';
-  container.innerHTML = html;
-
-  // Attach change tracking
-  attachChangeTracking(key);
 }
 
-function onFieldChange(key) {
-  if (!isDirty(key)) markDirty(key);
+function showFooter(info, actions) {
+  const bar = document.getElementById('footerBar');
+  if (!info && !actions) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  document.getElementById('footerInfo').textContent = info || '';
+  document.getElementById('footerActions').innerHTML = (actions || []).map(a =>
+    `<button class="btn ${a.cls || 'btn-default'}" onclick="(${a.fn})()">${a.label}</button>`
+  ).join('');
 }
 
-function attachChangeTracking(key) {
-  if (!currentPlugins[key]) return;
-  for (const field of currentPlugins[key].fields) {
-    const el = document.getElementById(`f_${key}_${field.k}`);
-    if (!el) continue;
-    el.oninput = el.onchange = () => { if (!isDirty(key)) markDirty(key); };
+// ===== Toast & Modal =====
+function showToast(msg, type) {
+  type = type || 'info';
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type + ' show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.className = 'toast', 3000);
+}
+let modalCallback = null;
+function showModal(msg, buttons) {
+  document.getElementById('modalMsg').textContent = msg;
+  const btns = document.getElementById('modalBtns');
+  btns.innerHTML = buttons.map((b,i) => `<button class="btn ${b.cls||'btn-default'}" onclick="modalClick(${i})">${b.label}</button>`).join('');
+  document.getElementById('modal').classList.add('open');
+  modalCallback = (idx) => { document.getElementById('modal').classList.remove('open'); btns.innerHTML=''; if(buttons[idx]) buttons[idx].fn && buttons[idx].fn(); };
+}
+function modalClick(idx) { if (modalCallback) { const cb = modalCallback; modalCallback=null; cb(idx); } }
+
+// ===== Status =====
+async function fetchStatus() {
+  const tag = document.getElementById('statusTag');
+  try {
+    const r = await fetch(`/api/bot/${botNum}/status`);
+    const d = await r.json();
+    if (d.running) { tag.innerHTML = '<span class="status-dot green"></span> 运行中'; tag.className = 'el-tag success'; }
+    else { tag.innerHTML = '<span class="status-dot red"></span> 已停止'; tag.className = 'el-tag danger'; }
+  } catch {
+    tag.innerHTML = '<span class="status-dot yellow"></span> 连接失败'; tag.className = 'el-tag warning';
   }
 }
 
-// ========== Plugin Switching ==========
-function switchPlugin(key) {
-  if (key === activePlugin) { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); return; }
-  if (activePlugin && isDirty(activePlugin)) {
-    showModal('当前插件有未保存的修改，是否保存并切换？', [
-      { label:'取消', cls:'btn-default', fn:()=>{} },
-      { label:'保存并切换', cls:'btn-primary', fn:() => doSave(activePlugin, ()=>doSwitch(key)) }
+// ===== Sidebar =====
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+
+// ==========================================================
+// PAGE: Dashboard
+// ==========================================================
+async function renderDashboard() {
+  updateBreadcrumb('仪表盘');
+  updateSidebarActive();
+  showFooter(null, null);
+  document.getElementById('pageContent').innerHTML = '<div class="loading-skeleton" style="height:200px;"></div>';
+
+  try {
+    const [statusR, infoR, napcatR] = await Promise.all([
+      fetch(`/api/bot/${botNum}/status`).catch(() => null),
+      fetch(`/api/bot/${botNum}/info`).catch(() => null),
+      fetch(`/api/bot/${botNum}/napcat-status`).catch(() => null),
     ]);
-  } else {
-    doSwitch(key);
+    const status = statusR ? await statusR.json() : {};
+    const info = infoR ? await infoR.json() : {};
+    const napcat = napcatR ? await napcatR.json() : {};
+
+    const botRunning = status.running;
+    const napcatRunning = napcat.running;
+
+    document.getElementById('pageContent').innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue">🤖</div>
+          <div class="stat-info">
+            <div class="label">Bot 状态</div>
+            <div class="value">${botRunning ? '运行中' : '已停止'}</div>
+            <div class="desc">${info.name || BOT_NAME} · QQ ${info.qq || ''}</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">🐱</div>
+          <div class="stat-info">
+            <div class="label">NapCat 状态</div>
+            <div class="value">${napcatRunning ? '运行中' : '已停止'}</div>
+            <div class="desc">容器: ${napcat.container || '-'}</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon purple">📦</div>
+          <div class="stat-info">
+            <div class="label">项目目录</div>
+            <div class="value" style="font-size:16px;">${info.dir || '-'}</div>
+            <div class="desc">Screen: ${info.screen || '-'}</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange">📊</div>
+          <div class="stat-info">
+            <div class="label">Web 面板</div>
+            <div class="value">在线</div>
+            <div class="desc">端口 ${window.location.port || '8080'}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>⚡ 快捷操作</h3></div>
+        <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="quickAction('restart')">🔄 重启 Bot</button>
+          <button class="btn btn-success" onclick="quickAction('napcat')">🐱 重启 NapCat</button>
+          <button class="btn btn-default" onclick="quickAction('log')">📋 查看日志</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>🔍 系统信息</h3></div>
+        <div class="card-body">
+          <table class="el-table">
+            <tr><th width="120">项目</th><th>值</th></tr>
+            <tr><td>机器人</td><td>${info.name || BOT_NAME} (QQ:${info.qq || '-'})</td></tr>
+            <tr><td>主人</td><td>QQ ${info.master || '-'}</td></tr>
+            <tr><td>运行目录</td><td>${info.dir || '-'}</td></tr>
+            <tr><td>Screen</td><td>${info.screen || '-'}</td></tr>
+            <tr><td>NapCat</td><td>容器 ${napcat.container || '-'} · 状态 ${napcat.status || '-'}</td></tr>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败: ' + e.message + '</p></div>';
   }
 }
-function doSwitch(key) {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebarOverlay').classList.remove('open');
-  if (currentPlugins[key]) renderPlugin(key);
+
+async function quickAction(action) {
+  if (action === 'restart') {
+    showToast('🔄 正在重启 Bot...', 'info');
+    try {
+      await fetch(`/api/bot/${botNum}/restart`, { method: 'POST' });
+      showToast('✅ 已发送重启指令', 'success');
+      setTimeout(fetchStatus, 2000);
+    } catch(e) { showToast('❌ ' + e.message, 'error'); }
+  } else if (action === 'napcat') {
+    showToast('🐱 正在重启 NapCat...', 'info');
+    try {
+      const container = botNum === 1 ? 'napcat' : 'napcat2';
+      await fetch(`/api/bot/${botNum}/restart`, { method: 'POST' });
+      showToast('✅ 已发送 NapCat 重启指令', 'success');
+    } catch(e) { showToast('❌ ' + e.message, 'error'); }
+  } else if (action === 'log') {
+    navigate('logs');
+  }
 }
 
-// ========== Load Config ==========
-async function loadConfig() {
-  document.getElementById('headerSub').textContent = `${botName} - 加载中...`;
+// ==========================================================
+// PAGE: Config
+// ==========================================================
+let configPlugins = {};
+let configKeys = [];
+let activePlugin = null;
+let dirtyPlugins = {};
+
+function isDirty(key) { return !!dirtyPlugins[key]; }
+function markClean(key) { dirtyPlugins[key] = false; }
+function markDirty(key) { dirtyPlugins[key] = true; }
+
+async function renderConfig() {
+  updateBreadcrumb('词库配置');
+  updateSidebarActive();
+  document.getElementById('pageContent').innerHTML = '<div class="loading-skeleton" style="height:200px;"></div>';
+
   try {
     const r = await fetch(`/api/bot/${botNum}/plugins`);
     const d = await r.json();
-    currentPlugins = d.plugins;
-    document.getElementById('headerSub').textContent = `${d.bot.name} (QQ:${d.bot.qq})`;
-    pluginKeys = Object.keys(d.plugins);
+    configPlugins = d.plugins;
+    configKeys = Object.keys(d.plugins);
     dirtyPlugins = {};
 
-    buildSidebar();
+    if (configKeys.length === 0) {
+      document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>暂无可用配置</p></div>';
+      showFooter(null, null);
+      return;
+    }
 
-    if (pluginKeys.length > 0) renderPlugin(pluginKeys[0]);
-    else document.getElementById('fieldsContainer').innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>暂无可用配置</p></div>';
+    // Build tabs
+    let tabsHtml = '<div class="el-tabs"><div class="el-tabs-header">';
+    for (const key of configKeys) {
+      const p = configPlugins[key];
+      tabsHtml += `<div class="el-tab" data-tab="${key}" onclick="switchConfigTab('${key}')">${p.name}</div>`;
+    }
+    tabsHtml += '</div></div><div id="configContent"></div>';
+    document.getElementById('pageContent').innerHTML = tabsHtml;
+
+    // Footer with save buttons
+    showFooter('修改后记得保存', [
+      { label: '💾 保存', cls: 'btn-primary', fn: '() => saveCurrentConfig()' },
+      { label: '💾 保存并重启', cls: 'btn-success', fn: '() => saveAndRestartConfig()' },
+    ]);
+
+    // Show first tab
+    switchConfigTab(configKeys[0]);
   } catch (e) {
-    document.getElementById('headerSub').textContent = '加载失败';
-    showToast('❌ 加载失败: ' + e.message, 'error');
+    document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
+    showFooter(null, null);
   }
 }
 
-// ========== Save ==========
-function collectSingle(key) {
+function switchConfigTab(key) {
+  activePlugin = key;
+  document.querySelectorAll('.el-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === key));
+
+  const plugin = configPlugins[key];
+  if (!plugin) return;
+
+  let html = '<div class="card"><div class="card-header"><h3>' + plugin.name + '</h3><span class="badge">' + plugin.fields.length + ' 项</span></div>';
+
+  for (const field of plugin.fields) {
+    const fid = 'f_' + key + '_' + field.k;
+    let inputHtml = '';
+
+    if (field.t === 'num') {
+      inputHtml = '<input type="number" id="' + fid + '" value="' + field.v + '" min="' + (field.min||0) + '" max="' + (field.max||'') + '" step="' + (field.s||1) + '">';
+    } else if (field.t === 'sel') {
+      if (field.o && field.o.length === 2 && field.o.includes('true') && field.o.includes('false')) {
+        const checked = String(field.v) === 'true';
+        inputHtml = '<label class="el-switch"><input type="checkbox" id="' + fid + '" ' + (checked?'checked':'') + ' onchange="onConfigChange()"><span class="track"></span><span style="font-size:12px;color:var(--text-secondary)">' + (checked?'已开启':'已关闭') + '</span></label>';
+      } else {
+        const opts = field.o.map(o => '<option value="' + o + '" ' + (String(o)===String(field.v)?'selected':'') + '>' + o + '</option>').join('');
+        inputHtml = '<select id="' + fid + '">' + opts + '</select>';
+      }
+    } else if (field.t === 'textlist') {
+      const lines = Array.isArray(field.v) ? field.v.join('\n') : '';
+      inputHtml = '<textarea id="' + fid + '" placeholder="每行一个">' + lines + '</textarea>';
+    } else if (field.t === 'password') {
+      inputHtml = '<input type="password" id="' + fid + '" value="' + field.v + '" autocomplete="off">';
+    } else if (field.t === 'textarea') {
+      inputHtml = '<textarea id="' + fid + '" style="min-height:120px">' + field.v + '</textarea>';
+    } else {
+      inputHtml = '<input type="text" id="' + fid + '" value="' + (field.v || '') + '">';
+    }
+
+    html += '<div class="form-item"><label>' + field.l + '</label>' + inputHtml;
+    if (field.hint) html += '<div class="hint">' + field.hint + '</div>';
+    html += '</div>';
+  }
+  html += '</div>';
+  document.getElementById('configContent').innerHTML = html;
+
+  // Attach change events
+  for (const field of plugin.fields) {
+    const el = document.getElementById('f_' + key + '_' + field.k);
+    if (el) el.oninput = el.onchange = function() { if (!isDirty(key)) { markDirty(key); } };
+  }
+}
+
+function onConfigChange() {
+  if (activePlugin && !isDirty(activePlugin)) markDirty(activePlugin);
+}
+
+function collectConfig(key) {
   const cfg = {};
-  const plugin = currentPlugins[key];
+  const plugin = configPlugins[key];
   if (!plugin) return null;
   for (const field of plugin.fields) {
-    const el = document.getElementById(`f_${key}_${field.k}`);
+    const el = document.getElementById('f_' + key + '_' + field.k);
     if (!el) continue;
     if (field.t === 'num') cfg[field.k] = parseFloat(el.value);
     else if (field.t === 'textlist') cfg[field.k] = el.value.split('\n').map(s=>s.trim()).filter(s=>s);
@@ -734,41 +697,32 @@ function collectSingle(key) {
   return cfg;
 }
 
-async function doSave(key, then) {
-  const cfg = collectSingle(key);
+async function saveCurrentConfig() {
+  if (!activePlugin) return;
+  const cfg = collectConfig(activePlugin);
   if (!cfg) return;
   showToast('💾 保存中...', 'info');
   try {
-    const r = await fetch(`/api/bot/${botNum}/config`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({plugin: key, cfg})
+    const r = await fetch('/api/bot/' + botNum + '/config', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({plugin: activePlugin, cfg})
     });
     const d = await r.json();
     if (!d.ok) throw new Error(d.error || '保存失败');
-    markClean(key);
+    markClean(activePlugin);
     showToast('✅ 已保存', 'success');
-    checkStatus();
-    if (then) then();
-  } catch(e) {
-    showToast('❌ ' + e.message, 'error');
-  }
+    fetchStatus();
+  } catch(e) { showToast('❌ ' + e.message, 'error'); }
 }
 
-function saveCurrent() {
+async function saveAndRestartConfig() {
   if (!activePlugin) return;
-  doSave(activePlugin);
-}
-
-async function saveAndRestart() {
-  if (!activePlugin) return;
-  const cfg = collectSingle(activePlugin);
+  const cfg = collectConfig(activePlugin);
   if (!cfg) return;
-  showToast('💾 保存并重启中...', 'info');
+  showToast('💾 保存中...', 'info');
   try {
-    const r = await fetch(`/api/bot/${botNum}/config`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+    const r = await fetch('/api/bot/' + botNum + '/config', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({plugin: activePlugin, cfg})
     });
     const d = await r.json();
@@ -776,38 +730,113 @@ async function saveAndRestart() {
     markClean(activePlugin);
     showToast('✅ 已保存，正在重启...', 'success');
     setTimeout(async () => {
-      try {
-        await fetch(`/api/bot/${botNum}/restart`, { method: 'POST' });
-        showToast('🔄 已发送重启指令', 'success');
-        checkStatus();
-      } catch(e) {
-        showToast('❌ 重启失败: ' + e.message, 'error');
-      }
+      await fetch('/api/bot/' + botNum + '/restart', { method: 'POST' });
+      showToast('🔄 已重启', 'success');
+      fetchStatus();
     }, 500);
-  } catch(e) {
-    showToast('❌ ' + e.message, 'error');
+  } catch(e) { showToast('❌ ' + e.message, 'error'); }
+}
+
+// ==========================================================
+// PAGE: Groups
+// ==========================================================
+async function renderGroups() {
+  updateBreadcrumb('群组开关');
+  updateSidebarActive();
+  showFooter(null, null);
+  document.getElementById('pageContent').innerHTML = '<div class="loading-skeleton" style="height:200px;"></div>';
+
+  try {
+    const r = await fetch(`/api/bot/${botNum}/plugins`);
+    const d = await r.json();
+    const toggles = d.plugins.group_toggles;
+
+    if (!toggles) {
+      document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">🔀</div><p>暂无群组开关数据</p><div style="margin-top:8px;font-size:12px;">在群内发送「开启词库」等命令后自动生成</div></div>';
+      return;
+    }
+
+    const fields = toggles.fields || [];
+    let html = '<div class="card"><div class="card-header"><h3>👥 分群插件开关</h3><span class="badge">' + fields.length + ' 个群</span></div>';
+    if (fields.length === 0) {
+      html += '<div class="card-body"><div class="empty-state"><div class="icon">🔀</div><p>暂无已配置的群组</p></div></div>';
+    } else {
+      html += '<table class="el-table"><tr><th>群号</th><th>已开启插件</th><th>操作</th></tr>';
+      for (const field of fields) {
+        const line = field._line || '';
+        const parts = line.match(/群 (\d+): (.+)/);
+        if (parts) {
+          html += '<tr><td>' + parts[1] + '</td><td>' + parts[2] + '</td><td><span class="el-tag success">☑ 已配置</span></td></tr>';
+        }
+      }
+      html += '</table>';
+    }
+    html += '</div><div class="card"><div class="card-header"><h3>💡 说明</h3></div><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.8;">所有插件在每个群默认关闭，需要在群内发送对应开启命令。<br>例如：<code>开启词库</code>、<code>关闭词库</code><br>私聊发送开启/关闭命令 = 全局控制。</div></div>';
+    document.getElementById('pageContent').innerHTML = html;
+  } catch (e) {
+    document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
   }
 }
 
-// ========== Init ==========
-// Restore theme
-const savedTheme = localStorage.getItem('theme');
-if (savedTheme === 'dark') {
-  document.documentElement.setAttribute('data-theme', 'dark');
-  document.getElementById('themeBtn').textContent = '☀️';
+// ==========================================================
+// PAGE: Logs
+// ==========================================================
+async function renderLogs() {
+  updateBreadcrumb('运行日志');
+  updateSidebarActive();
+  document.getElementById('pageContent').innerHTML = '<div class="loading-skeleton" style="height:200px;"></div>';
+
+  try {
+    const r = await fetch(`/api/bot/${botNum}/screen-log`);
+    const d = await r.json();
+    const logText = d.log || '暂无日志';
+
+    let html = '<div class="card"><div class="card-header"><h3>📋 运行日志 (runtime.log)</h3></div>';
+    html += '<div class="card-body"><div class="log-viewer" id="logViewer">';
+    // Escape HTML and colorize
+    const lines = logText.split('\n');
+    for (const line of lines) {
+      let cls = '';
+      if (line.match(/error|exception|trace|失败|✗/i)) cls = 'error';
+      else if (line.match(/warn/i)) cls = 'warn';
+      else if (line.match(/✓|成功|启动|连接/i)) cls = 'info';
+      html += '<div class="log-line"><span class="' + cls + '">' + escapeHtml(line) + '</span></div>';
+    }
+    html += '</div></div></div>';
+    html += '<div style="display:flex;gap:10px;"><button class="btn btn-default" onclick="navigate(\'logs\')">🔄 刷新</button></div>';
+    document.getElementById('pageContent').innerHTML = html;
+  } catch (e) {
+    document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
+  }
 }
 
-// Set bot name in logo
-document.querySelector('.sidebar-logo span').textContent = botName === '依星' ? '⭐' : '🪶';
-document.querySelector('.sidebar-logo').innerHTML = `<span>${botName === '依星' ? '⭐' : '🪶'}</span> ${botName}管理`;
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
 
-checkStatus();
-loadConfig();
-setInterval(checkStatus, 15000);
+// ==========================================================
+// Router
+// ==========================================================
+function renderPage() {
+  renderSidebar();
+  switch (currentPage) {
+    case 'dashboard': renderDashboard(); break;
+    case 'config': renderConfig(); break;
+    case 'groups': renderGroups(); break;
+    case 'logs': renderLogs(); break;
+    default: renderDashboard();
+  }
+}
 
-// beforeunload
+// ===== Init =====
+fetchStatus();
+renderPage();
+setInterval(fetchStatus, 15000);
+
 window.addEventListener('beforeunload', function(e) {
-  if (anyDirty()) { e.preventDefault(); e.returnValue = ''; }
+  if (Object.values(dirtyPlugins).some(v=>v)) { e.preventDefault(); e.returnValue = ''; }
 });
 </script>
 </body>
