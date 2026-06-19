@@ -9,6 +9,14 @@
 - 快手/小红书：Playwright 模拟浏览器提取
 """
 
+# ========== 插件元数据（SDK 规范）==========
+__plugin_name_cn__ = "视频解析"
+__plugin_name_en__ = "video_parser"
+__plugin_version__ = "1.0.0"
+__plugin_desc__ = "抖音/B站/快手/小红书/TikTok视频解析去水印"
+__plugin_author__ = "NapCat-WordLibBot"
+# ===========================================
+
 import asyncio
 import json
 import os

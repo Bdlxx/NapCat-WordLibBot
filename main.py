@@ -50,11 +50,31 @@ def _is_master(user_id):
 
 # 加载所有插件
 plugin_handlers = []
+loaded_plugins_info = {}  # {name: {name_cn, version, desc, ...}}
 for finder, name, ispkg in pkgutil.iter_modules(plugins.__path__):
     module = importlib.import_module(f"plugins.{name}")
     if hasattr(module, "handle"):
         plugin_handlers.append(module.handle)
-        print(f"加载插件: {name}")
+
+        # 读取插件元数据（SDK 规范：模块级 __plugin_xxx__ 变量）
+        meta_info = {
+            "name_cn": getattr(module, "__plugin_name_cn__", None) or name,
+            "name_en": getattr(module, "__plugin_name_en__", None) or name,
+            "version": getattr(module, "__plugin_version__", None) or "1.0.0",
+            "desc": getattr(module, "__plugin_desc__", None) or "",
+            "author": getattr(module, "__plugin_author__", None) or "",
+        }
+
+        loaded_plugins_info[name] = meta_info
+
+        # 输出加载信息
+        cn = meta_info["name_cn"]
+        ver = meta_info["version"]
+        desc = meta_info["desc"]
+        if desc:
+            print(f"  ✓ {cn} v{ver} — {desc}")
+        else:
+            print(f"  ✓ {cn} v{ver}")
 
 def on_message(ws, message):
     try:

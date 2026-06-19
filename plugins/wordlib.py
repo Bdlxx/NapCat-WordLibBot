@@ -9,6 +9,14 @@ import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+# ========== 插件元数据（SDK 规范）==========
+__plugin_name_cn__ = "词库插件"
+__plugin_name_en__ = "wordlib"
+__plugin_version__ = "1.0.0"
+__plugin_desc__ = "关键词匹配回复、签到好感度、自定义昵称、排行榜、赞我、转码"
+__plugin_author__ = "NapCat-WordLibBot"
+# ===========================================
+
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils.api import send_message
 from utils.config import get_master_qq, get_bot_qq, get_bot_name

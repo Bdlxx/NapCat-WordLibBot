@@ -10,6 +10,8 @@
 
 import json
 import os
+import re
+import importlib.util
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -55,6 +57,48 @@ def get_plugin_meta(plugin_key: str = None) -> dict:
     if plugin_key:
         return PLUGIN_META.get(plugin_key)
     return dict(PLUGIN_META)
+
+
+def scan_plugin_metadata(plugins_dir: str = None, plugin_key: str = None):
+    """从插件 .py 文件读取 SDK 规范元数据变量
+    扫描插件文件中的 __plugin_name_cn__、__plugin_desc__ 等变量。
+    返回 {key: {name_cn, name_en, version, desc, author, config_file}} 或 None
+    """
+    if not plugins_dir or not os.path.isdir(plugins_dir):
+        return {} if plugin_key is None else None
+
+    result = {}
+    for fname in sorted(os.listdir(plugins_dir)):
+        if not fname.endswith('.py') or fname == '__init__.py':
+            continue
+        fpath = os.path.join(plugins_dir, fname)
+        try:
+            with open(fpath, 'r', encoding='utf-8') as fh:
+                src = fh.read()
+        except:
+            continue
+
+        name_en = fname[:-3]
+        if plugin_key is not None and name_en != plugin_key:
+            continue
+
+        meta = {'name_en': name_en}
+        # 用正则提取模块级变量
+        _v = lambda pat: (m := re.search(rf'^{pat}\s*=\s*["\']([^"\']+)["\']', src, re.M)) and m.group(1) or ''
+        meta['name_cn'] = _v('__plugin_name_cn__') or ''
+        meta['version'] = _v('__plugin_version__') or ''
+        meta['desc'] = _v('__plugin_desc__') or ''
+        meta['author'] = _v('__plugin_author__') or ''
+
+        # 对应 PLUGIN_META 中的 config_file
+        cfile = f"{{name_en}}_config.json"
+        meta['config_file'] = cfile
+
+        if plugin_key is not None:
+            return meta
+        result[name_en] = meta
+
+    return result if plugin_key is None else None
 
 
 def get_available_plugins(plugins_dir: str = None) -> list:
