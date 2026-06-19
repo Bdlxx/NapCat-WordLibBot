@@ -191,7 +191,7 @@ function handleLogout() { fetch('/api/logout',{method:'POST'}).then(()=>window.l
 const NAV_ITEMS = [
   { id:'dashboard', icon:'📊', label:'仪表盘', group:'概览' },
   { id:'manage',    icon:'🛠️',  label:'运行管理', group:'管理' },
-  { id:'config',    icon:'⚙️',  label:'词库配置', group:'管理' },
+  { id:'config',    icon:'⚙️',  label:'插件配置', group:'管理' },
   { id:'groups',    icon:'👥',  label:'群组开关', group:'管理' },
   { id:'logs',      icon:'📋',  label:'运行日志', group:'管理' },
 ];
@@ -324,7 +324,7 @@ let configPlugins = {}, configKeys = [], activePlugin = null, dirtyPlugins = {};
 function isDirty(k) { return !!dirtyPlugins[k]; }
 function markClean(k) { dirtyPlugins[k] = false; }
 async function renderConfig() {
-  document.getElementById('breadcrumb').innerHTML = '<span class="current">词库配置</span>';
+  document.getElementById('breadcrumb').innerHTML = '<span class="current">插件配置</span>';
   renderSidebar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
   try {

@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import subprocess
 import time
@@ -8,6 +9,10 @@ from flask import Flask, jsonify, request, send_from_directory, session
 
 # ====== 路径 ======
 STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
+# 添加项目根目录到 Python 路径（使 import utils.* 可用）
+_PROJECT_ROOT = os.path.dirname(STATIC_DIR)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 # ====== 鉴权配置 ======
 CONFIG_PATH = '/etc/mybot-panel/config.json'
