@@ -38,7 +38,7 @@ Q. 🚪 退出
 
 ### 实例管理
 
-扫描所有已部署实例，支持启停容器、扫码登录、Bot 管理、日志查看、卸载。
+扫描所有已部署实例，支持启停容器、扫码登录、Bot 管理、日志查看、**更新插件**（从插件仓库拉取最新插件）、卸载。
 
 ### 后续设置
 
@@ -82,7 +82,11 @@ python web/api.py --bot-dir /root/mybot_123456 --bot-name Bot --bot-qq 123456789
 
 ## 🔌 插件开发 (SDK)
 
-框架采用热加载插件架构，放在 `plugins/` 目录即可自动加载。
+框架采用**动态加载**插件架构：主程序启动时扫描 `plugins/` 目录，凡导出 `handle()` 函数的
+`.py` 文件都会自动加载（无需手动注册，Web 面板同样自动识别）。
+
+> 插件已拆分到独立仓库 [NapCat-WordLibBot-Plugins](https://github.com/Bdlxx/NapCat-WordLibBot-Plugins)，
+> `install.sh` 部署/更新实例时自动从该仓库拉取插件到 `plugins/` 目录。本仓库仅内置核心词库插件。
 
 ### SDK 规范
 
@@ -159,11 +163,11 @@ WebUI 自动识别 `commands`（文本）、`settings`（开关/数字）、`mes
 
 ---
 
-## 📖 内置插件
+## 📖 插件
 
-### 词库插件 (wordlib)
+### 内置插件：词库 (wordlib)
 
-关键词匹配回复、签到好感度、自定义昵称、点赞、转码。
+关键词匹配回复、签到好感度、自定义昵称、点赞、转码。（随主仓库发布）
 
 | 命令 | 说明 |
 |------|------|
@@ -177,37 +181,39 @@ WebUI 自动识别 `commands`（文本）、`settings`（开关/数字）、`mes
 > 命令和回复模板可在 `data/wordlib_config.json` 自定义。
 > 变量参考详见 [VARIABLES.md](VARIABLES.md)。
 
-### 结婚插件 (marry)
+### 插件仓库插件（install.sh 自动安装）
 
-群内每日结婚/离婚系统，支持成功率和冷却配置。
+以下插件由 [NapCat-WordLibBot-Plugins](https://github.com/Bdlxx/NapCat-WordLibBot-Plugins) 提供，
+部署实例时 `install.sh` 自动拉取；更新用「实例管理 → 更新插件」：
 
-### 伪人插件 (pseudo_persona)
+| 插件 | 功能 |
+|------|------|
+| **结婚插件** (marry) | 群内每日结婚/离婚系统，支持成功率和冷却配置 |
+| **JM下载** (jm_downloader) | `jm <车号>` 下载禁漫本子并合并为 PDF 分享；`jm详情 <车号>` 查看元信息；自动更新 jmcomic 库（配合 `jm_worker.py` 子进程） |
+| **伪人插件** (pseudo_persona) | AI 对话回复，支持 GLM 和 Gemini 双模型切换 |
+| **视频解析** (video_parser) | 自动检测群内视频链接并解析去水印，支持抖音、哔哩哔哩、快手、小红书、TikTok |
 
-AI 对话回复，支持 GLM 和 Gemini 双模型切换。
-
-### 视频解析 (video_parser)
-
-自动检测群内视频链接并解析去水印。支持抖音、哔哩哔哩、快手、小红书、TikTok。
+> 新插件开发完成后 push 到插件仓库，即可通过「更新插件」分发到所有实例。
 
 ---
 
 ## 📁 项目结构
 
 ```
-├── install.sh              # 一键安装管理脚本
+├── install.sh              # 一键安装管理脚本（含插件仓库拉取）
 ├── set_password.sh         # Web面板密码管理工具
+├── watchdog.py             # 看门狗进程（监听「重启」命令）
 ├── main.py                 # SDK 框架入口
 ├── config.json             # 机器人配置（gitignored）
-├── plugins/                # 插件目录（热加载）
-│   ├── wordlib.py          # 词库插件
-│   ├── marry.py            # 结婚插件
-│   ├── pseudo_persona.py   # 伪人插件
-│   └── video_parser.py     # 视频解析插件
+├── plugins/                # 插件目录（动态加载）
+│   ├── wordlib.py          # 词库插件（内置）
+│   └── README.md           # 插件说明（其余插件由 install.sh 从插件仓库拉取）
 ├── utils/                  # SDK 工具库
-│   ├── api.py              # 消息发送 / HTTP API
+│   ├── api.py              # 消息发送 / 合并转发 / HTTP API
 │   ├── config.py           # 配置读取
 │   ├── ws.py               # WebSocket 全局引用
-│   ├── plugin_toggle.py    # 分群开关 + 插件元数据
+│   ├── http_client.py      # HTTP 客户端封装
+│   ├── plugin_toggle.py    # 分群开关 + 插件元数据（自动扫描插件目录）
 │   └── command_table.py    # 命令表生成
 ├── templates/              # NapCat 配置模板
 ├── web/                    # Web 管理面板（Flask, 8080）
