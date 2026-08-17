@@ -11,9 +11,12 @@ SCRIPT_VERSION="1.0.1"
 NAPCAT_IMAGE="docker.xuanyuan.me/mlikiowa/napcat-docker:latest"
 GIT_REPO="https://github.com/Bdlxx/NapCat-WordLibBot.git"
 PLUGIN_REPO="https://github.com/Bdlxx/NapCat-WordLibBot-Plugins.git"
-TEMPLATES_DIR="$(cd "$(dirname "$0")" && pwd)/templates"
-SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/install.sh"
-INSTANCES_DIR="/tmp/napbot_instances"
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+TEMPLATES_DIR="$BASE_DIR/templates"
+SCRIPT_PATH="$BASE_DIR/install.sh"
+# 实例统一放在脚本目录下的 instances/ 中，注册文件在 instances/registry/
+INSTANCES_ROOT="$BASE_DIR/instances"
+INSTANCES_DIR="$INSTANCES_ROOT/registry"
 
 mkdir -p "$INSTANCES_DIR"
 
@@ -91,10 +94,16 @@ scan_instances() {
         for q in "${qqs[@]}"; do [[ "$q" == "$qq" ]] && found=true && break; done
         $found || qqs+=("$qq")
     done
-    # 从项目目录补充
-    for d in /root/mybot_*; do
+    # 从项目目录补充（新布局 instances/<QQ>；兼容旧布局 /root/mybot_<QQ>）
+    for d in "$INSTANCES_ROOT"/*/ /root/mybot_*; do
         [ -d "$d" ] || continue
-        local qq="${d#/root/mybot_}"
+        local qq
+        if [[ "$d" == "$INSTANCES_ROOT"/* ]]; then
+            qq="$(basename "$d")"
+        else
+            qq="${d#/root/mybot_}"
+        fi
+        [[ "$qq" =~ ^[0-9]+$ ]] || continue
         local found=false
         for q in "${qqs[@]}"; do [[ "$q" == "$qq" ]] && found=true && break; done
         $found || qqs+=("$qq")
@@ -112,7 +121,7 @@ load_instance() {
     # 默认值
     INST_QQ="$qq"
     INST_CONTAINER="napcat_${qq}"
-    INST_PROJECT_DIR="/root/mybot_${qq}"
+    INST_PROJECT_DIR="$INSTANCES_ROOT/${qq}"
     INST_NAP_DIR="/root/napcat_${qq}"
     INST_SCREEN="bot_${qq}"
     INST_HTTP="http://127.0.0.1:3000"
@@ -354,18 +363,19 @@ deploy_project_for_instance() {
 
     local project_dir="${INST_PROJECT_DIR}"
     if [[ "$deploy_mode" == "clone" ]]; then
-        project_dir=$(tui_input "项目目录" "安装到哪个目录？" "/root/mybot_${qq}")
+        project_dir=$(tui_input "项目目录" "安装到哪个目录？（默认脚本目录下 instances/<QQ>）" "${INSTANCES_ROOT}/${qq}")
         if [ -d "$project_dir/.git" ]; then
             tui_yesno "更新" "目录已存在，是否 git pull 更新？" && {
                 cd "$project_dir" && git pull && ok "已更新"
             }
         else
+            mkdir -p "$(dirname "$project_dir")"
             info "克隆项目到 $project_dir ..."
             git clone "$GIT_REPO" "$project_dir" || { err "克隆失败"; return 1; }
             ok "项目已克隆"
         fi
     else
-        project_dir=$(tui_input "项目路径" "输入已有项目目录的完整路径" "/root/mybot_${qq}")
+        project_dir=$(tui_input "项目路径" "输入已有项目目录的完整路径" "${INSTANCES_ROOT}/${qq}")
         while [ ! -f "$project_dir/main.py" ]; do
             tui_msg "路径错误" "目录中未找到 main.py"
             project_dir=$(tui_input "项目路径" "输入正确路径" "$project_dir") || return 1

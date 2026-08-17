@@ -94,8 +94,13 @@ BOTS = {
 # 当前选中的实例编号（单实例模式 / 门户跳转时指定）
 CURRENT_BOT = None
 
-# install.sh 的实例注册/目录规范
-INSTANCES_DIR = "/tmp/napbot_instances"
+# install.sh 的实例注册/目录规范（脚本目录下 instances/）
+# 新布局：<项目根>/instances/<QQ>（项目） + <项目根>/instances/registry/<QQ>.sh（注册）
+# 旧布局（兼容）：/tmp/napbot_instances/<QQ>.sh + /root/mybot_<QQ>
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+INSTANCES_ROOT = os.path.join(_BASE_DIR, 'instances')
+INSTANCES_DIR = os.path.join(INSTANCES_ROOT, 'registry')
+LEGACY_INSTANCES_DIR = "/tmp/napbot_instances"
 INST_PROJECT_PREFIX = "/root/mybot_"
 
 
@@ -139,9 +144,11 @@ def discover_instances() -> dict:
     for n, b in BOTS.items():
         _add(n, dict(b))
 
-    # 2. install.sh 注册文件
-    if os.path.isdir(INSTANCES_DIR):
-        for fname in sorted(os.listdir(INSTANCES_DIR)):
+    # 2. install.sh 注册文件（新布局 + 旧布局兼容）
+    for reg_dir in (INSTANCES_DIR, LEGACY_INSTANCES_DIR):
+        if not os.path.isdir(reg_dir):
+            continue
+        for fname in sorted(os.listdir(reg_dir)):
             if not fname.endswith('.sh'):
                 continue
             qq = fname[:-3]
@@ -149,7 +156,7 @@ def discover_instances() -> dict:
                 continue
             try:
                 env = {}
-                with open(os.path.join(INSTANCES_DIR, fname), 'r', encoding='utf-8') as f:
+                with open(os.path.join(reg_dir, fname), 'r', encoding='utf-8') as f:
                     for line in f:
                         line = line.strip()
                         if line.startswith('INST_') and '=' in line:
@@ -157,25 +164,33 @@ def discover_instances() -> dict:
                             env[k.strip()] = v.strip().strip('"').strip("'")
             except Exception:
                 continue
-            project_dir = env.get('INST_PROJECT_DIR', f"{INST_PROJECT_PREFIX}{qq}")
+            project_dir = env.get('INST_PROJECT_DIR', f"{INSTANCES_ROOT}/{qq}")
             if not os.path.isdir(project_dir):
                 continue
-            _add(int(qq) if qq.isdigit() else len(result) + 100,
-                 {
-                     'name': env.get('INST_BOT_NAME') or f"Bot_{qq}",
-                     'screen': env.get('INST_SCREEN') or f"bot_{qq}",
-                     'dir': project_dir,
-                     'qq': qq,
-                     'master': _read_master_qq(project_dir),
-                     'napcat_port': _parse_napcat_port(env.get('INST_HTTP', '')),
-                 })
+            if project_dir in seen_dirs:
+                continue
+            seen_dirs.add(project_dir)
+            result[int(qq) if qq.isdigit() else len(result) + 100] = {
+                'name': env.get('INST_BOT_NAME') or f"Bot_{qq}",
+                'screen': env.get('INST_SCREEN') or f"bot_{qq}",
+                'dir': project_dir,
+                'qq': qq,
+                'master': _read_master_qq(project_dir),
+                'napcat_port': _parse_napcat_port(env.get('INST_HTTP', '')),
+            }
 
-    # 3. install.sh 项目目录规范（无注册文件的实例）
+    # 3. install.sh 项目目录规范（新布局 instances/<QQ> + 旧布局 /root/mybot_<QQ>）
     import glob
-    for d in sorted(glob.glob(f"{INST_PROJECT_PREFIX}*")):
+    dirs = sorted(glob.glob(os.path.join(INSTANCES_ROOT, '*'))) + sorted(glob.glob(f"{INST_PROJECT_PREFIX}*"))
+    for d in dirs:
         if not os.path.isdir(d) or not os.path.exists(os.path.join(d, 'main.py')):
             continue
-        qq = d[len(INST_PROJECT_PREFIX):]
+        if d.startswith(INSTANCES_ROOT + os.sep):
+            qq = os.path.basename(d)
+        elif d.startswith(INST_PROJECT_PREFIX):
+            qq = d[len(INST_PROJECT_PREFIX):]
+        else:
+            continue
         if not qq.isdigit() or d in seen_dirs:
             continue
         _add(int(qq), {
