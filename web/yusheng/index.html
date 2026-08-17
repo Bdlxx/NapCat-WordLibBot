@@ -79,6 +79,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 .el-table th{padding:12px 16px;text-align:left;font-weight:600;background:var(--bg-input);color:var(--text-regular);border-bottom:1px solid var(--border-color)}
 .el-table td{padding:12px 16px;border-bottom:1px solid var(--border-light)}
 .el-table tr:hover td{background:var(--bg-hover)}
+.el-table thead th{position:sticky;top:0;z-index:2;box-shadow:0 1px 0 0 var(--border-color)}
+.table-wrapper{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 280px)}
+.el-table .group-cell{display:flex;align-items:center;gap:12px;min-height:48px}
+.el-table .group-cell .g-avatar{width:40px;height:40px;border-radius:50%;background:var(--bg-input);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px}
+.el-table .group-cell .g-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.el-table .group-cell .g-info{display:flex;flex-direction:column;justify-content:center;min-width:0}
+.el-table .group-cell .g-info .g-name{font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.el-table .group-cell .g-info .g-id{font-size:11px;color:var(--text-secondary);margin-top:1px}
+.float-actions{position:fixed;bottom:24px;right:24px;display:flex;gap:10px;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:12px 16px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-light)}
 .btn{padding:9px 20px;border-radius:var(--radius);border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
 .btn:active{transform:scale(.97)}
 .btn-primary{background:var(--color-primary);color:#fff}
@@ -430,7 +439,7 @@ async function renderGroups() {
     const d = await r.json();
     const tg = d.plugins._toggles;
     if (!tg || !tg.groups || !tg.groups.length) {
-      document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">🔀</div><p>暂无群组数据</p><div style="margin-top:8px;font-size:12px;color:var(--text-secondary)">在群内发送「开启词库」等命令后自动生成</div></div>'; return;
+      document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">🔀</div><p>暂无群组数据</p><div style="margin-top:8px;font-size:12px;color:var(--text-secondary)">无法获取群列表，请确认 NapCat 运行正常</div></div>'; return;
     }
 
     const groups = tg.groups;
@@ -447,7 +456,7 @@ async function renderGroups() {
     }
 
     let html = '<div class="card"><div class="card-header"><h3>👥 分群插件开关</h3><span class="badge" style="font-size:11px;padding:2px 10px;border-radius:10px;background:var(--bg-active);color:var(--color-primary)">' + groups.length + ' 个群</span></div>';
-    html += '<div class="card-body" style="overflow-x:auto"><table class="el-table" style="min-width:600px"><thead><tr><th style="position:sticky;left:0;background:var(--bg-card);z-index:1">群号</th>';
+    html += '<div class="card-body"><div class="table-wrapper"><table class="el-table" style="min-width:600px"><thead><tr><th style="position:sticky;left:0;background:var(--bg-card);z-index:1">群号</th>';
     for (const p of plugins) {
       const meta = tg._pluginMeta && tg._pluginMeta[p] ? tg._pluginMeta[p] : null;
       html += '<th style="text-align:center;min-width:90px">' + (meta?meta.name_cn:p) + '<br><span style="font-weight:400;font-size:11px;color:var(--text-secondary)">' + (meta?meta.name_en:p) + '</span></th>';
@@ -462,18 +471,31 @@ async function renderGroups() {
     }
     html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" onchange="tgToggleAll(this.checked)"><span class="track"></span></label></td></tr>';
 
-    // 数据行
+    // 数据行（卡片式：头像+名称+群号）
+    const groupInfo = tg.groupInfo || {};
     for (const g of groups) {
       const gAll = plugins.every(p => window._tgState[g][p]);
-      html += '<tr><td style="font-weight:500;position:sticky;left:0;background:var(--bg-card)">' + g + '</td>';
+      const info = groupInfo[g] || {};
+      const gName = info.name || g;
+      const gAvatar = info.avatar || '';
+      html += '<tr><td style="position:sticky;left:0;background:var(--bg-card)"><div class="group-cell">';
+      html += '<div class="g-avatar">';
+      if (gAvatar) {
+        html += '<img src="' + gAvatar + '" alt="" onerror="this.style.display=\'none\';this.parentElement.textContent=\'👥\'">';
+      } else {
+        html += '👥';
+      }
+      html += '</div>';
+      html += '<div class="g-info"><div class="g-name">' + escapeHtml(gName) + '</div><div class="g-id">' + g + '</div></div>';
+      html += '</div></td>';
       for (const p of plugins) {
         const ch = window._tgState[g][p];
         html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" ' + (ch?'checked':'') + ' class="tg-c" data-tgg="' + g + '" data-tgp="' + p + '"><span class="track"></span></label></td>';
       }
       html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" ' + (gAll?'checked':'') + ' class="tg-r" data-tgg="' + g + '"><span class="track"></span></label></td></tr>';
     }
-    html += '</tbody></table></div></div>';
-    html += '<div style="display:flex;gap:10px;margin-bottom:16px"><button class="btn btn-primary" data-nav="tgsave">💾 保存</button><button class="btn btn-default" data-nav="groups">🔄 刷新</button></div>';
+    html += '</tbody></table></div></div></div>';
+    html += '<div class="float-actions"><button class="btn btn-primary" data-nav="tgsave">💾 保存</button><button class="btn btn-default" data-nav="groups">🔄 刷新</button></div>';
     html += '<div class="card"><div class="card-header"><h3>💡 说明</h3></div><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.8">所有插件在每个群默认关闭。<br>在群内发送对应命令开启：<code>开启词库</code> / <code>关闭词库</code><br>私聊发送 = 全局控制。横向「全选」列控制单个插件在所有群的状态，纵向「全选」行控制单个群的所有插件。</div></div>';
     document.getElementById('pageContent').innerHTML = html;
   } catch(e) {
@@ -486,35 +508,59 @@ function tgToggle(gid, plugin, checked) {
   if (!window._tgState) return;
   if (!window._tgState[gid]) window._tgState[gid] = {};
   window._tgState[gid][plugin] = checked;
+  // 同步本行全选 + 本列全选状态（不用重绘）
+  var plugins = Object.keys(window._tgState[gid]);
+  var rowAll = plugins.every(function(p) { return window._tgState[gid][p]; });
+  var rowChk = document.querySelector('.tg-r[data-tgg="' + gid + '"]');
+  if (rowChk) rowChk.checked = rowAll;
+  var colAll = Object.keys(window._tgState).every(function(g) {
+    return window._tgState[g] && window._tgState[g][plugin];
+  });
+  var colChk = document.querySelector('.tg-ac[data-tgp="' + plugin + '"]');
+  if (colChk) colChk.checked = colAll;
 }
 function tgToggleGroup(gid, checked) {
   if (!window._tgState || !window._tgState[gid]) return;
-  for (const p of Object.keys(window._tgState[gid])) {
-    window._tgState[gid][p] = checked;
+  for (var p = 0; p < Object.keys(window._tgState[gid]).length; p++) {
+    var pk = Object.keys(window._tgState[gid])[p];
+    window._tgState[gid][pk] = checked;
   }
-  renderGroups();
+  // 更新这一行所有 checkbox
+  var cbs = document.querySelectorAll('.tg-c[data-tgg="' + gid + '"]');
+  for (var i = 0; i < cbs.length; i++) { cbs[i].checked = checked; }
+  document.querySelector('.tg-r[data-tgg="' + gid + '"]').checked = checked;
 }
 function tgToggleAllPlugin(plugin, checked) {
   if (!window._tgState) return;
-  for (const g of Object.keys(window._tgState)) {
-    window._tgState[g][plugin] = checked;
+  for (var g = 0; g < Object.keys(window._tgState).length; g++) {
+    var gid = Object.keys(window._tgState)[g];
+    window._tgState[gid][plugin] = checked;
   }
+  // 更新这一列所有 checkbox
+  var cbs = document.querySelectorAll('.tg-c[data-tgp="' + plugin + '"]');
+  for (var i = 0; i < cbs.length; i++) { cbs[i].checked = checked; }
+  document.querySelector('.tg-ac[data-tgp="' + plugin + '"]').checked = checked;
 }
 function tgToggleAll(checked) {
   if (!window._tgState) return;
-  for (const g of Object.keys(window._tgState)) {
-    for (const p of Object.keys(window._tgState[g])) {
-      window._tgState[g][p] = checked;
+  var groups = Object.keys(window._tgState);
+  for (var g = 0; g < groups.length; g++) {
+    var gid = groups[g];
+    var plugins = Object.keys(window._tgState[gid]);
+    for (var p = 0; p < plugins.length; p++) {
+      window._tgState[gid][plugins[p]] = checked;
     }
   }
-  renderGroups();
+  // 更新全部 checkbox
+  var allCbs = document.querySelectorAll('.tg-c, .tg-r, .tg-ac');
+  for (var i = 0; i < allCbs.length; i++) { allCbs[i].checked = checked; }
 }
 async function tgSave() {
   if (!window._tgState || !Object.keys(window._tgState).length) return;
   showToast('💾 保存群组开关...', 'info');
   try {
     const r = await fetch('/api/bot/' + botNum + '/group-toggles', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
+      method: 'POST', headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
       body: JSON.stringify({toggles: window._tgState})
     });
     const d = await r.json();
@@ -556,7 +602,7 @@ fetchStatus();
 renderPage();
 setInterval(fetchStatus, 15000);
 
-// 事件委托：配置标签页(data-sk)、导航(data-page)、群组开关(data-nav)
+// 事件委托：配置标签页(data-sk)、导航(data-page)、群组开关(data-nav/checkbox)
 document.addEventListener('click', function(e) {
   var el = e.target.closest('[data-sk]');
   if (el) { switchConfigTab(el.getAttribute('data-sk')); return; }
@@ -569,6 +615,22 @@ document.addEventListener('click', function(e) {
     else if (act === 'groups') { renderGroups(); }
     return;
   }
+  // 全选 checkbox（class="tg-ac" 单插件全选 .tg-r 群全选 .tg-c 单个开关）
+  el = e.target.closest('.tg-ac');
+  if (el) { tgToggleAllPlugin(el.getAttribute('data-tgp'), el.checked); return; }
+  el = e.target.closest('.tg-r');
+  if (el) { tgToggleGroup(el.getAttribute('data-tgg'), el.checked); return; }
+  el = e.target.closest('.tg-c');
+  if (el) { tgToggle(el.getAttribute('data-tgg'), el.getAttribute('data-tgp'), el.checked); return; }
+});
+// 监听 checkbox change 事件（处理键盘/空格触发的切换）
+document.addEventListener('change', function(e) {
+  var el = e.target.closest('.tg-ac');
+  if (el) { tgToggleAllPlugin(el.getAttribute('data-tgp'), el.checked); return; }
+  el = e.target.closest('.tg-r');
+  if (el) { tgToggleGroup(el.getAttribute('data-tgg'), el.checked); return; }
+  el = e.target.closest('.tg-c');
+  if (el) { tgToggle(el.getAttribute('data-tgg'), el.getAttribute('data-tgp'), el.checked); return; }
 });
 </script>
 </body>

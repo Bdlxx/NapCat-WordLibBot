@@ -53,3 +53,9 @@ def get_napcat_http():
 
 def get_access_token():
     return get_config("ACCESS_TOKEN", "")
+
+def get_52api_key():
+    return get_config("52api_key", "")
+
+def get_52api_secret():
+    return get_config("52api_secret", "")

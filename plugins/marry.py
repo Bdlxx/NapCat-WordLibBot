@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import random
@@ -9,8 +10,50 @@ from zoneinfo import ZoneInfo
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils.api import send_message
-from utils.config import get_master_qq, get_napcat_http, get_access_token
+from utils.config import get_config, get_master_qq, get_napcat_http, get_access_token
 from utils.plugin_toggle import is_enabled as _pt_enabled, set_enabled as _pt_set
+
+# ========== 头像缓存（规避 NapCat 下载 qlogo 超时）==========
+_CACHE_DIR = None
+
+def _get_cache_dir():
+    global _CACHE_DIR
+    if _CACHE_DIR:
+        return _CACHE_DIR
+    bot_qq = str(get_config("BOT_QQ", 0))
+    if bot_qq == "740979632":
+        _CACHE_DIR = "/root/napcat/cache/images"
+    elif bot_qq == "2551736206":
+        _CACHE_DIR = "/root/napcat2/cache/images"
+    else:
+        _CACHE_DIR = os.path.expanduser("~/napcat/cache/images")
+    os.makedirs(_CACHE_DIR, exist_ok=True)
+    return _CACHE_DIR
+
+def cache_avatar(avatar_url, qq):
+    """下载头像到 NapCat 缓存目录，返回容器内路径；失败则返回原 URL"""
+    try:
+        cache_dir = _get_cache_dir()
+        url_hash = hashlib.md5(avatar_url.encode()).hexdigest()
+        filename = url_hash + ".jpg"
+        filepath = os.path.join(cache_dir, filename)
+        container_path = f"/app/cache/images/{filename}"
+
+        # 已有缓存直接用
+        if os.path.exists(filepath) and os.path.getsize(filepath) > 1024:
+            return container_path
+
+        # 下载头像
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        r = requests.get(avatar_url, headers=headers, timeout=8)
+        if r.status_code == 200 and len(r.content) > 1024:
+            with open(filepath, 'wb') as f:
+                f.write(r.content)
+            return container_path
+        return avatar_url
+    except Exception as e:
+        print(f"[结婚] 头像缓存失败: {e}")
+        return avatar_url
 # ========== 插件元数据（SDK 规范）==========
 __plugin_name_cn__ = "结婚插件"
 __plugin_name_en__ = "marry"
@@ -228,18 +271,19 @@ def handle_marriage(event, target_qq=None, mode="娶"):
     save_marriage(marriage_data)
 
     avatar_url = f"https://q1.qlogo.cn/g?b=qq&nk={target_qq}&s=640"
+    avatar_file = cache_avatar(avatar_url, target_qq)
     if mode == "娶":
         msg_segments = [
             {"type": "at", "data": {"qq": str(user_id)}},
             {"type": "text", "data": {"text": f" 恭喜你！今天你娶了老婆 {target_nick}({target_qq}) "}},
-            {"type": "image", "data": {"file": avatar_url}},
+            {"type": "image", "data": {"file": avatar_file}},
             {"type": "text", "data": {"text": " 祝你们幸福！"}}
         ]
     else:
         msg_segments = [
             {"type": "at", "data": {"qq": str(user_id)}},
             {"type": "text", "data": {"text": f" 恭喜你！今天你嫁给了老公 {target_nick}({target_qq}) "}},
-            {"type": "image", "data": {"file": avatar_url}},
+            {"type": "image", "data": {"file": avatar_file}},
             {"type": "text", "data": {"text": " 祝你们幸福！"}}
         ]
     send_message(event, msg_segments)
@@ -313,10 +357,11 @@ def handle_my_object(event):
     partner_role = "老婆" if mode == "娶" else "老公"
 
     avatar_url = f"https://q1.qlogo.cn/g?b=qq&nk={target_qq}&s=640"
+    avatar_file = cache_avatar(avatar_url, target_qq)
     msg_segments = [
         {"type": "at", "data": {"qq": str(user_id)}},
         {"type": "text", "data": {"text": f" 今天你的{partner_role}是 {target_nick}({target_qq}) "}},
-        {"type": "image", "data": {"file": avatar_url}}
+        {"type": "image", "data": {"file": avatar_file}}
     ]
     send_message(event, msg_segments)
     return True

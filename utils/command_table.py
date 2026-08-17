@@ -48,6 +48,24 @@ def build_command_table(bot_name="羽笙"):
                 lines.append(f"  {cmd_text}  — {desc}")
         lines.append("")
 
+    # JM下载插件
+    jc = _read_json(os.path.join(DATA_DIR, "jm_downloader_config.json"))
+    j_commands = jc.get("commands", {})
+    if j_commands:
+        lines.append("【JM下载插件】")
+        j_descs = {
+            "download": "下载本子并转PDF分享（例：jm 123456；多本 jm 123 456；单章 jm 123 p456）",
+            "detail": "查看本子元信息（例：jm详情 123456）",
+            "enable": "本群开启JM下载（仅主人）",
+            "disable": "本群关闭JM下载（仅主人）",
+        }
+        for key, cmd_text in j_commands.items():
+            desc = j_descs.get(key, "")
+            if desc:
+                lines.append(f"  {cmd_text}  — {desc}")
+        lines.append("  jm更新  — 手动更新 jmcomic 库（仅主人，插件默认自动更新）")
+        lines.append("")
+
     # 分群开关说明
     lines.append("【分群开关说明】")
     lines.append("  所有插件在每个群默认关闭，需在群内发送对应命令开启")

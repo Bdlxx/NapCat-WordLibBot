@@ -80,6 +80,11 @@ def on_message(ws, message):
     try:
         event = json.loads(message)
         if "echo" in event:
+            # API 调用的响应 — 记录失败情况以便调试
+            status = event.get("status")
+            retcode = event.get("retcode")
+            if status != "ok" or retcode != 0:
+                print(f"[API响应] status={status}, retcode={retcode}, msg={event.get('message','')[:80]}")
             return
 
         # 主人私聊「命令表」命令

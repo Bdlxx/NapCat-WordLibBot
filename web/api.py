@@ -183,8 +183,8 @@ def do_logout():
 def api_status():
     result = {}
     for n, bot in BOTS.items():
-        r = subprocess.run("screen -list | grep " + bot['screen'], shell=True, capture_output=True, text=True, timeout=5)
-        running = r.returncode == 0 and bot['screen'] in r.stdout
+        r = subprocess.run("screen -list | grep -w " + bot['screen'], shell=True, capture_output=True, text=True, timeout=5)
+        running = r.returncode == 0
         result[n] = {'running': running, 'name': bot['name'], 'status': 'running' if running else 'stopped'}
     return jsonify({'success': True, 'bot1': result.get(1), 'bot2': result.get(2)})
 
@@ -193,8 +193,8 @@ def api_status():
 def bot_info(n):
     if n not in BOTS: return jsonify({'error': '无效编号'}), 404
     b = BOTS[n]
-    r = subprocess.run("screen -list | grep " + b['screen'], shell=True, capture_output=True, text=True, timeout=5)
-    running = r.returncode == 0 and b['screen'] in r.stdout
+    r = subprocess.run("screen -list | grep -w " + b['screen'], shell=True, capture_output=True, text=True, timeout=5)
+    running = r.returncode == 0
     return jsonify({'success': True, 'name': b['name'], 'qq': b['qq'], 'master': b['master'], 'dir': b['dir'], 'screen': b['screen'], 'running': running, 'status': 'running' if running else 'stopped', 'napcat_port': b['napcat_port']})
 
 @app.route('/api/bot/<int:n>/log')
@@ -275,8 +275,9 @@ def get_plugins(num):
 
     plugins = {}
 
-    # 1. 遍历所有注册插件，检测文件存在性
-    for pkey, meta in _pt.get_available_plugins(pd):
+    # 1. 动态扫描插件目录：与主程序实际加载的插件（有 handle()）保持一致
+    avail_list = list(_pt.get_available_plugins(pd))
+    for pkey, meta in avail_list:
         pp = {'name_cn': meta['name_cn'], 'name_en': meta['name_en'], 'fields': [], 'has_config': False}
 
         cf = meta.get('config_file')
@@ -363,10 +364,37 @@ def get_plugins(num):
         plugins[pkey] = pp
 
     # 2. 群组开关表格数据
-    plugins['_toggles'] = _pt.get_toggles_matrix()
-    plugins['_toggles']['_pluginMeta'] = {k: {'name_cn': v['name_cn'], 'name_en': v['name_en']} for k, v in _pt.get_plugin_meta().items()}
+    import requests as _req
+    group_info = {}
+    try:
+        bc = read_json(os.path.join(b['dir'], 'config.json'))
+        nh = bc.get('NAPCAT_HTTP', 'http://127.0.0.1:3000')
+        tk = bc.get('ACCESS_TOKEN', '')
+        gl = _req.get(f'{nh}/get_group_list', params={'access_token': tk}, timeout=5).json()
+        if gl.get('status') == 'ok' and gl.get('data'):
+            for g in gl['data']:
+                gid = str(g.get('group_id', ''))
+                gname = g.get('group_name', '未知群') or '未知群'
+                gavatar = f"https://p.qlogo.cn/gh/{gid}/{gid}/"
+                group_info[gid] = {'name': gname, 'avatar': gavatar}
+    except Exception as e:
+        print(f'[API] 获取群列表失败: {e}')
 
-    return jsonify({'bot': b, 'plugins': plugins})
+    tg = _pt.get_toggles_matrix(os.path.join(b['dir'], 'data'), [k for k, _ in avail_list])
+    # 合并全部群（包括没有开关记录的）
+    all_groups = sorted(set(tg['groups'] + sorted(group_info.keys())))
+    merged_toggles = {}
+    for gid in all_groups:
+        merged_toggles[gid] = tg['toggles'].get(gid, {p: False for p in tg['plugins']})
+    tg['groups'] = all_groups
+    tg['toggles'] = merged_toggles
+    tg['groupInfo'] = group_info
+    plugins['_toggles'] = tg
+    plugins['_toggles']['_pluginMeta'] = {k: {'name_cn': v['name_cn'], 'name_en': v['name_en']} for k, v in _pt.get_plugin_meta(None, pd).items()}
+
+    # 避免暴露服务器路径
+    safe_bot = {k: v for k, v in b.items() if k not in ('dir', 'screen', 'napcat_port')}
+    return jsonify({'bot': safe_bot, 'plugins': plugins})
 
 
 @app.route('/api/bot/<int:num>/config', methods=['POST'])
@@ -378,9 +406,10 @@ def save_config(num):
     cfg = data.get('cfg', {})
     b = BOTS[num]
     dd = os.path.join(b['dir'], 'data')
+    pd = os.path.join(b['dir'], 'plugins')
 
     import utils.plugin_toggle as _pt
-    meta = _pt.get_plugin_meta(plugin)
+    meta = _pt.get_plugin_meta(plugin, pd)
     if not meta:
         return jsonify({'error': f'未知插件: {plugin}'}), 400
 
@@ -432,9 +461,11 @@ def save_group_toggles(num):
     toggles = data.get('toggles', {})
     if not toggles:
         return jsonify({'error': '参数无效'}), 400
+    b = BOTS[num]
     import utils.plugin_toggle as _pt
-    _pt.set_batch_toggles(toggles)
+    _pt.set_batch_toggles(toggles, os.path.join(b['dir'], 'data'))
     return jsonify({'ok': True, 'msg': '群组开关已保存'})
+
 @app.route('/api/bot/<int:num>/restart', methods=['POST'])
 @login_required
 def restart_bot(num):
@@ -452,8 +483,8 @@ def restart_bot(num):
 def get_status(num):
     if num not in BOTS: return jsonify({'error': '无效编号'}), 404
     b = BOTS[num]
-    r = subprocess.run("screen -list | grep " + b['screen'], shell=True, capture_output=True, text=True, timeout=5)
-    running = r.returncode == 0 and b['screen'] in r.stdout
+    r = subprocess.run("screen -list | grep -w " + b['screen'], shell=True, capture_output=True, text=True, timeout=5)
+    running = r.returncode == 0
     return jsonify({'running': running, 'status': 'running' if running else 'stopped'})
 
 @app.route('/api/bot/<int:n>/screen-log')
@@ -472,7 +503,7 @@ def bot_screen_log(n):
     # fallback: try screen hardcopy
     try:
         tmpfile = f'/tmp/bot_{n}_screen_log.txt'
-        subprocess.run(f"screen -S {b['screen']} -X hardcopy {tmpfile}", shell=True, timeout=5, capture_output=True)
+        subprocess.run(['screen', '-S', b['screen'], '-X', 'hardcopy', tmpfile], timeout=5, capture_output=True)
         if os.path.exists(tmpfile):
             with open(tmpfile, 'r', encoding='utf-8', errors='replace') as f:
                 log_content = f.read()
