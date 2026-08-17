@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>羽笙 - 管理面板</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪶</text></svg>">
+<title>机器人管理面板</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
 <style>
 /* ========== CSS Variables ========== */
 :root {
@@ -343,7 +343,7 @@ a:hover { color: var(--color-primary-light); }
       <div class="header-right">
         <span class="el-tag" id="statusTag"><span class="status-dot yellow"></span> 检测中</span>
         <button class="theme-btn" onclick="toggleTheme()" id="themeBtn" title="切换主题">🌙</button>
-        <a class="header-btn" href="/yusheng/">← 返回首页</a>
+        id="backHome" href="/panel/"
       </div>
     </header>
 
@@ -366,7 +366,9 @@ a:hover { color: var(--color-primary-light); }
 
 <script>
 // ===== Config =====
-const botNum = parseInt(new URLSearchParams(location.search).get('bot') || '0', 10) || (window.location.pathname.match(/\/yusheng\/config/)?2:1);
+const botNum = parseInt(new URLSearchParams(location.search).get('bot') || '0', 10) || 1;
+const backHome = document.getElementById('backHome');
+if (backHome) backHome.href = '/panel/?bot=' + botNum;
 const BOT_NAME = botNum === 1 ? '依星' : '羽笙';
 fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
 

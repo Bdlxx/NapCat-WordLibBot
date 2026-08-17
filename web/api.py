@@ -87,13 +87,6 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
-BOTS = {
-    1: {'name': '依星', 'screen': 'bot', 'dir': '/root/mybot', 'qq': '740979632', 'master': '2840771765', 'napcat_port': 6099},
-    2: {'name': '羽笙', 'screen': 'bot2', 'dir': os.path.dirname(STATIC_DIR), 'qq': '2551736206', 'master': '2840771765', 'napcat_port': 6100},
-}
-# 当前选中的实例编号（单实例模式 / 门户跳转时指定）
-CURRENT_BOT = None
-
 # install.sh 的实例注册/目录规范（脚本目录下 instances/）
 # 新布局：<项目根>/instances/<QQ>（项目） + <项目根>/instances/registry/<QQ>.sh（注册）
 # 旧布局（兼容）：/tmp/napbot_instances/<QQ>.sh + /root/mybot_<QQ>
@@ -102,6 +95,23 @@ INSTANCES_ROOT = os.path.join(_BASE_DIR, 'instances')
 INSTANCES_DIR = os.path.join(INSTANCES_ROOT, 'registry')
 LEGACY_INSTANCES_DIR = "/tmp/napbot_instances"
 INST_PROJECT_PREFIX = "/root/mybot_"
+
+# 实例动态发现：仓库不内置任何具体实例（依星/羽笙等），
+# 由 install.sh 部署时创建 instances/<QQ> 注册，或本地 registry 文件注册；
+# 没有任何实例时提供示例实例（123456）供演示
+BOTS = {}
+CURRENT_BOT = None
+
+# 示例实例（仅当未发现任何实例时展示）
+EXAMPLE_BOT = {
+    'name': '示例机器人',
+    'screen': 'bot_123456',
+    'dir': os.path.join(INSTANCES_ROOT, '123456'),
+    'qq': '123456',
+    'master': '',
+    'napcat_port': 3000,
+    'example': True,
+}
 
 
 def _parse_napcat_port(http_url):
@@ -202,6 +212,10 @@ def discover_instances() -> dict:
             'napcat_port': 3000,
         })
 
+    # 未发现任何实例时，展示示例实例（123456）
+    if not result:
+        result[123456] = dict(EXAMPLE_BOT)
+
     return result
 
 
@@ -279,10 +293,8 @@ def _verify_password(pwd):
     return False, None
 
 def _bot_path(bot_name):
-    """根据bot名称返回路径名"""
-    if '星' in bot_name: return 'yixing'
-    if '笙' in bot_name: return 'yusheng'
-    return bot_name
+    """通用面板路径（仓库不内置具体实例页面）"""
+    return 'panel'
 
 @app.route('/api/portal-login', methods=['POST'])
 def portal_login():
@@ -304,8 +316,17 @@ def portal_login():
         session.permanent = True
         session['authenticated'] = True
         session['bot_name'] = bot_name
+        # 找到密码对应的实例编号（按名称匹配 BOTS；匹配不到则用当前实例）
+        num = None
+        for n, b in BOTS.items():
+            if b.get('name') == bot_name:
+                num = n
+                break
+        if num is None:
+            num = CURRENT_BOT
         path = _bot_path(bot_name)
-        return jsonify({'success': True, 'message': f'正在进入{bot_name}面板', 'redirect': f'/{path}/'}), 200
+        return jsonify({'success': True, 'message': f'正在进入{bot_name}面板',
+                        'redirect': f'/{path}/?bot={num}'}), 200
     else:
         _record_login_attempt(client_ip, success=False)
         time.sleep(1)  # 防时序攻击
@@ -662,21 +683,17 @@ def bot_screen_log(n):
 def login():
     return send_from_directory(STATIC_DIR, 'index.html')
 
-@app.route('/yixing/')
-def serve_yixing():
-    return send_from_directory(os.path.join(STATIC_DIR, 'yixing'), 'index.html')
+@app.route('/panel/')
+def serve_panel():
+    return send_from_directory(os.path.join(STATIC_DIR, 'panel'), 'index.html')
 
-@app.route('/yixing/<path:p>')
-def serve_yixing_static(p):
-    return send_from_directory(os.path.join(STATIC_DIR, 'yixing'), p)
+@app.route('/panel/config/')
+def serve_panel_config():
+    return send_from_directory(os.path.join(STATIC_DIR, 'panel', 'config'), 'index.html')
 
-@app.route('/yusheng/')
-def serve_yusheng():
-    return send_from_directory(os.path.join(STATIC_DIR, 'yusheng'), 'index.html')
-
-@app.route('/yusheng/<path:p>')
-def serve_yusheng_static(p):
-    return send_from_directory(os.path.join(STATIC_DIR, 'yusheng'), p)
+@app.route('/panel/<path:p>')
+def serve_panel_static(p):
+    return send_from_directory(os.path.join(STATIC_DIR, 'panel'), p)
 
 @app.route('/<path:p>')
 def stat(p):

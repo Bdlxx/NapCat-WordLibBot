@@ -28,6 +28,7 @@ Thumbs.db
 bot
 runtime.log
 log.txt
+instances/
 
 # Node 模块
 node_modules/

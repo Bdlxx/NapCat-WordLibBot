@@ -125,9 +125,8 @@ const saved = localStorage.getItem('theme');
 if (saved === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); document.getElementById('themeBtn').textContent = '☀️'; }
 
 function botPath(name) {
-  // 按实例名选择面板路径（任意面板均可承载任意实例，?bot=N 切换）
-  if (name && name.indexOf('星') >= 0) return '/yixing/';
-  return '/yusheng/';
+  // 通用面板路径（实例通过 ?bot=N 切换，仓库不内置具体实例页面）
+  return '/panel/';
 }
 
 async function showBots(redirect) {
