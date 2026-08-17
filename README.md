@@ -39,8 +39,10 @@ bash <(curl -s https://raw.githubusercontent.com/Bdlxx/NapCat-WordLibBot/master/
 
 1. **克隆项目** → 创建实例目录 `<脚本目录>/instances/<QQ>/`（以 QQ 号命名，多实例互不干扰）
 2. **拉取插件** → 从 [插件仓库](https://github.com/Bdlxx/NapCat-WordLibBot-Plugins) 自动安装全部插件到 `plugins/`
-3. **生成 NapCat 配置** → 按模板写入 HTTP/WS 端口与安全 Token（自动生成，也可自定义）
-4. **创建容器** → 启动 `napcat_<QQ>` Docker 容器（网络模式可选：Host 直通 / Bridge 端口映射）
+3. **配置向导** → 询问以下信息并自动写入 `config.json`：
+   - **机器人昵称**（如：小助手）
+   - **主人 QQ**（必填，拥有全部管理权限，多个用逗号分隔：`10001,10002`）
+4. **创建容器** → 生成 NapCat 配置（端口/Token 自动分配）并启动 `napcat_<QQ>` 容器（网络模式可选：Host 直通 / Bridge 端口映射）
 
 ### 第 3 步：扫码登录 QQ
 
@@ -65,7 +67,8 @@ bash <(curl -s https://raw.githubusercontent.com/Bdlxx/NapCat-WordLibBot/master/
 }
 ```
 
-> 端口、Token、WS 地址都由脚本自动配置好了，**一般只需确认 `MASTER_QQ` 是你自己的 QQ**。
+> 端口、Token、WS 地址、机器人昵称、主人 QQ 都在部署时由脚本自动写入 `config.json` 了，
+> **一般无需手动修改**；如需增删主人 QQ，直接编辑此文件后重启 Bot 即可。
 
 ### 第 5 步：启动 Bot
 

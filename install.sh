@@ -405,7 +405,14 @@ deploy_project_for_instance() {
 
     local bot_name master_qq
     bot_name=$(tui_input "机器人昵称" "输入机器人昵称" "Bot_${qq}")
-    master_qq=$(tui_input "主人 QQ" "输入主人 QQ 号（可多个，逗号分隔）" "")
+    # 主人 QQ 必填（拥有全部管理权限），支持逗号分隔多个
+    while :; do
+        master_qq=$(tui_input "主人 QQ" "输入主人 QQ 号（可多个，逗号分隔，必填）" "")
+        if [ -n "$master_qq" ]; then
+            break
+        fi
+        tui_msg "提示" "主人 QQ 不能为空，请重新输入"
+    done
 
     # 处理主人 QQ 列表
     local master_qq_list
