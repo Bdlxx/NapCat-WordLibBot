@@ -64,7 +64,9 @@ bash <(curl -s https://raw.githubusercontent.com/Bdlxx/NapCat-WordLibBot/master/
 ### 第 2 步：脚本自动完成 4 件事
 
 1. **克隆项目** → 创建实例目录 `<脚本目录>/instances/<QQ>/`（以 QQ 号命名，多实例互不干扰）
-2. **拉取插件** → 从 [插件仓库](https://github.com/Bdlxx/NapCat-WordLibBot-Plugins) 自动安装全部插件到 `plugins/`
+2. **拉取插件（可选）** → 询问"是否从插件仓库拉取插件"，选"是"后弹出**插件勾选列表**（空格选中），
+   可自由选择要安装的插件（选中 JM下载 会自动附带其工作进程 jm_worker.py）；选"否"则跳过，
+   之后可在「实例管理 → 更新插件」中补装
 3. **配置向导** → 询问以下信息并自动写入 `config.json`：
    - **机器人昵称**（如：小助手）
    - **主人 QQ**（必填，拥有全部管理权限，多个用逗号分隔：`10001,10002`）

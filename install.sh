@@ -323,8 +323,10 @@ deploy_napcat_for_instance() {
 
 # 从插件仓库拉取/更新插件到项目 plugins/ 目录
 # 插件已独立到 NapCat-WordLibBot-Plugins 仓库，词库插件（wordlib.py）保留在主仓库
+# 模式：ask（询问+勾选，默认）/ select（直接勾选）/ all（全部安装）
 install_plugins() {
     local project_dir="${1:-$INST_PROJECT_DIR}"
+    local mode="${2:-ask}"
     local plugins_dir="$project_dir/plugins"
     local cache_dir="/tmp/napbot_plugin_repo"
 
@@ -345,21 +347,86 @@ install_plugins() {
         ok "插件仓库已克隆"
     fi
 
-    local installed=""
+    # 询问是否拉取插件
+    if [ "$mode" == "ask" ]; then
+        if ! tui_yesno "拉取插件" "是否从插件仓库拉取插件？\n\n插件仓库: $PLUGIN_REPO"; then
+            warn "已跳过插件安装（后续可在实例管理 → 更新插件 中安装）"
+            return 0
+        fi
+    fi
+
+    # 收集插件清单（排除非独立插件 jm_worker.py，它随 jm_downloader 自动安装）
+    local py_files=()
     local f
     for f in "$cache_dir"/*.py; do
         [ -f "$f" ] || continue
-        cp "$f" "$plugins_dir/" || { err "复制插件失败: $(basename "$f")"; return 1; }
-        installed+="$(basename "$f") "
+        local bn=$(basename "$f" .py)
+        [ "$bn" == "jm_worker" ] && continue
+        py_files+=("$f")
     done
+    if [ ${#py_files[@]} -eq 0 ]; then
+        warn "插件仓库中没有可用插件"
+        return 0
+    fi
+
+    # 选择要安装的插件
+    local selected=()
+    if [ "$mode" == "all" ]; then
+        for f in "${py_files[@]}"; do selected+=("$(basename "$f" .py)"); done
+    else
+        local items=()
+        local f
+        for f in "${py_files[@]}"; do
+            local bn=$(basename "$f" .py)
+            local desc=$(_extract_plugin_desc "$f")
+            items+=("$bn" "$desc" "ON")
+        done
+        local sel
+        sel=$(whiptail --clear --backtitle "$SCRIPT_NAME v$SCRIPT_VERSION" \
+            --title "选择插件" --checklist "勾选要安装的插件（空格选中，Tab 切换）" \
+            0 0 0 "${items[@]}" 3>&1 1>&2 2>&3) || return 0
+        # whiptail 输出为带引号列表，如 "marry" "jm_downloader"
+        selected=()
+        local name
+        for name in $sel; do
+            name=$(echo "$name" | tr -d '"')
+            [ -n "$name" ] && selected+=("$name")
+        done
+    fi
+
+    # 选中 jm_downloader 时自动附带其工作进程 jm_worker.py
+    local add_worker=false
+    local name
+    for name in "${selected[@]}"; do
+        [ "$name" == "jm_downloader" ] && add_worker=true
+    done
+
+    local installed=""
+    for name in "${selected[@]}"; do
+        if [ -f "$cache_dir/$name.py" ]; then
+            cp "$cache_dir/$name.py" "$plugins_dir/" || { err "复制插件失败: $name"; return 1; }
+            installed+="$name "
+        fi
+    done
+    if $add_worker && [ -f "$cache_dir/jm_worker.py" ]; then
+        cp "$cache_dir/jm_worker.py" "$plugins_dir/"
+        installed+="jm_worker "
+    fi
 
     if [ -n "$installed" ]; then
         ok "插件已安装: ${installed}"
         warn "新插件需重启 Bot（或发送「重启」命令）后生效"
     else
-        warn "插件仓库中没有 .py 插件文件"
+        warn "未安装任何插件"
     fi
     return 0
+}
+
+# 提取插件文件中的 __plugin_desc__ 元数据（用于勾选列表展示）
+_extract_plugin_desc() {
+    local f="$1"
+    grep -m1 '^__plugin_desc__\s*=\s*"' "$f" 2>/dev/null \
+        | sed 's/^__plugin_desc__\s*=\s*"//; s/"\s*$//' || echo "无描述"
 }
 
 # 为某个实例部署项目
