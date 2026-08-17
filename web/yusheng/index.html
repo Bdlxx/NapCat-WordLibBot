@@ -149,7 +149,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 <div class="toast" id="toast"></div>
 
 <script>
-const botNum = window.location.pathname.startsWith('/yixing') ? 1 : 2;
+const botNum = parseInt(new URLSearchParams(location.search).get('bot') || '0', 10) || (window.location.pathname.startsWith('/yixing') ? 1 : 2);
 const BOT_NAME = botNum === 1 ? '依星' : '羽笙';
 // 所有API请求自动带CSRF防护头
 const _origFetch = window.fetch;

@@ -91,6 +91,136 @@ BOTS = {
     1: {'name': '依星', 'screen': 'bot', 'dir': '/root/mybot', 'qq': '740979632', 'master': '2840771765', 'napcat_port': 6099},
     2: {'name': '羽笙', 'screen': 'bot2', 'dir': os.path.dirname(STATIC_DIR), 'qq': '2551736206', 'master': '2840771765', 'napcat_port': 6100},
 }
+# 当前选中的实例编号（单实例模式 / 门户跳转时指定）
+CURRENT_BOT = None
+
+# install.sh 的实例注册/目录规范
+INSTANCES_DIR = "/tmp/napbot_instances"
+INST_PROJECT_PREFIX = "/root/mybot_"
+
+
+def _parse_napcat_port(http_url):
+    """从 INST_HTTP 解析 NapCat HTTP 端口（http://127.0.0.1:3000 → 3000）"""
+    try:
+        from urllib.parse import urlparse
+        return urlparse(http_url).port or 3000
+    except Exception:
+        return 3000
+
+
+def _read_master_qq(project_dir):
+    """读取实例项目 config.json 的 MASTER_QQ"""
+    cfg = read_json(os.path.join(project_dir, 'config.json'))
+    ml = cfg.get('MASTER_QQ', '')
+    if isinstance(ml, list):
+        return '、'.join(str(m) for m in ml)
+    return str(ml or '')
+
+
+def discover_instances() -> dict:
+    """动态发现所有已部署实例，返回 {编号: {name, screen, dir, qq, master, napcat_port}}
+
+    实例来源（去重合并，按 dir 判重）：
+    1. BOTS 硬编码（本地生产实例，如 依星/羽笙）
+    2. install.sh 注册文件 /tmp/napbot_instances/<QQ>.sh
+    3. install.sh 项目目录规范 /root/mybot_<QQ>
+    """
+    result = {}
+    seen_dirs = set()
+
+    def _add(num, inst):
+        d = inst.get('dir', '')
+        if not d or d in seen_dirs:
+            return
+        seen_dirs.add(d)
+        result[num] = inst
+
+    # 1. 硬编码实例
+    for n, b in BOTS.items():
+        _add(n, dict(b))
+
+    # 2. install.sh 注册文件
+    if os.path.isdir(INSTANCES_DIR):
+        for fname in sorted(os.listdir(INSTANCES_DIR)):
+            if not fname.endswith('.sh'):
+                continue
+            qq = fname[:-3]
+            if not qq.isdigit():
+                continue
+            try:
+                env = {}
+                with open(os.path.join(INSTANCES_DIR, fname), 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith('INST_') and '=' in line:
+                            k, _, v = line.partition('=')
+                            env[k.strip()] = v.strip().strip('"').strip("'")
+            except Exception:
+                continue
+            project_dir = env.get('INST_PROJECT_DIR', f"{INST_PROJECT_PREFIX}{qq}")
+            if not os.path.isdir(project_dir):
+                continue
+            _add(int(qq) if qq.isdigit() else len(result) + 100,
+                 {
+                     'name': env.get('INST_BOT_NAME') or f"Bot_{qq}",
+                     'screen': env.get('INST_SCREEN') or f"bot_{qq}",
+                     'dir': project_dir,
+                     'qq': qq,
+                     'master': _read_master_qq(project_dir),
+                     'napcat_port': _parse_napcat_port(env.get('INST_HTTP', '')),
+                 })
+
+    # 3. install.sh 项目目录规范（无注册文件的实例）
+    import glob
+    for d in sorted(glob.glob(f"{INST_PROJECT_PREFIX}*")):
+        if not os.path.isdir(d) or not os.path.exists(os.path.join(d, 'main.py')):
+            continue
+        qq = d[len(INST_PROJECT_PREFIX):]
+        if not qq.isdigit() or d in seen_dirs:
+            continue
+        _add(int(qq), {
+            'name': f"Bot_{qq}",
+            'screen': f"bot_{qq}",
+            'dir': d,
+            'qq': qq,
+            'master': _read_master_qq(d),
+            'napcat_port': 3000,
+        })
+
+    return result
+
+
+def refresh_bots():
+    """启动时重建 BOTS：动态发现所有实例（保留现有引用兼容）"""
+    global BOTS
+    discovered = discover_instances()
+    if discovered:
+        BOTS = discovered
+
+
+@app.route('/api/bots')
+def api_bots():
+    """返回全部实例列表（供门户/面板切换）"""
+    import subprocess as _sp
+    items = []
+    for n, b in BOTS.items():
+        running = False
+        try:
+            r = _sp.run(f"screen -list | grep -w {b['screen']}",
+                        shell=True, capture_output=True, text=True, timeout=5)
+            running = r.returncode == 0
+        except Exception:
+            pass
+        items.append({
+            'num': n,
+            'name': b['name'],
+            'qq': b['qq'],
+            'dir': b['dir'],
+            'screen': b['screen'],
+            'running': running,
+            'current': (CURRENT_BOT == n),
+        })
+    return jsonify({'bots': items})
 
 def read_json(path):
     if os.path.exists(path):
@@ -542,20 +672,39 @@ if __name__ == '__main__':
     _parser = argparse.ArgumentParser(description='MyBot Web Panel')
     _parser.add_argument('--host', default='127.0.0.1', help='监听地址（0.0.0.0 开放公网）')
     _parser.add_argument('--port', type=int, default=8080, help='监听端口')
-    _parser.add_argument('--bot-dir', default=None, help='单实例模式：机器人项目目录')
+    _parser.add_argument('--bot-dir', default=None, help='单实例模式：指定当前实例项目目录')
     _parser.add_argument('--bot-name', default=None, help='单实例模式：机器人名称')
     _parser.add_argument('--bot-qq', default=None, help='单实例模式：机器人QQ号')
     _parser.add_argument('--bot-screen', default='bot', help='单实例模式：screen会话名')
     _args = _parser.parse_args()
-    # 单实例模式：用传入参数覆盖 BOTS
+
+    # 动态发现所有已部署实例（install.sh 注册表 + 项目目录 + 硬编码）
+    refresh_bots()
+
+    # 单实例模式：仅保留指定实例并设为当前，但面板仍可通过 /api/bots 看到全部
     if _args.bot_dir:
-        BOTS.clear()
-        BOTS[1] = {
+        only = {
             'name': _args.bot_name or 'Bot',
             'screen': _args.bot_screen,
             'dir': _args.bot_dir,
             'qq': _args.bot_qq or '',
-            'master': '',
+            'master': _read_master_qq(_args.bot_dir),
             'napcat_port': 6099,
         }
+        matched = [n for n, b in BOTS.items() if b.get('dir') == _args.bot_dir]
+        if matched:
+            CURRENT_BOT = matched[0]
+            BOTS = {CURRENT_BOT: dict(BOTS[CURRENT_BOT])}
+        else:
+            CURRENT_BOT = max(BOTS.keys(), default=0) + 1
+            BOTS = {CURRENT_BOT: only}
+    else:
+        # 默认模式：选中第一个在线实例（或第一个实例）
+        for n, b in BOTS.items():
+            if os.path.exists(os.path.join(b.get('dir', ''), 'main.py')):
+                CURRENT_BOT = n
+                break
+        else:
+            CURRENT_BOT = min(BOTS.keys()) if BOTS else None
+
     app.run(host=_args.host, port=_args.port, debug=False)

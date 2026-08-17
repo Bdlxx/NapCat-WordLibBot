@@ -366,7 +366,7 @@ a:hover { color: var(--color-primary-light); }
 
 <script>
 // ===== Config =====
-const botNum = window.location.pathname.match(/\/yusheng\/config/)?2:1;
+const botNum = parseInt(new URLSearchParams(location.search).get('bot') || '0', 10) || (window.location.pathname.match(/\/yusheng\/config/)?2:1);
 const BOT_NAME = botNum === 1 ? '依星' : '羽笙';
 fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
 

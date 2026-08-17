@@ -75,11 +75,27 @@ body {
   display: flex; align-items: center; justify-content: center;
   box-shadow: var(--shadow);
 }
+.instance-card {
+  background: var(--bg-card); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 18px 22px; margin-bottom: 12px;
+  cursor: pointer; border: 1px solid var(--border-color);
+  transition: transform .15s, box-shadow .15s; display: flex;
+  align-items: center; justify-content: space-between; min-width: 360px;
+  max-width: 100%;
+}
+.instance-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+.instance-card .ic-name { font-size: 16px; font-weight: 600; }
+.instance-card .ic-qq { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+.instance-card .ic-status { font-size: 13px; padding: 4px 12px; border-radius: 20px; white-space: nowrap; }
+.ic-status.on { background: rgba(103,194,58,.15); color: #67c23a; }
+.ic-status.off { background: rgba(245,108,108,.12); color: #f56c6c; }
+.bots-title { text-align: center; font-size: 17px; font-weight: 600; margin-bottom: 16px; }
+.bots-back { text-align: center; margin-top: 14px; font-size: 13px; color: var(--color-primary); cursor: pointer; }
 </style>
 </head>
 <body>
 <button class="theme-btn" onclick="toggleTheme()" id="themeBtn" title="切换主题">🌙</button>
-<div class="login-card">
+<div class="login-card" id="loginCard">
   <div class="logo">🤖</div>
   <h1>NapCat WordLib Bot</h1>
   <p class="subtitle">请输入密码进入管理面板</p>
@@ -89,6 +105,13 @@ body {
   <div class="hint">
     <span>⭐ 依星</span><span>🪶 羽笙</span>
   </div>
+</div>
+<div class="login-card" id="botsCard" style="display:none">
+  <div class="logo">🤖</div>
+  <h1>NapCat WordLib Bot</h1>
+  <p class="subtitle">检测到多个实例，请选择要管理的机器人</p>
+  <div id="botsList"></div>
+  <div class="bots-back" onclick="backToLogin()">← 返回重新输入密码</div>
 </div>
 <script>
 function toggleTheme() {
@@ -101,6 +124,44 @@ function toggleTheme() {
 const saved = localStorage.getItem('theme');
 if (saved === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); document.getElementById('themeBtn').textContent = '☀️'; }
 
+function botPath(name) {
+  // 按实例名选择面板路径（任意面板均可承载任意实例，?bot=N 切换）
+  if (name && name.indexOf('星') >= 0) return '/yixing/';
+  return '/yusheng/';
+}
+
+async function showBots(redirect) {
+  try {
+    const r = await fetch('/api/bots');
+    const d = await r.json();
+    const bots = d.bots || [];
+    if (bots.length <= 1) {
+      if (bots.length === 1) { window.location.href = botPath(bots[0].name) + '?bot=' + bots[0].num; }
+      else if (redirect) { window.location.href = redirect; }
+      return;
+    }
+    document.getElementById('loginCard').style.display = 'none';
+    document.getElementById('botsCard').style.display = '';
+    const list = document.getElementById('botsList');
+    list.innerHTML = '';
+    for (const b of bots) {
+      const card = document.createElement('div');
+      card.className = 'instance-card';
+      card.onclick = () => { window.location.href = botPath(b.name) + '?bot=' + b.num; };
+      card.innerHTML =
+        '<div><div class="ic-name">🤖 ' + b.name + '</div>' +
+        '<div class="ic-qq">QQ: ' + (b.qq || '-') + '</div></div>' +
+        '<div class="ic-status ' + (b.running ? 'on' : 'off') + '">' + (b.running ? '● 运行中' : '○ 未运行') + '</div>';
+      list.appendChild(card);
+    }
+  } catch(e) { if (redirect) { window.location.href = redirect; } }
+}
+
+function backToLogin() {
+  document.getElementById('botsCard').style.display = 'none';
+  document.getElementById('loginCard').style.display = '';
+}
+
 async function handleLogin() {
   const pwd = document.getElementById('passwordInput').value.trim();
   const err = document.getElementById('errorMsg');
@@ -108,7 +169,7 @@ async function handleLogin() {
   try {
     const r = await fetch('/api/portal-login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pwd}) });
     const d = await r.json();
-    if (d.success && d.redirect) { window.location.href = d.redirect; }
+    if (d.success && d.redirect) { await showBots(d.redirect); }
     else { err.textContent = '密码错误，请重试'; document.getElementById('passwordInput').value = ''; setTimeout(() => err.textContent = '', 2000); }
   } catch(e) { err.textContent = '登录服务异常，请稍后重试'; }
 }
