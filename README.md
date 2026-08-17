@@ -7,18 +7,6 @@
 bash <(curl -s https://raw.githubusercontent.com/Bdlxx/NapCat-WordLibBot/master/install.sh)
 ```
 
-### Windows 用户
-
-仓库提供 PowerShell 版安装脚本 `install.ps1`：
-
-```powershell
-# 下载并运行（需先安装 Docker Desktop、Git、Python 3.10+）
-powershell -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/Bdlxx/NapCat-WordLibBot/master/install.ps1 -OutFile install.ps1; .\install.ps1"
-```
-
-功能与 Linux 版一致：部署实例（`instances/<QQ>` 目录、QQ 号命名）、NapCat 容器管理、扫码登录、
-Bot 启停（后台进程 + PID 管理）、插件仓库拉取/更新、Web 管理面板启动、实例卸载。
-
 ---
 
 ## 📋 目录
