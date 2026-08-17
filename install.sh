@@ -29,6 +29,8 @@ mkdir -p "$INSTANCES_DIR"
 if [[ -f "$0" && "$0" != /dev/fd/* && "$(readlink -f "$0")" != "$NAPBOT_HOME/install.sh" ]]; then
     mkdir -p "$NAPBOT_HOME"
     cp "$0" "$NAPBOT_HOME/install.sh" 2>/dev/null && chmod +x "$NAPBOT_HOME/install.sh"
+    # 同步使用教程到用户目录（脚本菜单「查看使用教程」可离线打开）
+    [ -f "$BASE_DIR/USAGE.md" ] && cp "$BASE_DIR/USAGE.md" "$NAPBOT_HOME/USAGE.md" 2>/dev/null
 fi
 
 # ───────────────────────── 颜色 ─────────────────────────
@@ -888,15 +890,38 @@ main_menu() {
             "1" "📦 部署新实例 — 为某个QQ号部署独立的NapCat+Bot" \
             "2" "🗂  实例管理 — 查看/管理已部署的实例" \
             "3" "🔗 后续设置 — Web面板/napbot命令" \
+            "4" "📖 使用教程 — 查看 USAGE.md 完整教程" \
             "Q" "🚪 退出") || { clear; exit 0; }
 
         case "$choice" in
             1) deploy_new_instance ;;
             2) instance_management ;;
             3) post_setup ;;
+            4) show_usage ;;
             Q|q|"") clear; echo "bye~"; exit 0 ;;
         esac
     done
+}
+
+# 查看使用教程（USAGE.md）
+show_usage() {
+    local usage_file=""
+    if [ -f "$BASE_DIR/USAGE.md" ]; then
+        usage_file="$BASE_DIR/USAGE.md"
+    elif [ -f "$NAPBOT_HOME/USAGE.md" ]; then
+        usage_file="$NAPBOT_HOME/USAGE.md"
+    fi
+    if [ -n "$usage_file" ]; then
+        if command -v less >/dev/null 2>&1; then
+            less "$usage_file"
+        else
+            cat "$usage_file"
+        fi
+    else
+        warn "未找到本地 USAGE.md，可在线查看："
+        warn "  https://github.com/Bdlxx/NapCat-WordLibBot/blob/master/USAGE.md"
+        read -p "按回车继续..."
+    fi
 }
 
 # ───────────────────────── 入口 ─────────────────────────
