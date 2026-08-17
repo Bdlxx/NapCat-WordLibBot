@@ -7,7 +7,7 @@
 
 # ───────────────────────── 配置区 ─────────────────────────
 SCRIPT_NAME="NapCat-WordLibBot"
-SCRIPT_VERSION="1.0.1"
+SCRIPT_VERSION="1.1.0"
 NAPCAT_IMAGE="docker.xuanyuan.me/mlikiowa/napcat-docker:latest"
 GIT_REPO="https://github.com/Bdlxx/NapCat-WordLibBot.git"
 PLUGIN_REPO="https://github.com/Bdlxx/NapCat-WordLibBot-Plugins.git"

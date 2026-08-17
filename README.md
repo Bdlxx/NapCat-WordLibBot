@@ -1,6 +1,6 @@
 # NapCat WordLib Bot
 
-📦 基于 NapCat 的 QQ 机器人框架 + 一键部署脚本 | [v1.0.1 发布说明](https://github.com/Bdlxx/NapCat-WordLibBot/releases/tag/v1.0.1)
+📦 基于 NapCat 的 QQ 机器人框架 + 一键部署脚本 | [v1.1.0 发布说明](https://github.com/Bdlxx/NapCat-WordLibBot/releases/tag/v1.1.0)
 
 ```bash
 # 一键部署（Ubuntu/Debian/CentOS）
