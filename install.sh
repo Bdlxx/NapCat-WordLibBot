@@ -11,6 +11,9 @@ SCRIPT_VERSION="1.0.1"
 NAPCAT_IMAGE="docker.xuanyuan.me/mlikiowa/napcat-docker:latest"
 GIT_REPO="https://github.com/Bdlxx/NapCat-WordLibBot.git"
 PLUGIN_REPO="https://github.com/Bdlxx/NapCat-WordLibBot-Plugins.git"
+
+# 用户目录下新建目录存储脚本（napbot 命令的稳定指向）
+NAPBOT_HOME="$HOME/napbot"
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 TEMPLATES_DIR="$BASE_DIR/templates"
 SCRIPT_PATH="$BASE_DIR/install.sh"
@@ -19,6 +22,14 @@ INSTANCES_ROOT="$BASE_DIR/instances"
 INSTANCES_DIR="$INSTANCES_ROOT/registry"
 
 mkdir -p "$INSTANCES_DIR"
+
+# 自保存：把当前脚本复制到用户目录 ~/napbot/install.sh
+# （curl 管道运行时 $0 为 /dev/fd/*，无法复制，post_setup 会提示手动保存；
+#   从副本本身运行时跳过，避免 cp 到同一文件）
+if [[ -f "$0" && "$0" != /dev/fd/* && "$(readlink -f "$0")" != "$NAPBOT_HOME/install.sh" ]]; then
+    mkdir -p "$NAPBOT_HOME"
+    cp "$0" "$NAPBOT_HOME/install.sh" 2>/dev/null && chmod +x "$NAPBOT_HOME/install.sh"
+fi
 
 # ───────────────────────── 颜色 ─────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -803,10 +814,27 @@ log_menu() {
 post_setup() {
     title "🔗 后续设置"
 
-    # 创建 napbot 命令
-    tui_yesno "管理命令" "将 napbot 安装到系统（ln -s → /usr/local/bin/napbot）？" && {
-        ln -sf "$SCRIPT_PATH" /usr/local/bin/napbot
-        ok "已创建 napbot 命令"
+    # 创建 napbot 命令（指向用户目录 ~/napbot/install.sh 的稳定副本）
+    tui_yesno "管理命令" "将 napbot 安装到系统（ln -s → $NAPBOT_HOME/install.sh）？" && {
+        local nap_target="$NAPBOT_HOME/install.sh"
+        if [ ! -f "$nap_target" ]; then
+            # 副本缺失：尝试从当前脚本复制（curl 管道运行时 $0 不可用）
+            if [[ -f "$0" && "$0" != /dev/fd/* ]]; then
+                mkdir -p "$NAPBOT_HOME"
+                cp "$0" "$nap_target" 2>/dev/null
+            fi
+        fi
+        if [ -f "$nap_target" ]; then
+            chmod +x "$nap_target"
+            ln -sf "$nap_target" /usr/local/bin/napbot
+            ok "已创建 napbot 命令 → $nap_target"
+            info "脚本已保存到用户目录: $nap_target（实例将创建于 $nap_target 所在目录的 instances/ 下）"
+        else
+            warn "无法定位脚本实体文件（当前可能通过 curl 管道运行）"
+            warn "请手动保存脚本到用户目录后重试："
+            warn "  mkdir -p $NAPBOT_HOME"
+            warn "  curl -sL $GIT_REPO/raw/master/install.sh -o $nap_target && chmod +x $nap_target"
+        fi
     }
 
     # Web 面板配置
