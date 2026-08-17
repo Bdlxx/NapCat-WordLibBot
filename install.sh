@@ -10,6 +10,7 @@ SCRIPT_NAME="NapCat-WordLibBot"
 SCRIPT_VERSION="1.0.1"
 NAPCAT_IMAGE="docker.xuanyuan.me/mlikiowa/napcat-docker:latest"
 GIT_REPO="https://github.com/Bdlxx/NapCat-WordLibBot.git"
+PLUGIN_REPO="https://github.com/Bdlxx/NapCat-WordLibBot-Plugins.git"
 TEMPLATES_DIR="$(cd "$(dirname "$0")" && pwd)/templates"
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/install.sh"
 INSTANCES_DIR="/tmp/napbot_instances"
@@ -298,6 +299,47 @@ deploy_napcat_for_instance() {
     return 0
 }
 
+# 从插件仓库拉取/更新插件到项目 plugins/ 目录
+# 插件已独立到 NapCat-WordLibBot-Plugins 仓库，词库插件（wordlib.py）保留在主仓库
+install_plugins() {
+    local project_dir="${1:-$INST_PROJECT_DIR}"
+    local plugins_dir="$project_dir/plugins"
+    local cache_dir="/tmp/napbot_plugin_repo"
+
+    if [ ! -d "$project_dir" ]; then
+        err "项目目录不存在: $project_dir"
+        return 1
+    fi
+    mkdir -p "$plugins_dir"
+
+    info "从插件仓库获取插件: $PLUGIN_REPO"
+    if [ -d "$cache_dir/.git" ]; then
+        (cd "$cache_dir" && git pull --quiet) 2>/dev/null \
+            && ok "插件仓库已更新" \
+            || warn "插件仓库更新失败，使用本地缓存"
+    else
+        git clone --depth 1 "$PLUGIN_REPO" "$cache_dir" >/dev/null 2>&1 \
+            || { err "插件仓库克隆失败: $PLUGIN_REPO"; return 1; }
+        ok "插件仓库已克隆"
+    fi
+
+    local installed=""
+    local f
+    for f in "$cache_dir"/*.py; do
+        [ -f "$f" ] || continue
+        cp "$f" "$plugins_dir/" || { err "复制插件失败: $(basename "$f")"; return 1; }
+        installed+="$(basename "$f") "
+    done
+
+    if [ -n "$installed" ]; then
+        ok "插件已安装: ${installed}"
+        warn "新插件需重启 Bot（或发送「重启」命令）后生效"
+    else
+        warn "插件仓库中没有 .py 插件文件"
+    fi
+    return 0
+}
+
 # 为某个实例部署项目
 deploy_project_for_instance() {
     local qq=$1
@@ -333,6 +375,9 @@ deploy_project_for_instance() {
 
     cd "$project_dir"
     INST_PROJECT_DIR="$project_dir"
+
+    # 从插件仓库获取插件（主仓库仅保留词库插件）
+    install_plugins "$project_dir" || warn "插件安装失败，请稍后手动安装"
 
     # ─── 配置向导 ───
     title "⚙️  配置向导 — $qq"
@@ -574,7 +619,8 @@ instance_action() {
             "5" "📱 查看二维码（扫码登录）" \
             "6" "🤖 Bot 管理" \
             "7" "📋 查看日志" \
-            "8" "❌ 卸载实例" \
+            "8" "🔌 更新插件（从插件仓库拉取）" \
+            "9" "❌ 卸载实例" \
             "R" "🔙 返回实例列表") || return
 
         case "$choice" in
@@ -625,6 +671,11 @@ instance_action() {
                 log_menu "$qq"
                 ;;
             8)
+                title "🔌 更新插件 — $qq"
+                install_plugins "$INST_PROJECT_DIR"
+                read -p "按回车继续..."
+                ;;
+            9)
                 if tui_yesno "卸载实例" "确定要卸载实例 $qq 吗？\n\n这将删除 NapCat 容器（保留配置目录）。\n项目文件不会被删除。"; then
                     docker stop "napcat_${qq}" 2>/dev/null
                     docker rm "napcat_${qq}" 2>/dev/null
