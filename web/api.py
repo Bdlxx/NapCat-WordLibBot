@@ -187,6 +187,7 @@ def discover_instances() -> dict:
                 'qq': qq,
                 'master': _read_master_qq(project_dir),
                 'napcat_port': _parse_napcat_port(env.get('INST_HTTP', '')),
+                'container': env.get('INST_CONTAINER') or f"napcat_{qq}",
             }
 
     # 3. install.sh 项目目录规范（新布局 instances/<QQ> + 旧布局 /root/mybot_<QQ>）
@@ -210,6 +211,7 @@ def discover_instances() -> dict:
             'qq': qq,
             'master': _read_master_qq(d),
             'napcat_port': 3000,
+            'container': f"napcat_{qq}",
         })
 
     # 未发现任何实例时，展示示例实例（123456）
@@ -217,6 +219,16 @@ def discover_instances() -> dict:
         result[123456] = dict(EXAMPLE_BOT)
 
     return result
+
+
+def _container_for(n):
+    """获取实例的 NapCat 容器名（BOTS 动态发现，编号为 QQ 号）"""
+    b = BOTS.get(n, {})
+    c = b.get('container')
+    if c:
+        return c
+    qq = b.get('qq') or str(n)
+    return f"napcat_{qq}"
 
 
 def refresh_bots():
@@ -361,25 +373,46 @@ def bot_info(n):
     b = BOTS[n]
     r = subprocess.run("screen -list | grep -w " + b['screen'], shell=True, capture_output=True, text=True, timeout=5)
     running = r.returncode == 0
-    return jsonify({'success': True, 'name': b['name'], 'qq': b['qq'], 'master': b['master'], 'dir': b['dir'], 'screen': b['screen'], 'running': running, 'status': 'running' if running else 'stopped', 'napcat_port': b['napcat_port']})
+    # 通过 main.py 进程获取 PID 与运行时长（秒）
+    pid = ''
+    uptime = 0
+    try:
+        pr = subprocess.run("ps -eo pid,etimes,args | grep 'main.py --bot-name' | grep '" + b['qq'] + "' | grep -v grep | head -1",
+                            shell=True, capture_output=True, text=True, timeout=5)
+        parts = pr.stdout.strip().split()
+        if len(parts) >= 2:
+            pid = parts[0]
+            try:
+                uptime = int(parts[1])
+            except (ValueError, TypeError):
+                uptime = 0
+    except Exception:
+        pass
+    return jsonify({'success': True, 'name': b['name'], 'qq': b['qq'], 'master': b['master'],
+                    'dir': b['dir'], 'screen': b['screen'], 'running': running,
+                    'status': 'running' if running else 'stopped',
+                    'napcat_port': b['napcat_port'], 'pid': pid, 'uptime': uptime,
+                    'container': _container_for(n)})
 
 @app.route('/api/bot/<int:n>/log')
 @login_required
 def bot_log(n):
     if n not in BOTS: return jsonify({'error': '无效编号'}), 404
     b = BOTS[n]
-    log_file = os.path.join(b['dir'], 'log.txt')
+    log_file = os.path.join(b['dir'], 'runtime.log')
+    if not os.path.exists(log_file):
+        log_file = os.path.join(b['dir'], 'log.txt')
     if os.path.exists(log_file):
         with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
             lines = f.readlines()
-            return jsonify({'log': ''.join(lines[-50:])})
+            return jsonify({'log': ''.join(lines[-100:])})
     return jsonify({'log': '暂无日志'})
 
 @app.route('/api/bot/<int:n>/napcat-log')
 @login_required
 def bot_napcat_log(n):
     if n not in BOTS: return jsonify({'error': '无效编号'}), 404
-    container = 'napcat' if n == 1 else 'napcat2'
+    container = _container_for(n)
     try:
         r = subprocess.run("docker logs " + container + " --tail 30 2>&1", shell=True, capture_output=True, text=True, timeout=5)
         return jsonify({'log': r.stdout or '容器日志为空'})
@@ -390,7 +423,7 @@ def bot_napcat_log(n):
 @login_required
 def napcat_status(n):
     if n not in BOTS: return jsonify({'error': '无效编号'}), 404
-    container = 'napcat' if n == 1 else 'napcat2'
+    container = _container_for(n)
     try:
         r = subprocess.run("docker inspect " + container + " --format '{{.State.Status}}'", shell=True, capture_output=True, text=True, timeout=5)
         status = r.stdout.strip()
@@ -403,7 +436,7 @@ def napcat_status(n):
 @login_required
 def napcat_qr(n):
     if n not in BOTS: return jsonify({'error': '无效编号'}), 404
-    container = 'napcat' if n == 1 else 'napcat2'
+    container = _container_for(n)
     try:
         r = subprocess.run("docker exec " + container + " cat /app/napcat/cache/qrcode.png 2>/dev/null", shell=True, capture_output=True, timeout=10)
         if r.returncode != 0 or not r.stdout:

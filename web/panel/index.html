@@ -321,30 +321,54 @@ async function fetchStatus() {
 }
 
 // === Dashboard ===
+function fmtUptime(sec) {
+  if (!sec || sec <= 0) return '-';
+  const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+  return (d > 0 ? d + ' 天 ' : '') + (h > 0 ? h + ' 小时 ' : '') + m + ' 分钟';
+}
+
 async function renderDashboard() {
   document.getElementById('breadcrumb').innerHTML = '<span class="current">仪表盘</span>';
   renderSidebar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
   try {
-    const [infoR, napcatR] = await Promise.all([
+    const [infoR, napcatR, pluginsR] = await Promise.all([
       fetch('/api/bot/' + botNum + '/info').catch(()=>null),
       fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
+      fetch('/api/bot/' + botNum + '/plugins').catch(()=>null),
     ]);
     const info = infoR ? await infoR.json() : {};
     const napcat = napcatR ? await napcatR.json() : {};
+    // 插件与群组统计
+    let pluginList = {}, pluginCount = 0, groupCount = 0;
+    try {
+      const d = await pluginsR.json();
+      for (const [k, v] of Object.entries(d.plugins || {})) { if (k !== '_toggles') pluginList[k] = v; }
+      pluginCount = Object.keys(pluginList).length;
+      groupCount = ((d.plugins || {})._toggles || {}).groups ? ((d.plugins || {})._toggles.groups).length : 0;
+    } catch(e) {}
+    // 插件概览列表
+    let pluginHtml = Object.keys(pluginList).length === 0
+      ? '<div style="padding:20px;color:var(--text-secondary);text-align:center">暂无插件</div>'
+      : '<div style="display:flex;flex-wrap:wrap;gap:10px;padding:4px 0">' + Object.keys(pluginList).map(k => {
+          const p = pluginList[k];
+          return '<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--border-light);border-radius:var(--radius);background:var(--bg-input);cursor:pointer" onclick="navigate(\'config\');selectPlugin(\'' + k + '\')"><span style="font-size:16px">🧩</span><span style="font-size:13px;font-weight:500">' + (p.name_cn||k) + '</span><span style="font-size:11px;color:var(--text-secondary)">' + (p.name_en||'') + '</span></div>';
+        }).join('') + '</div>';
     document.getElementById('pageContent').innerHTML = `
       <div class="stat-grid">
-        <div class="stat-card"><div class="stat-icon blue">🤖</div><div class="stat-info"><div class="label">Bot 状态</div><div class="value">${info.running?'运行中':'已停止'}</div><div class="desc">${info.name||BOT_NAME}</div></div></div>
-        <div class="stat-card"><div class="stat-icon green">🐱</div><div class="stat-info"><div class="label">NapCat 状态</div><div class="value">${napcat.running?'运行中':'已停止'}</div><div class="desc">容器 ${napcat.container||'-'}</div></div></div>
-        <div class="stat-card"><div class="stat-icon orange">📦</div><div class="stat-info"><div class="label">工作目录</div><div class="value" style="font-size:16px">${info.dir||'-'}</div><div class="desc">Screen: ${info.screen||'-'}</div></div></div>
-        <div class="stat-card"><div class="stat-icon purple">⚡</div><div class="stat-info"><div class="label">快捷操作</div><div class="value" style="font-size:14px;font-weight:500"><a href="#" onclick="navigate(\'manage\');return false" style="color:var(--color-primary)">🛠️ 管理</a> · <a href="#" onclick="navigate(\'config\');return false" style="color:var(--color-primary)">⚙️ 配置</a></div><div class="desc">点击进入</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue">🤖</div><div class="stat-info"><div class="label">Bot 状态</div><div class="value">${info.running?'运行中':'已停止'}</div><div class="desc">${info.name||BOT_NAME} · PID ${info.pid||'-'}</div></div></div>
+        <div class="stat-card"><div class="stat-icon green">🐱</div><div class="stat-info"><div class="label">NapCat 状态</div><div class="value">${napcat.running?'运行中':'已停止'}</div><div class="desc">容器 ${napcat.container||info.container||'-'}</div></div></div>
+        <div class="stat-card"><div class="stat-icon orange">🧩</div><div class="stat-info"><div class="label">已安装插件</div><div class="value">${pluginCount} 个</div><div class="desc">点击下方插件可直接配置</div></div></div>
+        <div class="stat-card"><div class="stat-icon purple">👥</div><div class="stat-info"><div class="label">关联群组</div><div class="value">${groupCount} 个</div><div class="desc"><a href="#" onclick="navigate(\'groups\');return false" style="color:var(--color-primary)">管理群组开关 →</a></div></div></div>
       </div>
-      <div class="card"><div class="card-header"><h3>🔍 系统信息</h3></div><div class="card-body"><table class="el-table"><tr><th width="120">项目</th><th>值</th></tr>
+      <div class="card"><div class="card-header"><h3>🧩 插件概览</h3><span style="font-size:12px;color:var(--text-secondary)">点击进入对应插件配置</span></div><div class="card-body">${pluginHtml}</div></div>
+      <div class="card"><div class="card-header"><h3>🔍 系统信息</h3></div><div class="card-body"><table class="el-table"><tr><th width="130">项目</th><th>值</th></tr>
         <tr><td>机器人</td><td>${info.name||BOT_NAME} (QQ:${info.qq||'-'})</td></tr>
         <tr><td>主人 QQ</td><td>${info.master||'-'}</td></tr>
+        <tr><td>运行时长</td><td>${fmtUptime(info.uptime)} ${info.pid?'(PID '+info.pid+')':''}</td></tr>
         <tr><td>运行目录</td><td>${info.dir||'-'}</td></tr>
         <tr><td>Screen</td><td>${info.screen||'-'}</td></tr>
-        <tr><td>NapCat 容器</td><td>${napcat.container||'-'} · ${napcat.status||'-'}</td></tr>
+        <tr><td>NapCat 容器</td><td>${napcat.container||info.container||'-'} · ${napcat.status||'-'}</td></tr>
       </table></div></div>`;
   } catch(e) {
     document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
@@ -357,34 +381,69 @@ async function renderManage() {
   renderSidebar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
   try {
-    const [infoR, napcatR] = await Promise.all([
+    const [infoR, napcatR, logR] = await Promise.all([
       fetch('/api/bot/' + botNum + '/info').catch(()=>null),
       fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
+      fetch('/api/bot/' + botNum + '/log').catch(()=>null),
     ]);
     const info = infoR ? await infoR.json() : {};
     const napcat = napcatR ? await napcatR.json() : {};
+    let botLog = '';
+    try { const d = await logR.json(); botLog = d.log || ''; } catch(e) {}
     document.getElementById('pageContent').innerHTML = `
       <div class="card"><div class="card-header"><h3>🤖 Bot 管理</h3></div><div class="card-body">
-        <div style="margin-bottom:12px"><span class="el-tag ${info.running?'success':'danger'}"><span class="status-dot ${info.running?'green':'red'}"></span> ${info.running?'运行中':'已停止'}</span> ${info.name||BOT_NAME}</div>
+        <div style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span class="el-tag ${info.running?'success':'danger'}"><span class="status-dot ${info.running?'green':'red'}"></span> ${info.running?'运行中':'已停止'}</span>
+          <span style="font-size:13px;font-weight:600">${info.name||BOT_NAME}</span>
+          <span style="font-size:12px;color:var(--text-secondary)">PID: ${info.pid||'-'} · 运行时长: ${fmtUptime(info.uptime)}</span>
+        </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="doBotAction('start')">▶ 启动</button>
           <button class="btn btn-default" onclick="doBotAction('stop')">⏹ 停止</button>
           <button class="btn btn-default" onclick="doBotAction('restart')">🔄 重启</button>
+          <button class="btn btn-default" onclick="loadBotLog()">📋 刷新日志</button>
         </div>
       </div></div>
-      <div class="card"><div class="card-header"><h3>📱 NapCat 登录</h3></div><div class="card-body">
-        <div style="margin-bottom:12px"><span class="el-tag ${napcat.running?'success':'danger'}"><span class="status-dot ${napcat.running?'green':'red'}"></span> ${napcat.running?'运行中':'已停止'}</span> ${napcat.container||'-'}</div>
+      <div class="card"><div class="card-header"><h3>🐱 NapCat 容器</h3></div><div class="card-body">
+        <div style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span class="el-tag ${napcat.running?'success':'danger'}"><span class="status-dot ${napcat.running?'green':'red'}"></span> ${napcat.running?'运行中':'已停止'}</span>
+          <span style="font-size:13px;font-weight:600">${napcat.container||info.container||'-'}</span>
+          <span style="font-size:12px;color:var(--text-secondary)">${napcat.status||''}</span>
+        </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="showQR()">📱 查看二维码</button>
+          <button class="btn btn-default" onclick="loadNapcatLog()">📋 容器日志</button>
         </div>
       </div></div>
       <div id="qrArea" style="display:none;text-align:center">
         <div class="card"><div class="card-header"><h3>📱 二维码</h3></div><div class="card-body" id="qrContainer">加载中...</div></div>
       </div>
+      <div class="card"><div class="card-header"><h3>📋 Bot 日志</h3><span style="font-size:12px;color:var(--text-secondary)">runtime.log 最近 100 行</span></div><div class="card-body"><div class="log-viewer" id="botLogViewer" style="max-height:300px">${botLog ? botLog.split("\n").slice(-30).map(l=>escapeHtml(l)).join("\n") : '暂无日志'}</div></div></div>
       <div id="manageMsg" style="text-align:center;font-size:13px;color:var(--text-secondary);min-height:24px"></div>`;
   } catch(e) {
     document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
   }
+}
+
+// 刷新 Bot 日志（运行管理页内）
+async function loadBotLog() {
+  try {
+    const r = await fetch('/api/bot/' + botNum + '/log');
+    const d = await r.json();
+    const v = document.getElementById('botLogViewer');
+    if (v) v.innerHTML = (d.log||'暂无日志').split("\n").slice(-30).map(l=>escapeHtml(l)).join("\n");
+  } catch(e) { showToast('日志获取失败','error'); }
+}
+
+// 查看 NapCat 容器日志
+async function loadNapcatLog() {
+  try {
+    const r = await fetch('/api/bot/' + botNum + '/napcat-log');
+    const d = await r.json();
+    showToast('已加载容器日志','info');
+    document.getElementById('pageContent').innerHTML += '<div class="card"><div class="card-header"><h3>🐱 NapCat 容器日志</h3><span style="font-size:12px;color:var(--text-secondary)">最近 30 行</span></div><div class="card-body"><div class="log-viewer" style="max-height:300px">' + escapeHtml(d.log||'') + '</div></div></div>';
+    window.scrollTo(0, document.body.scrollHeight);
+  } catch(e) { showToast('容器日志获取失败','error'); }
 }
 
 async function doBotAction(action) {
