@@ -704,13 +704,14 @@ def save_config(num):
             merged.setdefault('messages', {})[k.replace('msg_', '', 1)] = v
         elif k.startswith('setting_'):
             key = k.replace('setting_', '', 1)
-            if key == 'enabled':
+            old_val = merged.get('settings', {}).get(key)
+            # 布尔型设置（开关）：统一转 bool，保证保存后重载仍是开关
+            if isinstance(old_val, bool) or str(v).lower() in ('true', 'false'):
                 v = (str(v).lower() == 'true')
             elif isinstance(v, str) and v.replace('.', '', 1).replace('-', '', 1).isdigit():
                 v2 = float(v) if '.' in v else int(v)
-                old = merged.get('settings', {}).get(key)
-                if isinstance(old, (int, float)):
-                    v = type(old)(v2)
+                if isinstance(old_val, (int, float)):
+                    v = type(old_val)(v2)
                 else:
                     v = v2
             merged.setdefault('settings', {})[key] = v

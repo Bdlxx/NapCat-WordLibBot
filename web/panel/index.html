@@ -641,7 +641,7 @@ function switchConfigTab(key) {
     if (field.t === 'num') inp = '<input type="number" id="' + fid + '" value="' + field.v + '" min="' + (field.min||0) + '" max="' + (field.max||'') + '" step="' + (field.s||1) + '" style="width:120px;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none">';
     else if (field.t === 'sel' && field.o && field.o.length === 2 && field.o.includes('true')) {
       const ch = String(field.v) === 'true';
-      inp = '<label class="el-switch" style="display:inline-flex;align-items:center;cursor:pointer;gap:8px"><input type="checkbox" id="' + fid + '" ' + (ch?'checked':'') + ' onchange="onCfgChange()"><span class="track" style="width:40px;height:20px;border-radius:10px;background:' + (ch?'var(--color-primary)':'var(--border-color)') + ';transition:all .2s;position:relative;display:inline-block"></span><span style="font-size:12px;color:var(--text-secondary)">' + (ch?'已开启':'已关闭') + '</span></label>';
+      inp = '<label class="el-switch" style="display:inline-flex;align-items:center;cursor:pointer;gap:8px"><input type="checkbox" id="' + fid + '" ' + (ch?'checked':'') + ' onchange="onCfgChange(this)"><span class="track" style="width:40px;height:20px;border-radius:10px;background:' + (ch?'var(--color-primary)':'var(--border-color)') + ';transition:all .2s;position:relative;display:inline-block"></span><span class="sw-text" style="font-size:12px;color:var(--text-secondary)">' + (ch?'已开启':'已关闭') + '</span></label>';
     } else if (field.t === 'sel') {
       const opts = field.o.map(o => '<option value="' + o + '" ' + (String(o)===String(field.v)?'selected':'') + '>' + o + '</option>').join('');
       inp = '<select id="' + fid + '" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none;max-width:240px">' + opts + '</select>';
@@ -658,7 +658,19 @@ function switchConfigTab(key) {
     if (el) el.oninput = el.onchange = function() { if (!isDirty(key)) { dirtyPlugins[key]=true; } };
   }
 }
-function onCfgChange() { if (activePlugin && !isDirty(activePlugin)) dirtyPlugins[activePlugin] = true; }
+function onCfgChange(el) {
+  if (activePlugin && !isDirty(activePlugin)) dirtyPlugins[activePlugin] = true;
+  // 开关即时视觉反馈：切换 track 颜色与状态文字
+  if (el && el.type === 'checkbox') {
+    const label = el.closest('label');
+    if (label) {
+      const track = label.querySelector('.track');
+      const txt = label.querySelector('.sw-text');
+      if (track) track.style.background = el.checked ? 'var(--color-primary)' : 'var(--border-color)';
+      if (txt) txt.textContent = el.checked ? '已开启' : '已关闭';
+    }
+  }
+}
 function collectCfg(key) {
   const cfg = {}, plugin = configPlugins[key]; if (!plugin) return null;
   for (const field of plugin.fields) {
@@ -678,6 +690,9 @@ async function saveCurrentConfig() {
     const d = await r.json();
     if (!d.ok) throw new Error(d.error||'保存失败');
     dirtyPlugins[activePlugin] = false; showToast('✅ 已保存','success'); fetchStatus();
+    // 清缓存并重新渲染当前插件，确保开关/字段显示保存后的正确状态
+    delete pageCache['config'];
+    renderConfig(activePlugin);
   } catch(e) { showToast('❌ '+e.message,'error'); }
 }
 async function saveAndRestartConfig() {
@@ -685,6 +700,9 @@ async function saveAndRestartConfig() {
   showToast('💾 保存中...','info');
   try {
     await fetch('/api/bot/' + botNum + '/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plugin:activePlugin,cfg})});
+    dirtyPlugins[activePlugin] = false;
+    delete pageCache['config'];
+    renderConfig(activePlugin);  // 保存后立即显示正确状态
     showToast('✅ 已保存，正在重启...','success');
     setTimeout(async () => { await fetch('/api/bot/' + botNum + '/restart',{method:'POST'}); showToast('🔄 已重启','success'); fetchStatus(); }, 500);
   } catch(e) { showToast('❌ '+e.message,'error'); }
