@@ -68,10 +68,14 @@ a:hover { color: var(--color-primary-light); }
 }
 .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
 .nav-item.active {
-  background: var(--bg-active); color: var(--color-primary);
-  border-left-color: var(--color-primary); font-weight: 600;
+  background: linear-gradient(90deg, rgba(100,149,237,.14), rgba(100,149,237,.03));
+  color: var(--color-primary); border-left-color: var(--color-primary); font-weight: 600;
 }
-.nav-item .icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-item.active .icon { background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)); color: #fff; box-shadow: 0 3px 8px rgba(100,149,237,.35); }
+.nav-item .icon { font-size: 15px; width: 28px; height: 28px; border-radius: 8px;
+  background: var(--bg-input); display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all .2s; }
+.nav-item:hover .icon { background: var(--bg-hover); transform: scale(1.05); }
 .nav-item .badge {
   margin-left: auto; font-size: 11px; padding: 1px 6px; border-radius: 10px;
   background: var(--color-danger); color: #fff; font-weight: 500;
@@ -134,6 +138,8 @@ a:hover { color: var(--color-primary-light); }
   display: flex; align-items: center; justify-content: space-between;
 }
 .card-header h3 { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.card-header h3::before { content: ''; width: 4px; height: 15px; border-radius: 2px;
+  background: linear-gradient(180deg, var(--color-primary), var(--color-primary-light)); }
 .card-header .badge {
   font-size: 11px; padding: 2px 10px; border-radius: 10px;
   background: var(--bg-active); color: var(--color-primary);
