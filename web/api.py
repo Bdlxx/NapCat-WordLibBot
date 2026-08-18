@@ -30,6 +30,21 @@ PASSWORDS = auth_config.get('passwords', {})
 
 app = Flask(__name__, static_folder=STATIC_DIR)
 app.secret_key = auth_config.get('secret_key', os.urandom(24).hex())
+
+@app.after_request
+def add_cache_headers(resp):
+    """缓存策略：
+    - 静态页面框架（HTML/CSS/JS）：允许浏览器缓存（刷新秒开，改版后强刷生效）
+    - API 数据接口：禁止缓存（内容每次实时获取）
+    """
+    if request.path.startswith('/api/'):
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        resp.headers['Pragma'] = 'no-cache'
+        resp.headers['Expires'] = '0'
+    else:
+        # 静态框架：浏览器缓存（5 分钟，刷新秒开；改版后 Ctrl+F5 强刷生效）
+        resp.headers['Cache-Control'] = 'public, max-age=300'
+    return resp
 app.permanent_session_lifetime = 86400  # 24小时过期
 
 # ====== 登录限流 ======
