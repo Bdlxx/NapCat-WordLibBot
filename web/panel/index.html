@@ -306,7 +306,7 @@ function renderSidebar() {
   restoreSubMenu();
 }
 
-let configSubOpen = true;  // 登录进入面板默认展开插件二级菜单并加载
+let configSubOpen = false;  // 二级菜单默认收起；进入面板时预加载数据，点击展开即时显示
 
 // 展开/收起二级菜单（主项点击；页面切换由 data-page 事件委托完成）
 function toggleSubMenu(id) {
@@ -909,6 +909,7 @@ function renderPage() {
 
 fetchStatus();
 renderPage();
+ensurePluginSubmenu();  // 预加载插件二级菜单数据（不展开，点击展开即时显示）
 setInterval(fetchStatus, 15000);
 
 // 事件委托：配置标签页(data-sk)、导航(data-page)、群组开关(data-nav/checkbox)
