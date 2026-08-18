@@ -7,64 +7,73 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
 <style>
 :root {
-  --bg-page: #f0f2f5;
+  --bg-page: #f4f7f9;
   --bg-card: #fff;
-  --text-primary: #303133;
-  --text-regular: #606266;
-  --text-secondary: #909399;
-  --border-color: #e4e7ed;
-  --color-primary: #409eff;
-  --color-primary-light: #66b1ff;
-  --shadow: 0 2px 12px rgba(0,0,0,.08);
-  --radius: 12px;
+  --text-primary: #1f2733;
+  --text-regular: #4a5568;
+  --text-secondary: #8a94a6;
+  --border-color: #e4e9f0;
+  --color-primary: #6495ed;
+  --color-primary-light: #91b9fa;
+  --color-primary-dark: #4a71c7;
+  --shadow: 0 6px 24px rgba(74,113,199,.12);
+  --radius: 14px;
+  --bg-grad: linear-gradient(135deg, #eef3fb 0%, #dfe9fa 50%, #e8effb 100%);
 }
 [data-theme="dark"] {
-  --bg-page: #141414;
-  --bg-card: #1d1d1d;
-  --text-primary: #e5eaf3;
-  --text-regular: #cfd3dc;
-  --text-secondary: #a3a6ad;
-  --border-color: #333;
-  --shadow: 0 2px 12px rgba(0,0,0,.3);
+  --bg-page: #2c344a;
+  --bg-card: #3a4256;
+  --text-primary: #e8ecf4;
+  --text-regular: #c3cad9;
+  --text-secondary: #8f99b0;
+  --border-color: #4a5470;
+  --color-primary: #6495ed;
+  --color-primary-light: #91b9fa;
+  --color-primary-dark: #4a71c7;
+  --shadow: 0 6px 24px rgba(0,0,0,.35);
+  --bg-grad: linear-gradient(135deg, #232b3d 0%, #2c344a 50%, #263044 100%);
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
-  background: var(--bg-page); color: var(--text-primary);
+  background: var(--bg-grad); color: var(--text-primary);
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  transition: background .2s;
+  transition: background .3s;
 }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 .login-card {
   background: var(--bg-card); border-radius: var(--radius);
-  box-shadow: var(--shadow); width: 380px; max-width: 90%;
-  padding: 40px 32px; text-align: center;
+  box-shadow: var(--shadow); width: 400px; max-width: 92%;
+  padding: 44px 36px; text-align: center;
   border: 1px solid var(--border-color);
+  animation: fadeUp .5s ease both;
 }
-.login-card .logo { font-size: 48px; margin-bottom: 8px; }
+.login-card .logo { font-size: 52px; margin-bottom: 10px; }
 .login-card h1 {
-  font-size: 20px; font-weight: 600; margin-bottom: 4px;
-  background: linear-gradient(135deg, var(--color-primary), #a855f7);
+  font-size: 21px; font-weight: 700; margin-bottom: 4px;
+  background: linear-gradient(135deg, var(--color-primary), #a78bfa 60%, #6495ed);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 }
-.login-card .subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 28px; }
+.login-card .subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 30px; }
 .login-card input {
-  width: 100%; padding: 12px 16px; border: 1px solid var(--border-color);
-  border-radius: 8px; font-size: 14px; outline: none; transition: border .2s;
+  width: 100%; padding: 13px 16px; border: 1px solid var(--border-color);
+  border-radius: 10px; font-size: 14px; outline: none; transition: all .2s;
   background: var(--bg-card); color: var(--text-primary);
   margin-bottom: 16px;
 }
-.login-card input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(64,158,255,.2); }
+.login-card input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(100,149,237,.18); }
 .login-card .btn {
-  width: 100%; padding: 12px; border: none; border-radius: 8px;
-  background: var(--color-primary); color: #fff; font-size: 15px; font-weight: 600;
-  cursor: pointer; transition: all .2s;
+  width: 100%; padding: 13px; border: none; border-radius: 10px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: #fff; font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: all .2s; box-shadow: 0 4px 14px rgba(100,149,237,.35);
 }
-.login-card .btn:hover { background: var(--color-primary-light); }
+.login-card .btn:hover { background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary)); box-shadow: 0 6px 18px rgba(100,149,237,.45); transform: translateY(-1px); }
 .login-card .btn:active { transform: scale(.97); }
-.login-card .error { color: #f56c6c; font-size: 13px; min-height: 24px; margin-top: 12px; }
+.login-card .error { color: #ed6f6f; font-size: 13px; min-height: 24px; margin-top: 12px; }
 .login-card .hint {
-  margin-top: 20px; padding: 12px 16px; border-radius: 8px;
-  background: rgba(64,158,255,.08); font-size: 12px; color: var(--text-secondary);
+  margin-top: 22px; padding: 12px 16px; border-radius: 10px;
+  background: rgba(100,149,237,.08); font-size: 12px; color: var(--text-secondary);
   display: flex; align-items: center; justify-content: center; gap: 12px;
 }
 .login-card .hint span { display: flex; align-items: center; gap: 4px; }

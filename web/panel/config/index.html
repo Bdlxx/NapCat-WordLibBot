@@ -8,19 +8,19 @@
 <style>
 /* ========== CSS Variables ========== */
 :root {
-  --bg-page: #f0f2f5; --bg-sidebar: #fff; --bg-header: #fff; --bg-card: #fff;
+  --bg-page: #f4f7f9; --bg-sidebar: #fff; --bg-header: #fff; --bg-card: #fff;
   --bg-input: #f5f7fa; --bg-hover: #f0f2ff; --bg-active: #ecf5ff;
   --bg-warning-light: #fdf6ec;
   --text-primary: #303133; --text-regular: #606266; --text-secondary: #909399;
   --border-color: #e4e7ed; --border-light: #ebeef5;
-  --color-primary: #409eff; --color-primary-light: #66b1ff;
-  --color-success: #67c23a; --color-warning: #e6a23c; --color-danger: #f56c6c;
+  --color-primary: #6495ed; --color-primary-light: #91b9fa;
+  --color-success: #67c23a; --color-warning: #e6a23c; --color-danger: #ed6f6f;
   --color-info: #909399;
   --shadow-card: 0 2px 12px 0 rgba(0,0,0,.06);
   --radius: 8px; --radius-lg: 12px; --sidebar-width: 220px;
 }
 [data-theme="dark"] {
-  --bg-page: #141414; --bg-sidebar: #1d1d1d; --bg-header: #1d1d1d; --bg-card: #1d1d1d;
+  --bg-page: #2c344a; --bg-sidebar: #333c52; --bg-header: #1d1d1d; --bg-card: #3a4256;
   --bg-input: #2a2a2a; --bg-hover: #2a2a3a; --bg-active: #1a2a3a; --bg-warning-light: #2a2a1a;
   --text-primary: #e5eaf3; --text-regular: #cfd3dc; --text-secondary: #a3a6ad;
   --border-color: #333; --border-light: #2a2a2a;
@@ -155,7 +155,7 @@ a:hover { color: var(--color-primary-light); }
   display: flex; align-items: center; justify-content: center; font-size: 22px;
   flex-shrink: 0;
 }
-.stat-icon.blue { background: rgba(64,158,255,.12); }
+.stat-icon.blue { background: rgba(100,149,237,.12); }
 .stat-icon.green { background: rgba(103,194,58,.12); }
 .stat-icon.orange { background: rgba(230,162,60,.12); }
 .stat-icon.purple { background: rgba(144,107,224,.12); }
@@ -186,7 +186,7 @@ a:hover { color: var(--color-primary-light); }
   transition: border .2s, box-shadow .2s; font-family: inherit;
 }
 .form-item input:focus, .form-item textarea:focus, .form-item select:focus {
-  border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(64,158,255,.2);
+  border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(100,149,237,.2);
 }
 .form-item textarea { min-height: 80px; resize: vertical; line-height: 1.5; }
 .form-item input[type="number"] {
