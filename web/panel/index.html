@@ -1029,8 +1029,9 @@ async function preloadAllPages() {
   realContent.parentNode.insertBefore(hidden, realContent);
 
   preloading = true;
+  // 日志页（项目日志/NapCat日志）不参与预加载：点开时才渲染，加快启动速度
   await Promise.all([
-    renderManage(), renderConfig(), renderGroups(), renderLogs(), renderNapcatLogs(),
+    renderManage(), renderConfig(), renderGroups(),
   ].map(p => p.catch(()=>{})));
   preloading = false;
 
