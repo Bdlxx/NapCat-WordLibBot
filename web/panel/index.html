@@ -38,6 +38,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 .nav-item:hover{background:var(--bg-hover);color:var(--text-primary)}
 .nav-item.active{background:linear-gradient(90deg,rgba(100,149,237,.14),rgba(100,149,237,.03));color:var(--color-primary);border-left-color:var(--color-primary);font-weight:600}
 .nav-item.active .icon{background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark));color:#fff;box-shadow:0 3px 8px rgba(100,149,237,.35)}
+.nav-arrow{margin-left:auto;font-size:10px;color:var(--text-secondary);transition:transform .2s}
+.nav-sub{display:none;padding:2px 0 8px 30px}
+.nav-sub-item{padding:7px 12px;font-size:12px;color:var(--text-regular);cursor:pointer;border-radius:6px;margin:1px 8px 1px 0;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-sub-item:hover{background:var(--bg-hover);color:var(--color-primary)}
+.nav-sub-item.active{background:var(--bg-active);color:var(--color-primary);font-weight:600}
+.nav-sub-loading{padding:6px 12px;font-size:12px;color:var(--text-secondary)}
 .nav-item .icon{font-size:15px;width:28px;height:28px;border-radius:8px;background:var(--bg-input);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
 .nav-item:hover .icon{background:var(--bg-hover);transform:scale(1.05)}
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
@@ -207,7 +213,7 @@ function handleLogout() { fetch('/api/logout',{method:'POST'}).then(()=>window.l
 const NAV_ITEMS = [
   { id:'dashboard', icon:'📊', label:'仪表盘', group:'概览' },
   { id:'manage',    icon:'🛠️',  label:'运行管理', group:'管理' },
-  { id:'config',    icon:'⚙️',  label:'插件配置', group:'管理' },
+  { id:'config',    icon:'⚙️',  label:'插件配置', group:'管理', sub:true },
   { id:'groups',    icon:'👥',  label:'群组开关', group:'管理' },
   { id:'logs',      icon:'📋',  label:'运行日志', group:'管理' },
 ];
@@ -230,10 +236,78 @@ function renderSidebar() {
   for (const [g, items] of Object.entries(groups)) {
     html += '<div class="nav-group-title">' + g + '</div>';
     for (const item of items) {
-      html += '<div class="nav-item ' + (currentPage===item.id?'active':'') + '" data-page="' + item.id + '" onclick="navigate(\'' + item.id + '\')"><span class="icon">' + item.icon + '</span> ' + item.label + '</div>';
+      if (item.sub) {
+        html += '<div class="nav-item ' + (currentPage===item.id?'active':'') + '" data-page="' + item.id + '" onclick="toggleSubMenu(\'' + item.id + '\')"><span class="icon">' + item.icon + '</span> ' + item.label + '<span class="nav-arrow" id="arrow_' + item.id + '">▾</span></div>';
+        html += '<div class="nav-sub" id="sub_' + item.id + '"><div class="nav-sub-loading">加载中...</div></div>';
+      } else {
+        html += '<div class="nav-item ' + (currentPage===item.id?'active':'') + '" data-page="' + item.id + '" onclick="navigate(\'' + item.id + '\')"><span class="icon">' + item.icon + '</span> ' + item.label + '</div>';
+      }
     }
   }
   nav.innerHTML = html;
+  restoreSubMenu();
+}
+
+let configSubOpen = false;
+
+// 展开/收起二级菜单（主项点击；页面切换由 data-page 事件委托完成）
+function toggleSubMenu(id) {
+  const sub = document.getElementById('sub_' + id);
+  const arrow = document.getElementById('arrow_' + id);
+  if (!sub) return;
+  const willOpen = sub.style.display !== 'block';
+  sub.style.display = willOpen ? 'block' : 'none';
+  if (arrow) arrow.textContent = willOpen ? '▴' : '▾';
+  if (id === 'config') {
+    configSubOpen = willOpen;
+    if (willOpen) ensurePluginSubmenu();
+  }
+}
+
+// 恢复子菜单展开状态（renderSidebar 重渲染后调用）
+function restoreSubMenu() {
+  const sub = document.getElementById('sub_config');
+  const arrow = document.getElementById('arrow_config');
+  if (!sub) return;
+  if (configSubOpen) { sub.style.display = 'block'; if (arrow) arrow.textContent = '▴'; renderPluginSubmenu(); }
+  else { sub.style.display = 'none'; if (arrow) arrow.textContent = '▾'; }
+}
+
+// 确保插件列表已加载并填充二级菜单
+function ensurePluginSubmenu() {
+  if (Object.keys(configPlugins).length === 0) {
+    fetch('/api/bot/' + botNum + '/plugins').then(r=>r.json()).then(d=>{
+      configPlugins = {};
+      for (const [key, val] of Object.entries(d.plugins || {})) {
+        if (key !== '_toggles') configPlugins[key] = val;
+      }
+      configKeys = Object.keys(configPlugins);
+      renderPluginSubmenu();
+    }).catch(()=>{});
+  } else {
+    renderPluginSubmenu();
+  }
+}
+
+// 渲染二级菜单插件列表
+function renderPluginSubmenu() {
+  const sub = document.getElementById('sub_config');
+  if (!sub) return;
+  const keys = Object.keys(configPlugins);
+  if (keys.length === 0) { sub.innerHTML = '<div class="nav-sub-item" style="color:var(--text-secondary)">暂无插件</div>'; return; }
+  sub.innerHTML = keys.map(key => {
+    const p = configPlugins[key];
+    return '<div class="nav-sub-item ' + (activePlugin===key?'active':'') + '" onclick="selectPlugin(\'' + key + '\')">' + (p.name_cn||key) + '</div>';
+  }).join('');
+}
+
+// 从二级菜单选择插件
+function selectPlugin(key) {
+  activePlugin = key;
+  currentPage = 'config';
+  configSubOpen = true;  // 保持二级菜单展开，高亮当前插件
+  renderPluginSubmenu();
+  renderConfig(key);
 }
 
 async function fetchStatus() {
@@ -338,30 +412,30 @@ async function showQR() {
 // === Config ===
 let configPlugins = {}, configKeys = [], activePlugin = null, dirtyPlugins = {};
 
-async function renderConfig() {
+async function renderConfig(pluginKey) {
   document.getElementById('breadcrumb').innerHTML = '<span class="current">插件配置</span>';
   renderSidebar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
   try {
-    const r = await fetch('/api/bot/' + botNum + '/plugins');
-    const d = await r.json();
-    configPlugins = {};
-    // 只取有插件文件存在的（排除 _toggles 元数据）
-    for (const [key, val] of Object.entries(d.plugins)) {
-      if (key !== '_toggles') configPlugins[key] = val;
+    if (Object.keys(configPlugins).length === 0) {
+      const r = await fetch('/api/bot/' + botNum + '/plugins');
+      const d = await r.json();
+      configPlugins = {};
+      // 只取有插件文件存在的（排除 _toggles 元数据）
+      for (const [key, val] of Object.entries(d.plugins)) {
+        if (key !== '_toggles') configPlugins[key] = val;
+      }
+      configKeys = Object.keys(configPlugins);
+      dirtyPlugins = {};
+      renderPluginSubmenu();
     }
-    configKeys = Object.keys(configPlugins);
-    dirtyPlugins = {};
     if (configKeys.length === 0) { document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>暂无可用配置</p></div>'; return; }
-    let html = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">';
-    for (const key of configKeys) {
-      const p = configPlugins[key];
-      html += '<button class="btn ' + (key===configKeys[0]?'btn-primary':'btn-default') + '" data-sk="' + key + '" id="tab_' + key + '">' + (p.name_cn||key) + '</button>';
-    }
-    html += '</div><div style="display:flex;gap:10px;margin-bottom:16px"><button class="btn btn-primary" onclick="saveCurrentConfig()">💾 保存</button><button class="btn btn-success" onclick="saveAndRestartConfig()">💾 保存并重启</button></div><div id="configContent"></div>';
-    document.getElementById('pageContent').innerHTML = html;
-    activePlugin = null;
-    switchConfigTab(configKeys[0]);
+    // 插件选择已移至左侧「插件配置」二级菜单，页面只保留操作按钮与配置表单
+    document.getElementById('pageContent').innerHTML = '<div style="display:flex;gap:10px;margin-bottom:16px"><button class="btn btn-primary" onclick="saveCurrentConfig()">💾 保存</button><button class="btn btn-success" onclick="saveAndRestartConfig()">💾 保存并重启</button></div><div id="configContent"></div>';
+    const target = pluginKey || (activePlugin && configPlugins[activePlugin] ? activePlugin : configKeys[0]);
+    activePlugin = target;
+    renderPluginSubmenu();
+    switchConfigTab(target);
   } catch(e) { document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>'; }
 }
 function switchConfigTab(key) {
