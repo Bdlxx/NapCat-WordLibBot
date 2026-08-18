@@ -100,6 +100,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 .el-table .group-cell .g-info{display:flex;flex-direction:column;justify-content:center;min-width:0}
 .el-table .group-cell .g-info .g-name{font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
 .el-table .group-cell .g-info .g-id{font-size:11px;color:var(--text-secondary);margin-top:1px}
+.action-bar{position:sticky;bottom:0;display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--bg-card);border-top:1px solid var(--border-color);box-shadow:0 -4px 16px rgba(0,0,0,.06);z-index:20;margin-top:8px}
 .float-actions{position:fixed;bottom:24px;right:24px;display:flex;gap:10px;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:12px 16px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-light)}
 .btn{padding:9px 20px;border-radius:var(--radius);border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
 .btn:active{transform:scale(.97)}
@@ -158,6 +159,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
       </div>
     </header>
     <div class="content" id="pageContent"></div>
+    <!-- 统一底部操作栏：所有需要保存的页面共用（保存按钮位置一致） -->
+    <div class="action-bar" id="actionBar" style="display:none">
+      <span id="actionBarTitle" style="font-size:13px;color:var(--text-secondary)"></span>
+      <div style="display:flex;gap:10px;margin-left:auto">
+        <button class="btn btn-success" id="actionSaveRestartBtn" style="display:none">💾 保存并重启</button>
+        <button class="btn btn-primary" id="actionSaveBtn">💾 保存</button>
+      </div>
+    </div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -194,6 +203,43 @@ let pageCache = {};
 const PAGE_CRUMBS = { dashboard:'仪表盘', manage:'运行管理', config:'插件配置', groups:'群组开关', logs:'运行日志' };
 function cachePage() { pageCache[currentPage] = document.getElementById('pageContent').innerHTML; }
 function refreshCurrentPage() { delete pageCache[currentPage]; renderPage(); }
+
+// 局部更新定时器：仅刷新变化区域（状态等），不重渲染整页
+let pageTimer = null;
+function startPageTimer(fn, ms) { clearPageTimer(); if (fn) pageTimer = setInterval(fn, ms || 10000); }
+function clearPageTimer() { if (pageTimer) { clearInterval(pageTimer); pageTimer = null; } }
+
+// 统一底部操作栏（保存按钮固定位置）
+function showActionBar(title, onSave, onSaveRestart) {
+  const bar = document.getElementById('actionBar');
+  const t = document.getElementById('actionBarTitle');
+  const btn = document.getElementById('actionSaveBtn');
+  const btn2 = document.getElementById('actionSaveRestartBtn');
+  if (t) t.textContent = title || '';
+  if (btn) { btn.style.display = ''; btn.onclick = onSave; }
+  if (btn2) {
+    if (onSaveRestart) { btn2.style.display = ''; btn2.onclick = onSaveRestart; }
+    else { btn2.style.display = 'none'; btn2.onclick = null; }
+  }
+  if (bar) bar.style.display = 'flex';
+}
+function hideActionBar() {
+  const bar = document.getElementById('actionBar');
+  if (bar) bar.style.display = 'none';
+}
+// 缓存恢复时同步底部操作栏状态
+function restoreActionBar() {
+  if (currentPage === 'config') {
+    const t = activePlugin && configPlugins[activePlugin] ? configPlugins[activePlugin] : null;
+    showActionBar('正在配置：' + ((t||{}).name_cn||(activePlugin||'')),
+      async () => { await saveCurrentConfig(); },
+      async () => { await saveAndRestartConfig(); });
+  } else if (currentPage === 'groups') {
+    showActionBar('群组开关', tgSave);
+  } else {
+    hideActionBar();
+  }
+}
 
 function toggleTheme() {
   const html = document.documentElement;
@@ -335,6 +381,7 @@ function fmtUptime(sec) {
 }
 
 async function renderDashboard() {
+  hideActionBar();
   document.getElementById('breadcrumb').innerHTML = '<span class="current">仪表盘</span>';
   renderSidebar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
@@ -363,8 +410,8 @@ async function renderDashboard() {
         }).join('') + '</div>';
     document.getElementById('pageContent').innerHTML = `
       <div class="stat-grid">
-        <div class="stat-card"><div class="stat-icon blue">🤖</div><div class="stat-info"><div class="label">Bot 状态</div><div class="value">${info.running?'运行中':'已停止'}</div><div class="desc">${info.name||BOT_NAME} · PID ${info.pid||'-'}</div></div></div>
-        <div class="stat-card"><div class="stat-icon green">🐱</div><div class="stat-info"><div class="label">NapCat 状态</div><div class="value">${napcat.running?'运行中':'已停止'}</div><div class="desc">容器 ${napcat.container||info.container||'-'}</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue">🤖</div><div class="stat-info"><div class="label">Bot 状态</div><div class="value" id="dashBotVal">${info.running?'运行中':'已停止'}</div><div class="desc" id="dashBotDesc">${info.name||BOT_NAME} · PID ${info.pid||'-'}</div></div></div>
+        <div class="stat-card"><div class="stat-icon green">🐱</div><div class="stat-info"><div class="label">NapCat 状态</div><div class="value" id="dashNapcatVal">${napcat.running?'运行中':'已停止'}</div><div class="desc" id="dashNapcatDesc">容器 ${napcat.container||info.container||'-'}</div></div></div>
         <div class="stat-card"><div class="stat-icon orange">🧩</div><div class="stat-info"><div class="label">已安装插件</div><div class="value">${pluginCount} 个</div><div class="desc">点击下方插件可直接配置</div></div></div>
         <div class="stat-card"><div class="stat-icon purple">👥</div><div class="stat-info"><div class="label">关联群组</div><div class="value">${groupCount} 个</div><div class="desc"><a href="#" onclick="navigate(\'groups\');return false" style="color:var(--color-primary)">管理群组开关 →</a></div></div></div>
       </div>
@@ -378,6 +425,22 @@ async function renderDashboard() {
         <tr><td>NapCat 容器</td><td>${napcat.container||info.container||'-'} · ${napcat.status||'-'}</td></tr>
       </table></div></div>`;
     cachePage();
+    // 局部更新：仅刷新仪表盘 Bot/NapCat 状态卡片，不重渲染整页
+    startPageTimer(async () => {
+      try {
+        const [ir, nr] = await Promise.all([
+          fetch('/api/bot/' + botNum + '/info').catch(()=>null),
+          fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
+        ]);
+        const i = ir ? await ir.json() : null, nc = nr ? await nr.json() : null;
+        const bv = document.getElementById('dashBotVal'), bd = document.getElementById('dashBotDesc');
+        const nv = document.getElementById('dashNapcatVal'), nd = document.getElementById('dashNapcatDesc');
+        if (bv && i) bv.textContent = i.running ? '运行中' : '已停止';
+        if (bd && i) bd.textContent = (i.name||'') + ' · PID ' + (i.pid||'-');
+        if (nv && nc) nv.textContent = nc.running ? '运行中' : '已停止';
+        if (nd && nc) nd.textContent = '容器 ' + (nc.container||'-');
+      } catch(e) {}
+    }, 10000);
   } catch(e) {
     document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
   }
@@ -387,6 +450,7 @@ async function renderDashboard() {
 async function renderManage() {
   document.getElementById('breadcrumb').innerHTML = '<span class="current">运行管理</span>';
   renderSidebar();
+  hideActionBar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
   try {
     const [infoR, napcatR, logR] = await Promise.all([
@@ -400,7 +464,7 @@ async function renderManage() {
     try { const d = await logR.json(); botLog = d.log || ''; } catch(e) {}
     document.getElementById('pageContent').innerHTML = `
       <div class="card"><div class="card-header"><h3>🤖 Bot 管理</h3></div><div class="card-body">
-        <div style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap" id="botStatusArea">
           <span class="el-tag ${info.running?'success':'danger'}"><span class="status-dot ${info.running?'green':'red'}"></span> ${info.running?'运行中':'已停止'}</span>
           <span style="font-size:13px;font-weight:600">${info.name||BOT_NAME}</span>
           <span style="font-size:12px;color:var(--text-secondary)">PID: ${info.pid||'-'} · 运行时长: ${fmtUptime(info.uptime)}</span>
@@ -409,50 +473,84 @@ async function renderManage() {
           <button class="btn btn-primary" onclick="doBotAction('start')">▶ 启动</button>
           <button class="btn btn-default" onclick="doBotAction('stop')">⏹ 停止</button>
           <button class="btn btn-default" onclick="doBotAction('restart')">🔄 重启</button>
-          <button class="btn btn-default" onclick="loadBotLog()">📋 刷新日志</button>
+        </div>
+        <div style="margin-top:14px;border-top:1px solid var(--border-light);padding-top:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:13px;font-weight:600">📋 Bot 日志</span>
+            <button class="btn btn-default" style="padding:4px 12px;font-size:12px" onclick="loadBotLog()">🔄 刷新日志</button>
+          </div>
+          <div class="log-viewer" id="botLogViewer" style="max-height:260px">${botLog ? botLog.split("\n").slice(-20).map(l=>escapeHtml(l)).join("\n") : '暂无日志'}</div>
         </div>
       </div></div>
       <div class="card"><div class="card-header"><h3>🐱 NapCat 容器</h3></div><div class="card-body">
-        <div style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap" id="napcatStatusArea">
           <span class="el-tag ${napcat.running?'success':'danger'}"><span class="status-dot ${napcat.running?'green':'red'}"></span> ${napcat.running?'运行中':'已停止'}</span>
           <span style="font-size:13px;font-weight:600">${napcat.container||info.container||'-'}</span>
           <span style="font-size:12px;color:var(--text-secondary)">${napcat.status||''}</span>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="showQR()">📱 查看二维码</button>
-          <button class="btn btn-default" onclick="loadNapcatLog()">📋 容器日志</button>
+          <button class="btn btn-default" onclick="toggleNapcatLog()">📋 容器日志</button>
+        </div>
+        <div id="napcatLogArea" style="display:none;margin-top:14px;border-top:1px solid var(--border-light);padding-top:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:13px;font-weight:600">📋 容器日志</span>
+            <span style="font-size:12px;color:var(--text-secondary)">最近 30 行</span>
+          </div>
+          <div class="log-viewer" id="napcatLogViewer" style="max-height:260px">点击「容器日志」加载</div>
+        </div>
+        <div id="qrArea" style="display:none;margin-top:14px;border-top:1px solid var(--border-light);padding-top:12px;text-align:center">
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px">📱 二维码</div>
+          <div id="qrContainer">加载中...</div>
         </div>
       </div></div>
-      <div id="qrArea" style="display:none;text-align:center">
-        <div class="card"><div class="card-header"><h3>📱 二维码</h3></div><div class="card-body" id="qrContainer">加载中...</div></div>
-      </div>
-      <div class="card"><div class="card-header"><h3>📋 Bot 日志</h3><span style="font-size:12px;color:var(--text-secondary)">runtime.log 最近 100 行</span></div><div class="card-body"><div class="log-viewer" id="botLogViewer" style="max-height:300px">${botLog ? botLog.split("\n").slice(-30).map(l=>escapeHtml(l)).join("\n") : '暂无日志'}</div></div></div>
       <div id="manageMsg" style="text-align:center;font-size:13px;color:var(--text-secondary);min-height:24px"></div>`;
     cachePage();
+    // 局部更新：仅刷新 Bot/NapCat 状态区域，不重渲染整页
+    startPageTimer(updateManageStatus, 10000);
   } catch(e) {
     document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
   }
 }
 
-// 刷新 Bot 日志（运行管理页内）
+// 刷新 Bot 日志（紧跟 Bot 管理卡片，局部更新）
 async function loadBotLog() {
   try {
     const r = await fetch('/api/bot/' + botNum + '/log');
     const d = await r.json();
     const v = document.getElementById('botLogViewer');
     if (v) v.innerHTML = (d.log||'暂无日志').split("\n").slice(-30).map(l=>escapeHtml(l)).join("\n");
+    showToast('✅ 日志已刷新','success');
   } catch(e) { showToast('日志获取失败','error'); }
 }
 
-// 查看 NapCat 容器日志
-async function loadNapcatLog() {
+// 展开/收起 NapCat 容器日志（紧跟 NapCat 卡片）
+async function toggleNapcatLog() {
+  const area = document.getElementById('napcatLogArea');
+  if (!area) return;
+  if (area.style.display === 'block') { area.style.display = 'none'; return; }
+  area.style.display = 'block';
+  const v = document.getElementById('napcatLogViewer');
+  if (v) v.innerHTML = '加载中...';
   try {
     const r = await fetch('/api/bot/' + botNum + '/napcat-log');
     const d = await r.json();
-    showToast('已加载容器日志','info');
-    document.getElementById('pageContent').innerHTML += '<div class="card"><div class="card-header"><h3>🐱 NapCat 容器日志</h3><span style="font-size:12px;color:var(--text-secondary)">最近 30 行</span></div><div class="card-body"><div class="log-viewer" style="max-height:300px">' + escapeHtml(d.log||'') + '</div></div></div>';
-    window.scrollTo(0, document.body.scrollHeight);
-  } catch(e) { showToast('容器日志获取失败','error'); }
+    if (v) v.innerHTML = escapeHtml(d.log||'');
+  } catch(e) { if (v) v.innerHTML = '<span style="color:var(--color-danger)">获取失败</span>'; }
+}
+
+// 局部更新 Bot/NapCat 状态区域（运行管理页，不重渲染整页）
+async function updateManageStatus() {
+  try {
+    const [ir, nr] = await Promise.all([
+      fetch('/api/bot/' + botNum + '/info').catch(()=>null),
+      fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
+    ]);
+    const i = ir ? await ir.json() : null, nc = nr ? await nr.json() : null;
+    const bs = document.getElementById('botStatusArea'), ns = document.getElementById('napcatStatusArea');
+    if (bs && i) bs.innerHTML = '<span class="el-tag ' + (i.running?'success':'danger') + '"><span class="status-dot ' + (i.running?'green':'red') + '"></span> ' + (i.running?'运行中':'已停止') + '</span><span style="font-size:13px;font-weight:600">' + (i.name||'') + '</span><span style="font-size:12px;color:var(--text-secondary)">PID: ' + (i.pid||'-') + ' · 运行时长: ' + fmtUptime(i.uptime) + '</span>';
+    if (ns && nc) ns.innerHTML = '<span class="el-tag ' + (nc.running?'success':'danger') + '"><span class="status-dot ' + (nc.running?'green':'red') + '"></span> ' + (nc.running?'运行中':'已停止') + '</span><span style="font-size:13px;font-weight:600">' + (nc.container||'-') + '</span><span style="font-size:12px;color:var(--text-secondary)">' + (nc.status||'') + '</span>';
+  } catch(e) {}
 }
 
 async function doBotAction(action) {
@@ -463,11 +561,15 @@ async function doBotAction(action) {
     const d = await r.json();
     msg.textContent = d.message || d.msg || action + '成功';
     setTimeout(fetchStatus, 2000);
+    setTimeout(updateManageStatus, 3000);  // 操作后局部刷新状态
   } catch(e) { msg.textContent = '操作失败'; }
 }
 
 async function showQR() {
-  document.getElementById('qrArea').style.display = 'block';
+  const area = document.getElementById('qrArea');
+  if (!area) return;
+  if (area.style.display === 'block') { area.style.display = 'none'; return; }
+  area.style.display = 'block';
   document.getElementById('qrContainer').innerHTML = '获取中...';
   try {
     const r = await fetch('/api/bot/' + botNum + '/napcat-qr');
@@ -483,6 +585,7 @@ let configPlugins = {}, configKeys = [], activePlugin = null, dirtyPlugins = {};
 async function renderConfig(pluginKey) {
   document.getElementById('breadcrumb').innerHTML = '<span class="current">插件配置</span>';
   renderSidebar();
+  hideActionBar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
   try {
     if (Object.keys(configPlugins).length === 0) {
@@ -498,13 +601,17 @@ async function renderConfig(pluginKey) {
       renderPluginSubmenu();
     }
     if (configKeys.length === 0) { document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>暂无可用配置</p></div>'; return; }
-    // 插件选择已移至左侧「插件配置」二级菜单，页面只保留操作按钮与配置表单
-    document.getElementById('pageContent').innerHTML = '<div style="display:flex;gap:10px;margin-bottom:16px"><button class="btn btn-primary" onclick="saveCurrentConfig()">💾 保存</button><button class="btn btn-success" onclick="saveAndRestartConfig()">💾 保存并重启</button></div><div id="configContent"></div>';
+    // 插件选择已移至左侧「插件配置」二级菜单；保存按钮统一在底部操作栏
+    document.getElementById('pageContent').innerHTML = '<div id="configContent"></div>';
     const target = pluginKey || (activePlugin && configPlugins[activePlugin] ? activePlugin : configKeys[0]);
     activePlugin = target;
     renderPluginSubmenu();
     switchConfigTab(target);
     cachePage();
+    // 统一底部保存栏（保存/保存并重启）
+    showActionBar('正在配置：' + ((configPlugins[target]||{}).name_cn||target),
+      async () => { await saveCurrentConfig(); },
+      async () => { await saveAndRestartConfig(); });
   } catch(e) { document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>'; }
 }
 function switchConfigTab(key) {
@@ -581,6 +688,7 @@ async function saveAndRestartConfig() {
 
 // === Groups ===
 async function renderGroups() {
+  hideActionBar();
   document.getElementById('breadcrumb').innerHTML = '<span class="current">群组开关</span>';
   renderSidebar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
@@ -645,7 +753,9 @@ async function renderGroups() {
       html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" ' + (gAll?'checked':'') + ' class="tg-r" data-tgg="' + g + '"><span class="track"></span></label></td></tr>';
     }
     html += '</tbody></table></div></div></div>';
-    html += '<div class="float-actions"><button class="btn btn-primary" data-nav="tgsave">💾 保存</button><button class="btn btn-default" data-nav="groups">🔄 刷新</button></div>';
+    // 保存按钮统一在底部操作栏（与插件配置一致）；保留浮动刷新
+    html += '<div class="float-actions"><button class="btn btn-default" onclick="refreshCurrentPage()">🔄 刷新</button></div>';
+    showActionBar('群组开关（' + groups.length + ' 个群 × ' + plugins.length + ' 个插件）', tgSave);
     html += '<div class="card"><div class="card-header"><h3>💡 说明</h3></div><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.8">所有插件在每个群默认关闭。<br>在群内发送对应命令开启：<code>开启词库</code> / <code>关闭词库</code><br>私聊发送 = 全局控制。横向「全选」列控制单个插件在所有群的状态，纵向「全选」行控制单个群的所有插件。</div></div>';
     document.getElementById('pageContent').innerHTML = html;
     cachePage();
@@ -719,6 +829,7 @@ async function tgSave() {
     else { throw new Error(d.error || '保存失败'); }
   } catch(e) { showToast('❌ ' + e.message, 'error'); }
 }async function renderLogs() {
+  hideActionBar();
   document.getElementById('breadcrumb').innerHTML = '<span class="current">运行日志</span>';
   renderSidebar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
@@ -741,11 +852,13 @@ async function tgSave() {
 
 function renderPage() {
   const key = currentPage;
+  clearPageTimer();  // 切换页面停止上一页的局部刷新
   if (pageCache[key] !== undefined) {
     // 命中缓存：直接恢复页面内容，不重新请求
     document.getElementById('pageContent').innerHTML = pageCache[key];
     document.getElementById('breadcrumb').innerHTML = '<span class="current">' + (PAGE_CRUMBS[key]||key) + '</span>';
     renderSidebar();
+    restoreActionBar();
     return;
   }
   switch (key) {
