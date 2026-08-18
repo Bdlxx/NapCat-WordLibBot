@@ -296,7 +296,7 @@ function renderSidebar() {
     for (const item of items) {
       if (item.sub) {
         html += '<div class="nav-item ' + (currentPage===item.id?'active':'') + '" data-page="' + item.id + '" onclick="toggleSubMenu(\'' + item.id + '\')"><span class="icon">' + item.icon + '</span> ' + item.label + '<span class="nav-arrow" id="arrow_' + item.id + '">▾</span></div>';
-        html += '<div class="nav-sub" id="sub_' + item.id + '"><div class="nav-sub-loading">加载中...</div></div>';
+        html += '<div class="nav-sub" id="sub_' + item.id + '"></div>';
       } else {
         html += '<div class="nav-item ' + (currentPage===item.id?'active':'') + '" data-page="' + item.id + '" onclick="navigate(\'' + item.id + '\')"><span class="icon">' + item.icon + '</span> ' + item.label + '</div>';
       }
@@ -318,7 +318,7 @@ function toggleSubMenu(id) {
   if (arrow) arrow.textContent = willOpen ? '▴' : '▾';
   if (id === 'config') {
     configSubOpen = willOpen;
-    if (willOpen) ensurePluginSubmenu();
+    if (willOpen) ensurePluginSubmenu();  // 展开时才加载插件列表
   }
 }
 
@@ -327,24 +327,30 @@ function restoreSubMenu() {
   const sub = document.getElementById('sub_config');
   const arrow = document.getElementById('arrow_config');
   if (!sub) return;
-  if (configSubOpen) { sub.style.display = 'block'; if (arrow) arrow.textContent = '▴'; renderPluginSubmenu(); }
-  else { sub.style.display = 'none'; if (arrow) arrow.textContent = '▾'; }
+  if (configSubOpen) {
+    sub.style.display = 'block';
+    if (arrow) arrow.textContent = '▴';
+    ensurePluginSubmenu();  // 已缓存直接渲染，未缓存懒加载（避免空占位闪烁）
+  } else { sub.style.display = 'none'; if (arrow) arrow.textContent = '▾'; }
 }
 
-// 确保插件列表已加载并填充二级菜单
+// 确保插件列表已加载并填充二级菜单（懒加载：展开时才请求；无插件/失败轻提示）
 function ensurePluginSubmenu() {
-  if (Object.keys(configPlugins).length === 0) {
-    fetch('/api/bot/' + botNum + '/plugins').then(r=>r.json()).then(d=>{
-      configPlugins = {};
-      for (const [key, val] of Object.entries(d.plugins || {})) {
-        if (key !== '_toggles') configPlugins[key] = val;
-      }
-      configKeys = Object.keys(configPlugins);
-      renderPluginSubmenu();
-    }).catch(()=>{});
-  } else {
+  const sub = document.getElementById('sub_config');
+  if (!sub) return;
+  if (Object.keys(configPlugins).length > 0) { renderPluginSubmenu(); return; }
+  sub.innerHTML = '<div class="nav-sub-loading">加载中...</div>';
+  fetch('/api/bot/' + botNum + '/plugins').then(r=>r.json()).then(d=>{
+    configPlugins = {};
+    for (const [key, val] of Object.entries(d.plugins || {})) {
+      if (key !== '_toggles') configPlugins[key] = val;
+    }
+    configKeys = Object.keys(configPlugins);
     renderPluginSubmenu();
-  }
+  }).catch(()=>{
+    sub.innerHTML = '<div class="nav-sub-item" style="color:var(--color-danger)">加载失败，点击重试</div>';
+    sub.onclick = function() { sub.onclick = null; ensurePluginSubmenu(); };
+  });
 }
 
 // 渲染二级菜单插件列表
