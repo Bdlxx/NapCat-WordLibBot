@@ -212,7 +212,8 @@ function refreshCurrentPage() { delete pageCache[currentPage]; renderPage(); }
 
 // 局部更新定时器：仅刷新变化区域（状态等），不重渲染整页
 let pageTimer = null;
-function startPageTimer(fn, ms) { clearPageTimer(); if (fn) pageTimer = setInterval(fn, ms || 10000); }
+let preloading = false;  // 预加载全部页面期间不启动定时器
+function startPageTimer(fn, ms) { if (preloading) return; clearPageTimer(); if (fn) pageTimer = setInterval(fn, ms || 10000); }
 function clearPageTimer() { if (pageTimer) { clearInterval(pageTimer); pageTimer = null; } }
 
 // 统一底部操作栏（保存按钮固定位置）
@@ -437,25 +438,27 @@ async function renderDashboard() {
         <tr><td>NapCat 容器</td><td>${napcat.container||info.container||'-'} · ${napcat.status||'-'}</td></tr>
       </table></div></div>`;
     cachePage();
-    // 局部更新：仅刷新仪表盘 Bot/NapCat 状态卡片，不重渲染整页
-    startPageTimer(async () => {
-      try {
-        const [ir, nr] = await Promise.all([
-          fetch('/api/bot/' + botNum + '/info').catch(()=>null),
-          fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
-        ]);
-        const i = ir ? await ir.json() : null, nc = nr ? await nr.json() : null;
-        const bv = document.getElementById('dashBotVal'), bd = document.getElementById('dashBotDesc');
-        const nv = document.getElementById('dashNapcatVal'), nd = document.getElementById('dashNapcatDesc');
-        if (bv && i) bv.textContent = i.running ? '运行中' : '已停止';
-        if (bd && i) bd.textContent = (i.name||'') + ' · PID ' + (i.pid||'-');
-        if (nv && nc) nv.textContent = nc.running ? '运行中' : '已停止';
-        if (nd && nc) nd.textContent = '容器 ' + (nc.container||'-');
-      } catch(e) {}
-    }, 10000);
+    startPageTimer(updateDashboardStatus, 10000);
   } catch(e) {
     document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
   }
+}
+
+// 仪表盘局部更新：仅刷新 Bot/NapCat 状态卡片，不重渲染整页
+async function updateDashboardStatus() {
+  try {
+    const [ir, nr] = await Promise.all([
+      fetch('/api/bot/' + botNum + '/info').catch(()=>null),
+      fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
+    ]);
+    const i = ir ? await ir.json() : null, nc = nr ? await nr.json() : null;
+    const bv = document.getElementById('dashBotVal'), bd = document.getElementById('dashBotDesc');
+    const nv = document.getElementById('dashNapcatVal'), nd = document.getElementById('dashNapcatDesc');
+    if (bv && i) bv.textContent = i.running ? '运行中' : '已停止';
+    if (bd && i) bd.textContent = (i.name||'') + ' · PID ' + (i.pid||'-');
+    if (nv && nc) nv.textContent = nc.running ? '运行中' : '已停止';
+    if (nd && nc) nd.textContent = '容器 ' + (nc.container||'-');
+  } catch(e) {}
 }
 
 // === Manage ===
@@ -895,6 +898,8 @@ function renderPage() {
     renderSidebar();
     restoreActionBar();
     if (key === 'logs') { loadLogs(); if (logAutoRefresh) startPageTimer(loadLogs, 5000); }
+    else if (key === 'manage') { startPageTimer(updateManageStatus, 10000); }
+    else if (key === 'dashboard') { startPageTimer(updateDashboardStatus, 10000); }
     return;
   }
   switch (key) {
@@ -910,6 +915,18 @@ function renderPage() {
 fetchStatus();
 renderPage();
 ensurePluginSubmenu();  // 预加载插件二级菜单数据（不展开，点击展开即时显示）
+
+// 预加载所有页面：后台渲染全部页面到缓存，切换零等待
+async function preloadAllPages() {
+  preloading = true;
+  await Promise.all([
+    renderDashboard(), renderManage(), renderConfig(),
+    renderGroups(), renderLogs(),
+  ].map(p => p.catch(()=>{})));
+  preloading = false;
+  renderPage();  // 恢复当前页（仪表盘）缓存显示
+}
+preloadAllPages();
 setInterval(fetchStatus, 15000);
 
 // 事件委托：配置标签页(data-sk)、导航(data-page)、群组开关(data-nav/checkbox)
