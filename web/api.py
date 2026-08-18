@@ -474,6 +474,29 @@ def bot_action(n, action):
         return jsonify({'error': str(e)}), 500
 
 # ====== 插件配置 API ======
+# 常见回复模板键的中文名（Web 面板展示；插件配置 message_labels 优先）
+DEFAULT_MSG_LABELS = {
+    "usage": "用法提示", "busy": "繁忙提示", "querying": "查询中提示", "no_pdf": "无PDF提示",
+    "send_fail": "发送失败提示", "fail": "失败提示", "timeout": "超时提示",
+    "pdf_header": "PDF分享标题", "detail_header": "详情标题", "recall_notice": "撤回提醒",
+    "sign_success": "签到成功", "sign_already": "今日已签到", "sign_fail": "签到失败",
+    "nickname_set": "昵称设置成功", "nickname_fail": "昵称设置失败", "nickname_format_error": "昵称格式错误",
+    "nickname_empty": "昵称不能为空", "praise_success": "点赞成功", "praise_already": "今日已点赞",
+    "praise_fail": "点赞失败", "rank_empty": "排行榜为空", "rank_title": "排行榜标题",
+    "rank_item": "排行条目", "add_step1": "添加词条-步骤1", "add_step2": "添加词条-步骤2",
+    "add_step3": "添加词条-步骤3", "add_success_exact": "添加成功(精准)", "add_success_fuzzy": "添加成功(模糊)",
+    "add_format_error": "添加格式错误", "add_empty": "添加内容为空", "keyword_empty": "关键词为空",
+    "reply_empty": "回复为空", "mode_invalid": "模式无效", "delete_success": "删除成功",
+    "delete_reply_success": "删除回复成功", "delete_not_found": "关键词不存在", "delete_idx_invalid": "序号无效",
+    "delete_format_error": "删除格式错误", "wordlib_empty": "词库为空", "query_list_title": "词库列表标题",
+    "query_list_item": "词库列表项", "query_detail_title": "词库详情标题", "query_detail_item": "词库详情项",
+    "query_no_reply": "无回复", "encode_start": "转码开始", "encode_result": "转码结果",
+    "encode_timeout": "转码超时", "switch_glm": "切换GLM成功", "switch_gemini": "切换Gemini成功",
+    "current_model": "当前模型", "history_cleared": "历史已清除", "all_history_cleared": "全部历史已清除",
+    "whats_up": "打招呼", "check_image": "看图提示", "no_reply": "无回复提示",
+}
+
+
 @app.route('/api/bot/<int:num>/plugins')
 @login_required
 def get_plugins(num):
@@ -495,10 +518,12 @@ def get_plugins(num):
             pp['has_config'] = True
             config_data = read_json(os.path.join(dd, cf))
 
-            # 命令段
+            # 命令段（标签优先使用插件注册表同步的中文指令名）
+            cmd_labels = config_data.get('command_labels', {})
             for cmd_key, cmd_val in config_data.get('commands', {}).items():
+                label = cmd_labels.get(cmd_val, f'指令「{cmd_key}」')
                 pp['fields'].append({
-                    'k': f'cmd_{cmd_key}', 'l': f'指令「{cmd_key}」',
+                    'k': f'cmd_{cmd_key}', 'l': label,
                     't': 'text', 'v': cmd_val,
                     'hint': f'触发「{meta["name_cn"]}」的{cmd_key}命令',
                 })
@@ -524,11 +549,13 @@ def get_plugins(num):
                         't': 'text', 'v': str(set_val) if set_val else '',
                     })
 
-            # 回复段
+            # 回复段（标签优先使用 message_labels 中文名）
+            msg_labels = config_data.get('message_labels', {})
             for msg_key, msg_val in config_data.get('messages', {}).items():
                 is_long = isinstance(msg_val, str) and len(msg_val) > 30
+                label = msg_labels.get(msg_key) or DEFAULT_MSG_LABELS.get(msg_key) or f'回复「{msg_key}」'
                 pp['fields'].append({
-                    'k': f'msg_{msg_key}', 'l': f'回复「{msg_key}」',
+                    'k': f'msg_{msg_key}', 'l': label,
                     't': 'textarea' if is_long else 'text', 'v': msg_val,
                     'hint': f'触发{msg_key}时的回复',
                 })

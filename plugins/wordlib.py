@@ -713,6 +713,10 @@ registry.register("赞我", PRAISE_COMMANDS, "让机器人点赞你", _cmd_prais
 registry.register("设置昵称", [NICKNAME_COMMAND], "设置自定义昵称（需好感度）", _cmd_nickname, kind="prefix")
 registry.register("签到排行", [RANK_COMMAND], "查看签到排行榜", _cmd_rank)
 
+# 同步指令中文名到配置（Web 面板展示可读指令名）
+_CFG.setdefault("command_labels", {}).update(registry.labels())
+_save()
+
 
 def handle_message(event: dict, data: dict) -> bool:
     global re

@@ -116,3 +116,12 @@ class CommandRegistry:
     def all(self):
         """返回全部指令定义（供检查/调试）"""
         return list(self._commands)
+
+    def labels(self):
+        """返回 {触发词: 指令中文名} 映射，供 Web 面板/配置展示可读指令名"""
+        labels = {}
+        with self._lock:
+            for c in self._commands:
+                for kw in c.keywords:
+                    labels[kw] = c.name
+        return labels
