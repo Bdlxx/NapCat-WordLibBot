@@ -207,7 +207,7 @@ let currentPage = 'dashboard';
 // 页面内容缓存：切换页面不重复加载（数据可能过期，可点顶部刷新按钮重载）
 let pageCache = {};
 const PAGE_CRUMBS = { dashboard:'仪表盘', manage:'运行管理', config:'插件配置', groups:'群组开关', logs:'运行日志' };
-function cachePage() { pageCache[currentPage] = document.getElementById('pageContent').innerHTML; }
+function cachePage(key) { pageCache[key || currentPage] = document.getElementById('pageContent').innerHTML; }
 function refreshCurrentPage() { delete pageCache[currentPage]; renderPage(); }
 
 // 局部更新定时器：仅刷新变化区域（状态等），不重渲染整页
@@ -437,7 +437,7 @@ async function renderDashboard() {
         <tr><td>Screen</td><td>${info.screen||'-'}</td></tr>
         <tr><td>NapCat 容器</td><td>${napcat.container||info.container||'-'} · ${napcat.status||'-'}</td></tr>
       </table></div></div>`;
-    cachePage();
+    cachePage('dashboard');
     startPageTimer(updateDashboardStatus, 10000);
   } catch(e) {
     document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
@@ -502,7 +502,7 @@ async function renderManage() {
         </div>
       </div></div>
       <div id="manageMsg" style="text-align:center;font-size:13px;color:var(--text-secondary);min-height:24px"></div>`;
-    cachePage();
+    cachePage('manage');
     // 局部更新：仅刷新 Bot/NapCat 状态区域，不重渲染整页
     startPageTimer(updateManageStatus, 10000);
   } catch(e) {
@@ -578,7 +578,7 @@ async function renderConfig(pluginKey) {
     activePlugin = target;
     renderPluginSubmenu();
     switchConfigTab(target);
-    cachePage();
+    cachePage('config');
     // 统一底部保存栏（保存/保存并重启）
     showActionBar('正在配置：' + ((configPlugins[target]||{}).name_cn||target),
       async () => { await saveCurrentConfig(); },
@@ -728,7 +728,7 @@ async function renderGroups() {
     showActionBar('群组开关（' + groups.length + ' 个群 × ' + plugins.length + ' 个插件）', tgSave);
     html += '<div class="card"><div class="card-header"><h3>💡 说明</h3></div><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.8">所有插件在每个群默认关闭。<br>在群内发送对应命令开启：<code>开启词库</code> / <code>关闭词库</code><br>私聊发送 = 全局控制。横向「全选」列控制单个插件在所有群的状态，纵向「全选」行控制单个群的所有插件。</div></div>';
     document.getElementById('pageContent').innerHTML = html;
-    cachePage();
+    cachePage('groups');
   } catch(e) {
     document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
   }
@@ -883,7 +883,7 @@ async function renderLogs() {
       </div>
       <div class="log-viewer" id="logViewer" style="max-height:calc(100vh - 260px)">加载中...</div>
     </div></div>`;
-  cachePage();
+  cachePage('logs');
   await loadLogs();
   if (logAutoRefresh) startPageTimer(loadLogs, 5000);
 }
@@ -917,13 +917,25 @@ renderPage();
 ensurePluginSubmenu();  // 预加载插件二级菜单数据（不展开，点击展开即时显示）
 
 // 预加载所有页面：后台渲染全部页面到缓存，切换零等待
+// 渲染目标临时替换为隐藏容器，避免预加载过程页面内容反复切换（看起来像跳转）
 async function preloadAllPages() {
+  const realContent = document.getElementById('pageContent');
+  const hidden = document.createElement('div');
+  hidden.id = 'pageContent';
+  hidden.style.display = 'none';
+  realContent.parentNode.insertBefore(hidden, realContent);
+  realContent.parentNode.removeChild(realContent);
+
   preloading = true;
   await Promise.all([
     renderDashboard(), renderManage(), renderConfig(),
     renderGroups(), renderLogs(),
   ].map(p => p.catch(()=>{})));
   preloading = false;
+
+  // 恢复真实页面容器并显示当前页缓存
+  hidden.parentNode.insertBefore(realContent, hidden);
+  hidden.parentNode.removeChild(hidden);
   renderPage();  // 恢复当前页（仪表盘）缓存显示
 }
 preloadAllPages();
