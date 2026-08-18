@@ -88,6 +88,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 .stat-info .label{font-size:12px;color:var(--text-secondary);margin-bottom:4px}
 .stat-info .value{font-size:22px;font-weight:700;color:var(--text-primary)}
 .stat-info .desc{font-size:12px;color:var(--text-secondary);margin-top:4px}
+.el-switch{position:relative;display:inline-flex;align-items:center;cursor:pointer;gap:8px}
+.el-switch input{display:none}
+.el-switch .track{width:40px;height:20px;border-radius:10px;background:var(--border-color);transition:background .2s;position:relative;display:inline-block;flex-shrink:0}
+.el-switch .track::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.el-switch input:checked + .track{background:var(--color-primary)}
+.el-switch input:checked + .track::after{left:22px}
 .el-table{width:100%;border-collapse:collapse;font-size:13px}
 .el-table th{padding:12px 16px;text-align:left;font-weight:600;background:var(--bg-input);color:var(--text-regular);border-bottom:1px solid var(--border-color)}
 .el-table td{padding:12px 16px;border-bottom:1px solid var(--border-light)}
@@ -641,7 +647,7 @@ function switchConfigTab(key) {
     if (field.t === 'num') inp = '<input type="number" id="' + fid + '" value="' + field.v + '" min="' + (field.min||0) + '" max="' + (field.max||'') + '" step="' + (field.s||1) + '" style="width:120px;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none">';
     else if (field.t === 'sel' && field.o && field.o.length === 2 && field.o.includes('true')) {
       const ch = String(field.v) === 'true';
-      inp = '<label class="el-switch" style="display:inline-flex;align-items:center;cursor:pointer;gap:8px"><input type="checkbox" id="' + fid + '" ' + (ch?'checked':'') + ' onchange="onCfgChange(this)"><span class="track" style="width:40px;height:20px;border-radius:10px;background:' + (ch?'var(--color-primary)':'var(--border-color)') + ';transition:all .2s;position:relative;display:inline-block"></span><span class="sw-text" style="font-size:12px;color:var(--text-secondary)">' + (ch?'已开启':'已关闭') + '</span></label>';
+      inp = '<label class="el-switch"><input type="checkbox" id="' + fid + '" ' + (ch?'checked':'') + ' onchange="onCfgChange(this)"><span class="track"></span><span class="sw-text" style="font-size:12px;color:var(--text-secondary)">' + (ch?'已开启':'已关闭') + '</span></label>';
     } else if (field.t === 'sel') {
       const opts = field.o.map(o => '<option value="' + o + '" ' + (String(o)===String(field.v)?'selected':'') + '>' + o + '</option>').join('');
       inp = '<select id="' + fid + '" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none;max-width:240px">' + opts + '</select>';
@@ -660,13 +666,11 @@ function switchConfigTab(key) {
 }
 function onCfgChange(el) {
   if (activePlugin && !isDirty(activePlugin)) dirtyPlugins[activePlugin] = true;
-  // 开关即时视觉反馈：切换 track 颜色与状态文字
+  // 小球滑动与变色由 CSS(:checked) 自动完成，这里仅更新状态文字
   if (el && el.type === 'checkbox') {
     const label = el.closest('label');
     if (label) {
-      const track = label.querySelector('.track');
       const txt = label.querySelector('.sw-text');
-      if (track) track.style.background = el.checked ? 'var(--color-primary)' : 'var(--border-color)';
       if (txt) txt.textContent = el.checked ? '已开启' : '已关闭';
     }
   }

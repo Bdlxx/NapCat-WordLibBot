@@ -690,7 +690,7 @@ function switchConfigTab(key) {
       inputHtml = '<input type="number" id="' + fid + '" value="' + field.v + '" min="' + (field.min||0) + '" max="' + (field.max||'') + '" step="' + (field.s||1) + '">';
     } else if (field.t === 'sel' && field.o && field.o.length === 2 && field.o.includes('true') && field.o.includes('false')) {
       const checked = String(field.v) === 'true';
-      inputHtml = '<label class="el-switch"><input type="checkbox" id="' + fid + '" ' + (checked?'checked':'') + ' onchange="onConfigChange()"><span class="track"></span><span style="font-size:12px;color:var(--text-secondary)">' + (checked?'已开启':'已关闭') + '</span></label>';
+      inputHtml = '<label class="el-switch"><input type="checkbox" id="' + fid + '" ' + (checked?'checked':'') + ' onchange="onConfigChange(this)"><span class="track"></span><span class="sw-text" style="font-size:12px;color:var(--text-secondary)">' + (checked?'已开启':'已关闭') + '</span></label>';
     } else if (field.t === 'sel') {
       const opts = field.o.map(o => '<option value="' + o + '" ' + (String(o)===String(field.v)?'selected':'') + '>' + o + '</option>').join('');
       inputHtml = '<select id="' + fid + '">' + opts + '</select>';
@@ -719,8 +719,16 @@ function switchConfigTab(key) {
   }
 }
 
-function onConfigChange() {
+function onConfigChange(el) {
   if (activePlugin && !isDirty(activePlugin)) markDirty(activePlugin);
+  // 小球滑动与变色由 CSS(:checked) 完成，这里更新状态文字
+  if (el && el.type === 'checkbox') {
+    const label = el.closest('label');
+    if (label) {
+      const txt = label.querySelector('.sw-text');
+      if (txt) txt.textContent = el.checked ? '已开启' : '已关闭';
+    }
+  }
 }
 
 function collectConfig(key) {
