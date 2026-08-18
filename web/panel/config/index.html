@@ -406,7 +406,7 @@ function toggleTheme() {
 const savedTheme = localStorage.getItem('theme');
 if (savedTheme === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); document.getElementById('themeBtn').textContent = '☀️'; }
 // Fix logo
-apiFetch("/api/bot/" + botNum + "/info",{},8000).then(r=>r.json()).then(d=>{if(d.success){document.getElementById("botAvatar").src="https://q1.qlogo.cn/g?b=qq&nk="+d.qq+"&s=640";document.getElementById("botName").textContent=d.name||BOT_NAME;document.getElementById("botQQ").textContent="QQ "+d.qq;}}).catch(()=>{document.getElementById("botName").textContent=BOT_NAME;});
+apiFetch("/api/bot/" + botNum + "/info",{},8000).then(r=>r.json()).then(d=>{if(d.success){document.getElementById("botAvatar").src="https://q1.qlogo.cn/g?b=qq&nk="+d.qq+"&s=640";document.getElementById("botName").textContent=d.name||BOT_NAME;document.getElementById("botQQ").textContent="QQ "+d.qq;var _icon=document.querySelector('link[rel="icon"]');if(_icon)_icon.href="https://q1.qlogo.cn/g?b=qq&nk="+d.qq+"&s=640";document.title=(d.name||BOT_NAME)+" - 管理面板";}}).catch(()=>{document.getElementById("botName").textContent=BOT_NAME;});
 
 // ===== SPA Router =====
 let currentPage = 'config';

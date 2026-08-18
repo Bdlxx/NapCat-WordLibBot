@@ -183,12 +183,18 @@ window.fetch = function(url, opts) {
   return _origFetch.call(this, url, opts);
 };
 fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
-// 加载头像、昵称、QQ号
+// 加载头像、昵称、QQ号；同步设置网页标题与图标为对应机器人
+function setPageIcon(qq) {
+  const iconEl = document.querySelector('link[rel="icon"]');
+  if (iconEl && qq) iconEl.href = 'https://q1.qlogo.cn/g?b=qq&nk=' + qq + '&s=640';
+}
 fetch('/api/bot/' + botNum + '/info').then(r=>r.json()).then(d=>{
   if (d.success) {
     document.getElementById('botAvatar').src = 'https://q1.qlogo.cn/g?b=qq&nk=' + d.qq + '&s=640';
     document.getElementById('botName').textContent = d.name || BOT_NAME;
     document.getElementById('botQQ').textContent = 'QQ ' + d.qq;
+    document.title = (d.name || BOT_NAME) + ' - 管理面板';
+    setPageIcon(d.qq);
   }
 }).catch(()=>{
   document.getElementById('botName').textContent = BOT_NAME;
