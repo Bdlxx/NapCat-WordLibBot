@@ -402,11 +402,17 @@ def bot_log(n):
     log_file = os.path.join(b['dir'], 'runtime.log')
     if not os.path.exists(log_file):
         log_file = os.path.join(b['dir'], 'log.txt')
+    # 行数参数（默认 100，上限 1000）
+    try:
+        n_lines = int(request.args.get('lines', 100))
+    except (TypeError, ValueError):
+        n_lines = 100
+    n_lines = min(max(n_lines, 20), 1000)
     if os.path.exists(log_file):
         with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
-            lines = f.readlines()
-            return jsonify({'log': ''.join(lines[-100:])})
-    return jsonify({'log': '暂无日志'})
+            all_lines = f.readlines()
+            return jsonify({'log': ''.join(all_lines[-n_lines:]), 'total': len(all_lines)})
+    return jsonify({'log': '暂无日志', 'total': 0})
 
 @app.route('/api/bot/<int:n>/napcat-log')
 @login_required

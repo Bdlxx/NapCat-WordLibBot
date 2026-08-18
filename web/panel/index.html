@@ -453,15 +453,12 @@ async function renderManage() {
   hideActionBar();
   document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
   try {
-    const [infoR, napcatR, logR] = await Promise.all([
+    const [infoR, napcatR] = await Promise.all([
       fetch('/api/bot/' + botNum + '/info').catch(()=>null),
       fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
-      fetch('/api/bot/' + botNum + '/log').catch(()=>null),
     ]);
     const info = infoR ? await infoR.json() : {};
     const napcat = napcatR ? await napcatR.json() : {};
-    let botLog = '';
-    try { const d = await logR.json(); botLog = d.log || ''; } catch(e) {}
     document.getElementById('pageContent').innerHTML = `
       <div class="card"><div class="card-header"><h3>🤖 Bot 管理</h3></div><div class="card-body">
         <div style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap" id="botStatusArea">
@@ -474,13 +471,6 @@ async function renderManage() {
           <button class="btn btn-default" onclick="doBotAction('stop')">⏹ 停止</button>
           <button class="btn btn-default" onclick="doBotAction('restart')">🔄 重启</button>
         </div>
-        <div style="margin-top:14px;border-top:1px solid var(--border-light);padding-top:12px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <span style="font-size:13px;font-weight:600">📋 Bot 日志</span>
-            <button class="btn btn-default" style="padding:4px 12px;font-size:12px" onclick="loadBotLog()">🔄 刷新日志</button>
-          </div>
-          <div class="log-viewer" id="botLogViewer" style="max-height:260px">${botLog ? botLog.split("\n").slice(-20).map(l=>escapeHtml(l)).join("\n") : '暂无日志'}</div>
-        </div>
       </div></div>
       <div class="card"><div class="card-header"><h3>🐱 NapCat 容器</h3></div><div class="card-body">
         <div style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap" id="napcatStatusArea">
@@ -490,14 +480,6 @@ async function renderManage() {
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="showQR()">📱 查看二维码</button>
-          <button class="btn btn-default" onclick="toggleNapcatLog()">📋 容器日志</button>
-        </div>
-        <div id="napcatLogArea" style="display:none;margin-top:14px;border-top:1px solid var(--border-light);padding-top:12px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <span style="font-size:13px;font-weight:600">📋 容器日志</span>
-            <span style="font-size:12px;color:var(--text-secondary)">最近 30 行</span>
-          </div>
-          <div class="log-viewer" id="napcatLogViewer" style="max-height:260px">点击「容器日志」加载</div>
         </div>
         <div id="qrArea" style="display:none;margin-top:14px;border-top:1px solid var(--border-light);padding-top:12px;text-align:center">
           <div style="font-size:13px;font-weight:600;margin-bottom:8px">📱 二维码</div>
@@ -511,32 +493,6 @@ async function renderManage() {
   } catch(e) {
     document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
   }
-}
-
-// 刷新 Bot 日志（紧跟 Bot 管理卡片，局部更新）
-async function loadBotLog() {
-  try {
-    const r = await fetch('/api/bot/' + botNum + '/log');
-    const d = await r.json();
-    const v = document.getElementById('botLogViewer');
-    if (v) v.innerHTML = (d.log||'暂无日志').split("\n").slice(-30).map(l=>escapeHtml(l)).join("\n");
-    showToast('✅ 日志已刷新','success');
-  } catch(e) { showToast('日志获取失败','error'); }
-}
-
-// 展开/收起 NapCat 容器日志（紧跟 NapCat 卡片）
-async function toggleNapcatLog() {
-  const area = document.getElementById('napcatLogArea');
-  if (!area) return;
-  if (area.style.display === 'block') { area.style.display = 'none'; return; }
-  area.style.display = 'block';
-  const v = document.getElementById('napcatLogViewer');
-  if (v) v.innerHTML = '加载中...';
-  try {
-    const r = await fetch('/api/bot/' + botNum + '/napcat-log');
-    const d = await r.json();
-    if (v) v.innerHTML = escapeHtml(d.log||'');
-  } catch(e) { if (v) v.innerHTML = '<span style="color:var(--color-danger)">获取失败</span>'; }
 }
 
 // 局部更新 Bot/NapCat 状态区域（运行管理页，不重渲染整页）
@@ -827,26 +783,94 @@ async function tgSave() {
     if (d.ok) { showToast('✅ 已保存', 'success'); } 
     else { throw new Error(d.error || '保存失败'); }
   } catch(e) { showToast('❌ ' + e.message, 'error'); }
-}async function renderLogs() {
+}
+// ===== 运行日志页 =====
+let logRawData = '';        // 原始日志缓存（筛选本地处理，不重复请求）
+let logFilter = 'all';      // all/error/warn/info
+let logLines = 100;
+let logAutoRefresh = true;
+
+function logLineClass(line) {
+  if (line.match(/error|exception|traceback|失败|✗|错误/i)) return 'error';
+  if (line.match(/warn|警告|⚠/i)) return 'warn';
+  if (line.match(/✓|成功|启动|连接|加载|ok/i)) return 'info';
+  return '';
+}
+
+function renderLogsViewer() {
+  const v = document.getElementById('logViewer');
+  if (!v) return;
+  const raw = logRawData || '暂无日志';
+  const lines = raw.split('\n');
+  let html = '';
+  let shown = 0;
+  for (const line of lines) {
+    const cls = logLineClass(line);
+    if (logFilter === 'error' && cls !== 'error') continue;
+    if (logFilter === 'warn' && cls !== 'warn') continue;
+    if (logFilter === 'info' && cls !== 'info') continue;
+    html += '<div class="' + cls + '">' + escapeHtml(line) + '</div>';
+    shown++;
+  }
+  if (shown === 0) html = '<div style="color:var(--text-secondary);padding:10px">无匹配日志</div>';
+  v.innerHTML = html;
+  // 自动滚动到底部（新日志）
+  v.scrollTop = v.scrollHeight;
+}
+
+async function loadLogs() {
+  try {
+    const r = await fetch('/api/bot/' + botNum + '/log?lines=' + logLines);
+    const d = await r.json();
+    logRawData = d.log || '暂无日志';
+    renderLogsViewer();
+    const total = document.getElementById('logTotalInfo');
+    if (total) total.textContent = '共 ' + (d.total||'-') + ' 行 · 显示 ' + logLines + ' 行';
+  } catch(e) {}
+}
+
+function applyLogFilter() {
+  logFilter = document.getElementById('logFilterSel').value;
+  renderLogsViewer();
+}
+
+function toggleLogAutoRefresh() {
+  logAutoRefresh = document.getElementById('logAutoRef').checked;
+  if (logAutoRefresh) startPageTimer(loadLogs, 5000);
+  else clearPageTimer();
+}
+
+async function renderLogs() {
   hideActionBar();
   document.getElementById('breadcrumb').innerHTML = '<span class="current">运行日志</span>';
   renderSidebar();
-  document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
-  try {
-    const r = await fetch('/api/bot/' + botNum + '/screen-log');
-    const d = await r.json();
-    const lines = (d.log||'暂无日志').split('\n');
-    let logHtml = '';
-    for (const line of lines) {
-      let cls = '';
-      if (line.match(/error|exception|trace|失败|✗/i)) cls = 'error';
-      else if (line.match(/warn/i)) cls = 'warn';
-      else if (line.match(/✓|成功|启动|连接|加载/i)) cls = 'info';
-      logHtml += '<div class="' + cls + '">' + escapeHtml(line) + '</div>';
-    }
-    document.getElementById('pageContent').innerHTML = '<div class="card"><div class="card-header"><h3>📋 运行日志</h3><span style="font-size:12px;color:var(--text-secondary)">runtime.log</span></div><div class="card-body"><div class="log-viewer">' + logHtml + '</div></div></div><button class="btn btn-default" onclick="refreshCurrentPage()">🔄 刷新</button>';
-    cachePage();
-  } catch(e) { document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>'; }
+  document.getElementById('pageContent').innerHTML = `
+    <div class="card"><div class="card-header"><h3>📋 运行日志</h3><span style="font-size:12px;color:var(--text-secondary)" id="logTotalInfo">runtime.log</span></div>
+    <div class="card-body">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <select id="logLinesSel" style="padding:7px 10px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none" onchange="logLines=+this.value;loadLogs()">
+          <option value="50">50 行</option>
+          <option value="100" selected>100 行</option>
+          <option value="200">200 行</option>
+          <option value="500">500 行</option>
+        </select>
+        <select id="logFilterSel" style="padding:7px 10px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none" onchange="applyLogFilter()">
+          <option value="all">全部级别</option>
+          <option value="error">仅错误</option>
+          <option value="warn">仅警告</option>
+          <option value="info">仅信息</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-regular);cursor:pointer">
+          <input type="checkbox" id="logAutoRef" checked onchange="toggleLogAutoRefresh()"> 自动刷新(5s)
+        </label>
+        <button class="btn btn-default" onclick="loadLogs()">🔄 刷新</button>
+        <button class="btn btn-default" onclick="logLines=200;loadLogs()">⬇ 加载更多</button>
+      </div>
+      <div class="log-viewer" id="logViewer" style="max-height:calc(100vh - 260px)">加载中...</div>
+    </div></div>`;
+  cachePage();
+  await loadLogs();
+  if (logAutoRefresh) startPageTimer(loadLogs, 5000);
 }
 
 function renderPage() {
@@ -858,6 +882,7 @@ function renderPage() {
     document.getElementById('breadcrumb').innerHTML = '<span class="current">' + (PAGE_CRUMBS[key]||key) + '</span>';
     renderSidebar();
     restoreActionBar();
+    if (key === 'logs') { loadLogs(); if (logAutoRefresh) startPageTimer(loadLogs, 5000); }
     return;
   }
   switch (key) {
