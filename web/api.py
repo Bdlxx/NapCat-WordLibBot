@@ -567,7 +567,8 @@ def get_plugins(num):
             set_labels = config_data.get('setting_labels', {})
             for set_key, set_val in config_data.get('settings', {}).items():
                 label = set_labels.get(set_key) or DEFAULT_SETTING_LABELS.get(set_key) or f'参数「{set_key}」'
-                if isinstance(set_val, bool):
+                # bool 或 'true'/'false' 字符串（历史遗留）均渲染为开关
+                if isinstance(set_val, bool) or (isinstance(set_val, str) and str(set_val).lower() in ('true', 'false')):
                     pp['fields'].append({
                         'k': f'setting_{set_key}',
                         'l': label,
