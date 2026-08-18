@@ -21,6 +21,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils.api import send_message
 from utils.config import get_master_qq, get_bot_qq, get_bot_name
 from utils.plugin_toggle import is_enabled as _pt_enabled, set_enabled as _pt_set
+from utils.command_registry import CommandRegistry
 
 # ========== 配置 ==========
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
@@ -357,6 +358,362 @@ def download_image(url):
         return url
 # ======================================================
 
+def _do_encode_start(event, data=None):
+    raw_msg = event.get("raw_message", "").strip()
+    user_id = event.get("user_id")
+    # ========== 转码功能 ==========
+    if raw_msg == ENCODE_COMMAND:
+        user_encode_state[user_id] = {"step": "waiting_content", "time": time.time()}
+        send_message(event, get_message("encode_start"))
+        return True
+
+def _do_sign(event, data=None):
+    raw_msg = event.get("raw_message", "").strip()
+    user_id = event.get("user_id")
+    # ========== 签到功能 ==========
+    if raw_msg in SIGN_COMMANDS:
+        sign_data = load_sign_data()
+        user_data = load_user_data()
+        today = beijing_now().date().isoformat()
+        user_key = str(user_id)
+        total = sign_data.get(user_key, {}).get("total", 0)
+        last_date = sign_data.get(user_key, {}).get("last_date", "")
+        if last_date != today:
+            total += 1
+            sign_data[user_key] = {"total": total, "last_date": today}
+            add = random.randint(*FAVOR_ADD_RANGE)
+            favor = user_data.get(user_key, {}).get("favor", 0) + add
+            user_data.setdefault(user_key, {})["favor"] = favor
+            save_sign_data(sign_data)
+            save_user_data(user_data)
+            reply = get_message("sign_success", add=add, favor=favor)
+        else:
+            minus = random.randint(*FAVOR_MINUS_RANGE)
+            favor = user_data.get(user_key, {}).get("favor", 0) - minus
+            user_data.setdefault(user_key, {})["favor"] = max(favor, 0)
+            save_user_data(user_data)
+            reply = get_message("sign_already", minus=minus, favor=favor)
+        send_message(event, reply)
+        return True
+
+def _do_praise(event, data=None):
+    raw_msg = event.get("raw_message", "").strip()
+    user_id = event.get("user_id")
+    # ========== 赞我功能 ==========
+    if raw_msg in PRAISE_COMMANDS:
+        praise_data = load_praise_data()
+        today = beijing_now().date().isoformat()
+        user_key = str(user_id)
+        last_date = praise_data.get(user_key, "")
+        if last_date != today:
+            praise_data[user_key] = today
+            save_praise_data(praise_data)
+            try:
+                from utils.api import http_get
+                result = http_get("send_like", {"user_id": user_id, "times": PRAISE_COUNT})
+                if result and result.get("status") == "ok":
+                    reply = get_message("praise_success", count=PRAISE_COUNT)
+                else:
+                    reply = get_message("praise_fail")
+            except Exception as e:
+                print(f"点赞异常: {e}")
+                reply = get_message("praise_fail")
+        else:
+            reply = get_message("praise_already")
+        send_message(event, reply)
+        return True
+
+def _do_nickname(event, data=None):
+    raw_msg = event.get("raw_message", "").strip()
+    user_id = event.get("user_id")
+    # ========== 自定义昵称 ==========
+    if raw_msg.startswith(NICKNAME_COMMAND):
+        user_data = load_user_data()
+        user_favor = user_data.get(str(user_id), {}).get("favor", 0)
+        if user_favor < NICKNAME_NEED_FAVOR:
+            need = NICKNAME_NEED_FAVOR - user_favor
+            send_message(event, get_message("nickname_fail", need=need))
+            return True
+        parts = raw_msg.split(maxsplit=1)
+        if len(parts) < 2:
+            send_message(event, get_message("nickname_format_error"))
+            return True
+        new_nick = parts[1].strip()
+        if not new_nick:
+            send_message(event, get_message("nickname_empty"))
+            return True
+        user_data.setdefault(str(user_id), {})["nickname"] = new_nick
+        save_user_data(user_data)
+        send_message(event, get_message("nickname_set", nick=new_nick))
+        return True
+
+def _do_rank(event, data=None):
+    raw_msg = event.get("raw_message", "").strip()
+    user_id = event.get("user_id")
+    # ========== 签到排行榜 ==========
+    if raw_msg == RANK_COMMAND:
+        sign_data = load_sign_data()
+        if not sign_data:
+            send_message(event, get_message("rank_empty"))
+            return True
+        sorted_list = sorted(sign_data.items(), key=lambda x: x[1]["total"], reverse=True)[:RANK_TOP_N]
+        user_data = load_user_data()
+        group_id = event.get("group_id")
+        members = []
+        if group_id:
+            try:
+                from utils.api import http_get
+                members_data = http_get("get_group_member_list", {"group_id": group_id})
+                if members_data and members_data.get("status") == "ok":
+                    members = members_data.get("data", [])
+            except:
+                pass
+        member_dict = {str(m["user_id"]): m.get("nickname", "") for m in members}
+        msg = get_message("rank_title", top=len(sorted_list))
+        for idx, (uid, info) in enumerate(sorted_list, 1):
+            custom_nick = user_data.get(uid, {}).get("nickname", "")
+            if custom_nick:
+                display_name = custom_nick
+            else:
+                display_name = member_dict.get(uid, uid)
+            msg += get_message("rank_item", idx=idx, name=display_name, uid=uid, total=info['total'])
+        send_message(event, msg.strip())
+        return True
+
+def _do_add(event, data):
+    raw_msg = event.get("raw_message", "").strip()
+    user_id = event.get("user_id")
+# 添加词条（一步式精准）
+    if raw_msg.startswith(ADD_WORD_COMMAND):
+        if raw_msg == ADD_WORD_COMMAND:
+            user_word_add_state[user_id] = {"step": "waiting_keyword"}
+            send_message(event, get_message("add_step1"))
+            return True
+        else:
+            remaining = raw_msg[len(ADD_WORD_COMMAND):].strip()
+            if '答' not in remaining:
+                send_message(event, get_message("add_format_error", cmd=ADD_WORD_COMMAND))
+                return True
+            keyword, reply = remaining.split('答', 1)
+            keyword = keyword.strip()
+            reply = reply.strip()
+            if not keyword or not reply:
+                send_message(event, get_message("add_empty"))
+                return True
+            if keyword not in wordlib:
+                wordlib[keyword] = []
+            wordlib[keyword].append({"content": reply, "mode": "exact"})
+            save_data(data)
+            send_message(event, get_message("add_success_exact", keyword=keyword, count=len(wordlib[keyword])))
+            return True
+
+def _do_add_fuzzy(event, data):
+    raw_msg = event.get("raw_message", "").strip()
+    user_id = event.get("user_id")
+# 添加模糊词条（一步式模糊）
+    if raw_msg.startswith(cmd("add_fuzzy", "添加模糊词条")):
+        remaining = raw_msg[len(cmd("add_fuzzy", "添加模糊词条")):].strip()
+        if '答' not in remaining:
+            send_message(event, get_message("add_format_error", cmd=cmd("add_fuzzy", "添加模糊词条")))
+            return True
+        keyword, reply = remaining.split('答', 1)
+        keyword = keyword.strip()
+        reply = reply.strip()
+        if not keyword or not reply:
+            send_message(event, get_message("add_empty"))
+            return True
+        if keyword not in wordlib:
+            wordlib[keyword] = []
+        wordlib[keyword].append({"content": reply, "mode": "fuzzy"})
+        save_data(data)
+        send_message(event, get_message("add_success_fuzzy", keyword=keyword, count=len(wordlib[keyword])))
+        return True
+
+def _do_delete(event, data):
+    raw_msg = event.get("raw_message", "").strip()
+    user_id = event.get("user_id")
+# 删除词条
+    if raw_msg.startswith(DELETE_WORD_COMMAND):
+        parts = raw_msg.split()
+        if len(parts) == 2:
+            try:
+                idx_global = int(parts[1]) - 1
+                if idx_global < 0:
+                    send_message(event, get_message("delete_idx_positive"))
+                    return True
+                sorted_keywords = sorted(wordlib.keys())
+                if not sorted_keywords:
+                    send_message(event, get_message("wordlib_empty"))
+                    return True
+                if idx_global >= len(sorted_keywords):
+                    send_message(event, get_message("delete_idx_invalid", count=len(sorted_keywords)))
+                    return True
+                keyword = sorted_keywords[idx_global]
+                del wordlib[keyword]
+                save_data(data)
+                send_message(event, get_message("delete_success", keyword=keyword))
+                return True
+            except ValueError:
+                keyword = parts[1]
+                if keyword not in wordlib:
+                    send_message(event, get_message("delete_not_found", keyword=keyword))
+                    return True
+                del wordlib[keyword]
+                save_data(data)
+                send_message(event, get_message("delete_success", keyword=keyword))
+                return True
+        elif len(parts) == 3:
+            keyword = parts[1]
+            try:
+                idx = int(parts[2]) - 1
+            except ValueError:
+                send_message(event, get_message("delete_idx_must_number"))
+                return True
+            if keyword not in wordlib:
+                send_message(event, get_message("delete_not_found", keyword=keyword))
+                return True
+            if idx < 0 or idx >= len(wordlib[keyword]):
+                send_message(event, get_message("delete_reply_idx_invalid", count=len(wordlib[keyword])))
+                return True
+            removed = wordlib[keyword].pop(idx)
+            if not wordlib[keyword]:
+                del wordlib[keyword]
+            save_data(data)
+            content = removed.get("content", "") if isinstance(removed, dict) else removed
+            if isinstance(content, list):
+                display = "[图片]" if any(seg.get("type") == "image" for seg in content) else "[复合消息]"
+            else:
+                display = content if len(content) <= 30 else content[:27] + "..."
+            send_message(event, get_message("delete_reply_success", keyword=keyword, idx=idx+1, content=display))
+            return True
+        else:
+            send_message(event, get_message("delete_format_error", cmd=DELETE_WORD_COMMAND))
+            return True
+
+def _do_query(event, data):
+    raw_msg = event.get("raw_message", "").strip()
+    user_id = event.get("user_id")
+# 查询词条
+    if raw_msg.startswith(QUERY_WORD_COMMAND):
+        parts = raw_msg.split(maxsplit=1)
+        if len(parts) < 2:
+            if not wordlib:
+                send_message(event, get_message("wordlib_empty"))
+                return True
+            sorted_keywords = sorted(wordlib.keys())
+            msg = get_message("query_list_title")
+            for i, kw in enumerate(sorted_keywords, 1):
+                count = len(wordlib[kw])
+                msg += get_message("query_list_item", idx=i, keyword=kw, count=count)
+            send_message(event, msg.strip())
+            return True
+        else:
+            keyword = parts[1].strip()
+            if keyword not in wordlib or not wordlib[keyword]:
+                send_message(event, get_message("query_no_reply", keyword=keyword))
+                return True
+            replies = wordlib[keyword]
+            msg = get_message("query_detail_title", keyword=keyword, count=len(replies))
+            for i, r in enumerate(replies, 1):
+                content = r.get("content", "") if isinstance(r, dict) else r
+                mode = r.get("mode", "exact") if isinstance(r, dict) else "exact"
+                mode_str = "精准" if mode == "exact" else "模糊"
+                if isinstance(content, list):
+                    display = "[图片]" if any(seg.get("type") == "image" for seg in content) else "[复合消息]"
+                else:
+                    display = content if len(content) <= 30 else content[:27] + "..."
+                msg += get_message("query_detail_item", idx=i, mode=mode_str, content=display)
+            send_message(event, msg.strip())
+            return True
+
+# ============ 指令注册表（集中定义，一眼可读）============
+registry = CommandRegistry("词库")
+
+
+def _cmd_enable(event, raw, kw):
+    if event.get("message_type") == "group":
+        _pt_set(event.get("group_id"), "wordlib", True)
+        send_message(event, "词库已在本群开启")
+    else:
+        _CFG.setdefault("settings", {})["enabled"] = True
+        _save()
+        send_message(event, "词库已开启")
+    return True
+
+
+def _cmd_disable(event, raw, kw):
+    if event.get("message_type") == "group":
+        _pt_set(event.get("group_id"), "wordlib", False)
+        send_message(event, "词库已在本群关闭")
+    else:
+        _CFG.setdefault("settings", {})["enabled"] = False
+        _save()
+        send_message(event, "词库已关闭")
+    return True
+
+
+def _cmd_sign(event, raw, kw):
+    return _do_sign(event)
+
+
+def _cmd_praise(event, raw, kw):
+    return _do_praise(event)
+
+
+def _cmd_nickname(event, raw, kw):
+    return _do_nickname(event)
+
+
+def _cmd_rank(event, raw, kw):
+    return _do_rank(event)
+
+
+def _cmd_encode(event, raw, kw):
+    return _do_encode_start(event)
+
+
+def _cmd_add(event, raw, kw):
+    data = load_data()
+    if not is_admin(event.get("user_id"), data):
+        return False
+    return _do_add(event, data)
+
+
+def _cmd_add_fuzzy(event, raw, kw):
+    data = load_data()
+    if not is_admin(event.get("user_id"), data):
+        return False
+    return _do_add_fuzzy(event, data)
+
+
+def _cmd_delete(event, raw, kw):
+    data = load_data()
+    if not is_admin(event.get("user_id"), data):
+        return False
+    return _do_delete(event, data)
+
+
+def _cmd_query(event, raw, kw):
+    data = load_data()
+    if not is_admin(event.get("user_id"), data):
+        return False
+    return _do_query(event, data)
+
+
+# 注册指令：名称 / 触发词 / 描述 / 处理函数 / 权限 / 匹配方式
+registry.register("开启词库", [cmd("enable", "开启词库")], "开启词库（群内=本群，私聊=全局）", _cmd_enable, master_only=True, kind="suffix")
+registry.register("关闭词库", [cmd("disable", "关闭词库")], "关闭词库（群内=本群，私聊=全局）", _cmd_disable, master_only=True, kind="suffix")
+registry.register("添加词条", [ADD_WORD_COMMAND], "添加词条：{cmd} 关键词 答 回复".format(cmd=ADD_WORD_COMMAND), _cmd_add, kind="prefix")
+registry.register("添加模糊词条", [cmd("add_fuzzy", "添加模糊词条")], "添加模糊匹配词条", _cmd_add_fuzzy, kind="prefix")
+registry.register("删除词条", [DELETE_WORD_COMMAND], "删除词条（支持序号）", _cmd_delete, kind="prefix")
+registry.register("查询词条", [QUERY_WORD_COMMAND], "查询词条列表或详情", _cmd_query, kind="prefix")
+registry.register("消息转码", [ENCODE_COMMAND], "转码消息为可复制格式", _cmd_encode)
+registry.register("每日签到", SIGN_COMMANDS, "每日签到获得好感度", _cmd_sign)
+registry.register("赞我", PRAISE_COMMANDS, "让机器人点赞你", _cmd_praise)
+registry.register("设置昵称", [NICKNAME_COMMAND], "设置自定义昵称（需好感度）", _cmd_nickname, kind="prefix")
+registry.register("签到排行", [RANK_COMMAND], "查看签到排行榜", _cmd_rank)
+
+
 def handle_message(event: dict, data: dict) -> bool:
     global re
     raw_msg = event.get("raw_message", "").strip()
@@ -411,11 +768,6 @@ def handle_message(event: dict, data: dict) -> bool:
                     send_message(event, get_message("mode_invalid"))
                 return True
 
-    # ========== 转码功能 ==========
-    if raw_msg == ENCODE_COMMAND:
-        user_encode_state[user_id] = {"step": "waiting_content", "time": time.time()}
-        send_message(event, get_message("encode_start"))
-        return True
     
     # 处理转码等待状态
     if user_id in user_encode_state:
@@ -476,244 +828,13 @@ def handle_message(event: dict, data: dict) -> bool:
             send_message(event, get_message("encode_result", code=encode_result))
             return True
 
-    # ========== 签到功能 ==========
-    if raw_msg in SIGN_COMMANDS:
-        sign_data = load_sign_data()
-        user_data = load_user_data()
-        today = beijing_now().date().isoformat()
-        user_key = str(user_id)
-        total = sign_data.get(user_key, {}).get("total", 0)
-        last_date = sign_data.get(user_key, {}).get("last_date", "")
-        if last_date != today:
-            total += 1
-            sign_data[user_key] = {"total": total, "last_date": today}
-            add = random.randint(*FAVOR_ADD_RANGE)
-            favor = user_data.get(user_key, {}).get("favor", 0) + add
-            user_data.setdefault(user_key, {})["favor"] = favor
-            save_sign_data(sign_data)
-            save_user_data(user_data)
-            reply = get_message("sign_success", add=add, favor=favor)
-        else:
-            minus = random.randint(*FAVOR_MINUS_RANGE)
-            favor = user_data.get(user_key, {}).get("favor", 0) - minus
-            user_data.setdefault(user_key, {})["favor"] = max(favor, 0)
-            save_user_data(user_data)
-            reply = get_message("sign_already", minus=minus, favor=favor)
-        send_message(event, reply)
+    
+
+    # ========== 指令分发（注册表统一处理：转码/签到/赞我/昵称/排行/词条管理） ==========
+    if registry.dispatch(event, raw_msg, is_admin(user_id, data)):
         return True
 
-    # ========== 赞我功能 ==========
-    if raw_msg in PRAISE_COMMANDS:
-        praise_data = load_praise_data()
-        today = beijing_now().date().isoformat()
-        user_key = str(user_id)
-        last_date = praise_data.get(user_key, "")
-        if last_date != today:
-            praise_data[user_key] = today
-            save_praise_data(praise_data)
-            try:
-                from utils.api import http_get
-                result = http_get("send_like", {"user_id": user_id, "times": PRAISE_COUNT})
-                if result and result.get("status") == "ok":
-                    reply = get_message("praise_success", count=PRAISE_COUNT)
-                else:
-                    reply = get_message("praise_fail")
-            except Exception as e:
-                print(f"点赞异常: {e}")
-                reply = get_message("praise_fail")
-        else:
-            reply = get_message("praise_already")
-        send_message(event, reply)
-        return True
-
-    # ========== 自定义昵称 ==========
-    if raw_msg.startswith(NICKNAME_COMMAND):
-        user_data = load_user_data()
-        user_favor = user_data.get(str(user_id), {}).get("favor", 0)
-        if user_favor < NICKNAME_NEED_FAVOR:
-            need = NICKNAME_NEED_FAVOR - user_favor
-            send_message(event, get_message("nickname_fail", need=need))
-            return True
-        parts = raw_msg.split(maxsplit=1)
-        if len(parts) < 2:
-            send_message(event, get_message("nickname_format_error"))
-            return True
-        new_nick = parts[1].strip()
-        if not new_nick:
-            send_message(event, get_message("nickname_empty"))
-            return True
-        user_data.setdefault(str(user_id), {})["nickname"] = new_nick
-        save_user_data(user_data)
-        send_message(event, get_message("nickname_set", nick=new_nick))
-        return True
-
-    # ========== 签到排行榜 ==========
-    if raw_msg == RANK_COMMAND:
-        sign_data = load_sign_data()
-        if not sign_data:
-            send_message(event, get_message("rank_empty"))
-            return True
-        sorted_list = sorted(sign_data.items(), key=lambda x: x[1]["total"], reverse=True)[:RANK_TOP_N]
-        user_data = load_user_data()
-        group_id = event.get("group_id")
-        members = []
-        if group_id:
-            try:
-                from utils.api import http_get
-                members_data = http_get("get_group_member_list", {"group_id": group_id})
-                if members_data and members_data.get("status") == "ok":
-                    members = members_data.get("data", [])
-            except:
-                pass
-        member_dict = {str(m["user_id"]): m.get("nickname", "") for m in members}
-        msg = get_message("rank_title", top=len(sorted_list))
-        for idx, (uid, info) in enumerate(sorted_list, 1):
-            custom_nick = user_data.get(uid, {}).get("nickname", "")
-            if custom_nick:
-                display_name = custom_nick
-            else:
-                display_name = member_dict.get(uid, uid)
-            msg += get_message("rank_item", idx=idx, name=display_name, uid=uid, total=info['total'])
-        send_message(event, msg.strip())
-        return True
-
-    # ========== 管理员/主人专用命令（管理词条） ==========
-    if is_admin(user_id, data):
-        # 添加词条（一步式精准）
-        if raw_msg.startswith(ADD_WORD_COMMAND):
-            if raw_msg == ADD_WORD_COMMAND:
-                user_word_add_state[user_id] = {"step": "waiting_keyword"}
-                send_message(event, get_message("add_step1"))
-                return True
-            else:
-                remaining = raw_msg[len(ADD_WORD_COMMAND):].strip()
-                if '答' not in remaining:
-                    send_message(event, get_message("add_format_error", cmd=ADD_WORD_COMMAND))
-                    return True
-                keyword, reply = remaining.split('答', 1)
-                keyword = keyword.strip()
-                reply = reply.strip()
-                if not keyword or not reply:
-                    send_message(event, get_message("add_empty"))
-                    return True
-                if keyword not in wordlib:
-                    wordlib[keyword] = []
-                wordlib[keyword].append({"content": reply, "mode": "exact"})
-                save_data(data)
-                send_message(event, get_message("add_success_exact", keyword=keyword, count=len(wordlib[keyword])))
-                return True
-
-        # 添加模糊词条（一步式模糊）
-        if raw_msg.startswith(cmd("add_fuzzy", "添加模糊词条")):
-            remaining = raw_msg[len(cmd("add_fuzzy", "添加模糊词条")):].strip()
-            if '答' not in remaining:
-                send_message(event, get_message("add_format_error", cmd=cmd("add_fuzzy", "添加模糊词条")))
-                return True
-            keyword, reply = remaining.split('答', 1)
-            keyword = keyword.strip()
-            reply = reply.strip()
-            if not keyword or not reply:
-                send_message(event, get_message("add_empty"))
-                return True
-            if keyword not in wordlib:
-                wordlib[keyword] = []
-            wordlib[keyword].append({"content": reply, "mode": "fuzzy"})
-            save_data(data)
-            send_message(event, get_message("add_success_fuzzy", keyword=keyword, count=len(wordlib[keyword])))
-            return True
-
-        # 删除词条
-        if raw_msg.startswith(DELETE_WORD_COMMAND):
-            parts = raw_msg.split()
-            if len(parts) == 2:
-                try:
-                    idx_global = int(parts[1]) - 1
-                    if idx_global < 0:
-                        send_message(event, get_message("delete_idx_positive"))
-                        return True
-                    sorted_keywords = sorted(wordlib.keys())
-                    if not sorted_keywords:
-                        send_message(event, get_message("wordlib_empty"))
-                        return True
-                    if idx_global >= len(sorted_keywords):
-                        send_message(event, get_message("delete_idx_invalid", count=len(sorted_keywords)))
-                        return True
-                    keyword = sorted_keywords[idx_global]
-                    del wordlib[keyword]
-                    save_data(data)
-                    send_message(event, get_message("delete_success", keyword=keyword))
-                    return True
-                except ValueError:
-                    keyword = parts[1]
-                    if keyword not in wordlib:
-                        send_message(event, get_message("delete_not_found", keyword=keyword))
-                        return True
-                    del wordlib[keyword]
-                    save_data(data)
-                    send_message(event, get_message("delete_success", keyword=keyword))
-                    return True
-            elif len(parts) == 3:
-                keyword = parts[1]
-                try:
-                    idx = int(parts[2]) - 1
-                except ValueError:
-                    send_message(event, get_message("delete_idx_must_number"))
-                    return True
-                if keyword not in wordlib:
-                    send_message(event, get_message("delete_not_found", keyword=keyword))
-                    return True
-                if idx < 0 or idx >= len(wordlib[keyword]):
-                    send_message(event, get_message("delete_reply_idx_invalid", count=len(wordlib[keyword])))
-                    return True
-                removed = wordlib[keyword].pop(idx)
-                if not wordlib[keyword]:
-                    del wordlib[keyword]
-                save_data(data)
-                content = removed.get("content", "") if isinstance(removed, dict) else removed
-                if isinstance(content, list):
-                    display = "[图片]" if any(seg.get("type") == "image" for seg in content) else "[复合消息]"
-                else:
-                    display = content if len(content) <= 30 else content[:27] + "..."
-                send_message(event, get_message("delete_reply_success", keyword=keyword, idx=idx+1, content=display))
-                return True
-            else:
-                send_message(event, get_message("delete_format_error", cmd=DELETE_WORD_COMMAND))
-                return True
-
-        # 查询词条
-        if raw_msg.startswith(QUERY_WORD_COMMAND):
-            parts = raw_msg.split(maxsplit=1)
-            if len(parts) < 2:
-                if not wordlib:
-                    send_message(event, get_message("wordlib_empty"))
-                    return True
-                sorted_keywords = sorted(wordlib.keys())
-                msg = get_message("query_list_title")
-                for i, kw in enumerate(sorted_keywords, 1):
-                    count = len(wordlib[kw])
-                    msg += get_message("query_list_item", idx=i, keyword=kw, count=count)
-                send_message(event, msg.strip())
-                return True
-            else:
-                keyword = parts[1].strip()
-                if keyword not in wordlib or not wordlib[keyword]:
-                    send_message(event, get_message("query_no_reply", keyword=keyword))
-                    return True
-                replies = wordlib[keyword]
-                msg = get_message("query_detail_title", keyword=keyword, count=len(replies))
-                for i, r in enumerate(replies, 1):
-                    content = r.get("content", "") if isinstance(r, dict) else r
-                    mode = r.get("mode", "exact") if isinstance(r, dict) else "exact"
-                    mode_str = "精准" if mode == "exact" else "模糊"
-                    if isinstance(content, list):
-                        display = "[图片]" if any(seg.get("type") == "image" for seg in content) else "[复合消息]"
-                    else:
-                        display = content if len(content) <= 30 else content[:27] + "..."
-                    msg += get_message("query_detail_item", idx=i, mode=mode_str, content=display)
-                send_message(event, msg.strip())
-                return True
-
-    # ========== 随机回复（所有人可触发） ==========
+# ========== 随机回复（所有人可触发） ==========
     user_data = load_user_data()
     
     matched_keywords = []
@@ -857,28 +978,9 @@ def handle(event: dict) -> bool:
         group_id = event.get("group_id")
         is_group = event.get("message_type") == "group"
 
-        # 主人开关命令（在群内→分群开关，私聊→全局）
-        if is_master(user_id):
-            enable_cmd = cmd("enable", "开启词库")
-            disable_cmd = cmd("disable", "关闭词库")
-            if raw_msg == enable_cmd or raw_msg.endswith(enable_cmd):
-                if is_group:
-                    _pt_set(group_id, "wordlib", True)
-                    send_message(event, "词库已在本群开启")
-                else:
-                    _CFG.setdefault("settings", {})["enabled"] = True
-                    _save()
-                    send_message(event, "词库已开启")
-                return True
-            if raw_msg == disable_cmd or raw_msg.endswith(disable_cmd):
-                if is_group:
-                    _pt_set(group_id, "wordlib", False)
-                    send_message(event, "词库已在本群关闭")
-                else:
-                    _CFG.setdefault("settings", {})["enabled"] = False
-                    _save()
-                    send_message(event, "词库已关闭")
-                return True
+        # 主人开关命令（注册表统一分发）
+        if registry.dispatch(event, raw_msg, is_master(user_id), master_cmds_only=True):
+            return True
 
         # 全局禁用检查
         if not setting("enabled", True):
