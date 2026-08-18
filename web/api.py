@@ -491,9 +491,44 @@ DEFAULT_MSG_LABELS = {
     "delete_format_error": "删除格式错误", "wordlib_empty": "词库为空", "query_list_title": "词库列表标题",
     "query_list_item": "词库列表项", "query_detail_title": "词库详情标题", "query_detail_item": "词库详情项",
     "query_no_reply": "无回复", "encode_start": "转码开始", "encode_result": "转码结果",
-    "encode_timeout": "转码超时", "switch_glm": "切换GLM成功", "switch_gemini": "切换Gemini成功",
+    "encode_timeout": "转码超时", "delete_reply_idx_invalid": "删除回复序号无效",
+    "delete_idx_must_number": "删除序号须为数字", "delete_idx_positive": "删除序号须为正数",
+    "switch_glm": "切换GLM成功", "switch_gemini": "切换Gemini成功",
     "current_model": "当前模型", "history_cleared": "历史已清除", "all_history_cleared": "全部历史已清除",
     "whats_up": "打招呼", "check_image": "看图提示", "no_reply": "无回复提示",
+}
+
+# 常见参数键的中文名（Web 面板设置标签；插件配置 setting_labels 优先）
+DEFAULT_SETTING_LABELS = {
+    "enabled": "插件开关",
+    # JM下载
+    "auto_update": "自动更新jmcomic库", "update_interval_hours": "更新检查间隔(小时)",
+    "send_pdf": "发送PDF", "delete_after_send": "发送后清理文件",
+    "concurrent_image": "并发下载图片数", "concurrent_photo": "并发下载章节数",
+    "download_dir": "下载目录", "task_timeout_seconds": "任务超时(秒)",
+    "cleanup_delay_seconds": "清理延迟(秒)", "recall_enabled": "消息自动撤回",
+    "recall_seconds": "撤回时间(秒)", "recall_notice": "撤回前提醒",
+    # 结婚
+    "success_rate": "结婚成功率(%)", "divorce_cd_hours": "离婚冷却(小时)",
+    # 词库
+    "favor_add_min": "好感度增加下限", "favor_add_max": "好感度增加上限",
+    "favor_minus_min": "好感度扣除下限", "favor_minus_max": "好感度扣除上限",
+    "nickname_need_favor": "设置昵称所需好感度", "rank_top_n": "排行榜人数",
+    "praise_count": "点赞次数", "encode_timeout": "转码超时(秒)",
+    # 伪人
+    "current_model": "当前AI模型", "split_count": "消息分段数",
+    "split_delay_min": "分段最小延迟(秒)", "split_delay_max": "分段最大延迟(秒)",
+    "reply_probability": "回复概率", "random_reply_probability": "随机回复概率",
+    "record_group_unrelated": "记录无关群消息", "max_history": "历史消息上限",
+    "context_window": "上下文窗口(条)", "temperature": "温度参数",
+    "max_tokens": "最大Token数", "api_timeout": "API超时(秒)",
+    "health_check_interval": "健康检查间隔(秒)", "persona": "人设",
+    "user_persona": "用户补充人设", "group_model_map": "分群模型映射",
+    # 视频解析
+    "max_images": "最大图片数", "auto_send_video": "自动发送视频",
+    "auto_send_images": "自动发送图片", "show_source": "显示来源",
+    "merge_images": "合并图片", "@_reply": "@回复",
+    "douyin_cookie": "抖音Cookie", "browser_timeout": "浏览器超时(秒)",
 }
 
 
@@ -528,24 +563,26 @@ def get_plugins(num):
                     'hint': f'触发「{meta["name_cn"]}」的{cmd_key}命令',
                 })
 
-            # 设置段
+            # 设置段（标签用中文参数名）
+            set_labels = config_data.get('setting_labels', {})
             for set_key, set_val in config_data.get('settings', {}).items():
+                label = set_labels.get(set_key) or DEFAULT_SETTING_LABELS.get(set_key) or f'参数「{set_key}」'
                 if isinstance(set_val, bool):
                     pp['fields'].append({
                         'k': f'setting_{set_key}',
-                        'l': '插件开关' if set_key == 'enabled' else f'参数「{set_key}」',
+                        'l': label,
                         't': 'sel', 'o': ['true', 'false'],
                         'v': str(set_val).lower(),
                         'hint': '全局开关，关闭后所有人无法使用' if set_key == 'enabled' else '',
                     })
                 elif isinstance(set_val, (int, float)):
                     pp['fields'].append({
-                        'k': f'setting_{set_key}', 'l': f'参数「{set_key}」',
+                        'k': f'setting_{set_key}', 'l': label,
                         't': 'num', 'v': set_val, 'hint': '',
                     })
                 else:
                     pp['fields'].append({
-                        'k': f'setting_{set_key}', 'l': f'参数「{set_key}」',
+                        'k': f'setting_{set_key}', 'l': label,
                         't': 'text', 'v': str(set_val) if set_val else '',
                     })
 
@@ -576,20 +613,21 @@ def get_plugins(num):
             for mk in config_data.get('messages', {}): handled_cats.add(mk)
             for fk, fv in config_data.items():
                 if fk in handled_cats: continue
+                label = DEFAULT_SETTING_LABELS.get(fk) or f'参数「{fk}」'
                 if isinstance(fv, bool):
                     pp['fields'].append({
-                        'k': f'cfg_{fk}', 'l': f'参数「{fk}」',
+                        'k': f'cfg_{fk}', 'l': label,
                         't': 'sel', 'o': ['true', 'false'], 'v': str(fv).lower(),
                     })
                 elif isinstance(fv, (int, float)):
                     pp['fields'].append({
-                        'k': f'cfg_{fk}', 'l': f'参数「{fk}」',
+                        'k': f'cfg_{fk}', 'l': label,
                         't': 'num', 'v': fv,
                     })
                 elif isinstance(fv, str):
                     field_type = 'password' if ('cookie' in fk.lower() or 'key' in fk.lower() or 'token' in fk.lower()) else 'text'
                     pp['fields'].append({
-                        'k': f'cfg_{fk}', 'l': f'参数「{fk}」',
+                        'k': f'cfg_{fk}', 'l': label,
                         't': field_type, 'v': fv,
                     })
                 elif isinstance(fv, list):
