@@ -101,7 +101,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 .el-table .group-cell .g-info .g-name{font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
 .el-table .group-cell .g-info .g-id{font-size:11px;color:var(--text-secondary);margin-top:1px}
 .action-bar{position:sticky;bottom:0;display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--bg-card);border-top:1px solid var(--border-color);box-shadow:0 -4px 16px rgba(0,0,0,.06);z-index:20;margin-top:8px}
-.float-actions{position:fixed;bottom:24px;right:24px;display:flex;gap:10px;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:12px 16px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border-light)}
+
 .btn{padding:9px 20px;border-radius:var(--radius);border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
 .btn:active{transform:scale(.97)}
 .btn-primary{background:var(--color-primary);color:#fff}
@@ -753,8 +753,7 @@ async function renderGroups() {
       html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" ' + (gAll?'checked':'') + ' class="tg-r" data-tgg="' + g + '"><span class="track"></span></label></td></tr>';
     }
     html += '</tbody></table></div></div></div>';
-    // 保存按钮统一在底部操作栏（与插件配置一致）；保留浮动刷新
-    html += '<div class="float-actions"><button class="btn btn-default" onclick="refreshCurrentPage()">🔄 刷新</button></div>';
+    // 保存按钮统一在底部操作栏（与插件配置一致）；刷新用顶部栏「🔄 刷新」
     showActionBar('群组开关（' + groups.length + ' 个群 × ' + plugins.length + ' 个插件）', tgSave);
     html += '<div class="card"><div class="card-header"><h3>💡 说明</h3></div><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.8">所有插件在每个群默认关闭。<br>在群内发送对应命令开启：<code>开启词库</code> / <code>关闭词库</code><br>私聊发送 = 全局控制。横向「全选」列控制单个插件在所有群的状态，纵向「全选」行控制单个群的所有插件。</div></div>';
     document.getElementById('pageContent').innerHTML = html;
