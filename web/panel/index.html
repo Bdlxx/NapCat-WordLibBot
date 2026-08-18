@@ -913,32 +913,33 @@ function renderPage() {
 }
 
 fetchStatus();
-renderPage();
-ensurePluginSubmenu();  // 预加载插件二级菜单数据（不展开，点击展开即时显示）
+// 当前页（仪表盘）正常可见加载渲染，完成后后台预加载其余页面
+(async () => {
+  await renderDashboard();
+  ensurePluginSubmenu();  // 预加载插件二级菜单数据（不展开，点击展开即时显示）
+  preloadAllPages();
+})();
 
-// 预加载所有页面：后台渲染全部页面到缓存，切换零等待
-// 渲染目标临时替换为隐藏容器，避免预加载过程页面内容反复切换（看起来像跳转）
+// 预加载其余页面（当前页已正常显示）：渲染到隐藏容器，避免可见区内容反复切换
 async function preloadAllPages() {
   const realContent = document.getElementById('pageContent');
+  // 真实容器暂时改名（仍在 DOM 中可见），渲染函数会写入隐藏容器
+  realContent.id = 'pageContent_visible';
   const hidden = document.createElement('div');
   hidden.id = 'pageContent';
   hidden.style.display = 'none';
   realContent.parentNode.insertBefore(hidden, realContent);
-  realContent.parentNode.removeChild(realContent);
 
   preloading = true;
   await Promise.all([
-    renderDashboard(), renderManage(), renderConfig(),
-    renderGroups(), renderLogs(),
+    renderManage(), renderConfig(), renderGroups(), renderLogs(),
   ].map(p => p.catch(()=>{})));
   preloading = false;
 
-  // 恢复真实页面容器并显示当前页缓存
-  hidden.parentNode.insertBefore(realContent, hidden);
+  // 恢复真实容器（当前页内容不动）
   hidden.parentNode.removeChild(hidden);
-  renderPage();  // 恢复当前页（仪表盘）缓存显示
+  realContent.id = 'pageContent';
 }
-preloadAllPages();
 setInterval(fetchStatus, 15000);
 
 // 事件委托：配置标签页(data-sk)、导航(data-page)、群组开关(data-nav/checkbox)
