@@ -420,7 +420,12 @@ def bot_napcat_log(n):
     if n not in BOTS: return jsonify({'error': '无效编号'}), 404
     container = _container_for(n)
     try:
-        r = subprocess.run("docker logs " + container + " --tail 30 2>&1", shell=True, capture_output=True, text=True, timeout=5)
+        try:
+            n_lines = int(request.args.get('lines', 30))
+        except (TypeError, ValueError):
+            n_lines = 30
+        n_lines = min(max(n_lines, 20), 1000)
+        r = subprocess.run(f"docker logs {container} --tail {n_lines} 2>&1", shell=True, capture_output=True, text=True, timeout=8)
         return jsonify({'log': r.stdout or '容器日志为空'})
     except Exception as e:
         return jsonify({'log': '获取失败: ' + str(e)})

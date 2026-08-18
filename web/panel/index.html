@@ -274,7 +274,7 @@ const NAV_ITEMS = [
   { id:'manage',    icon:'🛠️',  label:'运行管理', group:'管理' },
   { id:'config',    icon:'⚙️',  label:'插件配置', group:'管理', sub:true },
   { id:'groups',    icon:'👥',  label:'群组开关', group:'管理' },
-  { id:'logs',      icon:'📋',  label:'运行日志', group:'管理' },
+  { id:'logs',      icon:'📋',  label:'运行日志', group:'管理', sub:true },
 ];
 
 function navigate(page) {
@@ -308,6 +308,23 @@ function renderSidebar() {
 }
 
 let configSubOpen = false;  // 二级菜单默认收起；进入面板时预加载数据，点击展开即时显示
+let logsSubOpen = false;
+
+// 运行日志二级菜单（固定项：项目日志 / NapCat 日志）
+function renderLogsSubmenu() {
+  const sub = document.getElementById('sub_logs');
+  if (!sub) return;
+  const active = currentPage;
+  sub.innerHTML =
+    '<div class="nav-sub-item ' + (active==='logs'?'active':'') + '" onclick="selectLogPage(\'logs\')">📄 项目日志</div>' +
+    '<div class="nav-sub-item ' + (active==='napcat_logs'?'active':'') + '" onclick="selectLogPage(\'napcat_logs\')">🐱 NapCat 日志</div>';
+}
+function selectLogPage(page) {
+  currentPage = page;
+  logsSubOpen = true;
+  renderLogsSubmenu();
+  renderPage();
+}
 
 // 展开/收起二级菜单（主项点击；页面切换由 data-page 事件委托完成）
 function toggleSubMenu(id) {
@@ -321,18 +338,34 @@ function toggleSubMenu(id) {
     configSubOpen = willOpen;
     if (willOpen) ensurePluginSubmenu();  // 展开时才加载插件列表
   }
+  if (id === 'logs') {
+    logsSubOpen = willOpen;
+    if (willOpen) renderLogsSubmenu();
+  }
 }
 
 // 恢复子菜单展开状态（renderSidebar 重渲染后调用）
 function restoreSubMenu() {
+  // 插件配置二级菜单
   const sub = document.getElementById('sub_config');
   const arrow = document.getElementById('arrow_config');
-  if (!sub) return;
-  if (configSubOpen) {
-    sub.style.display = 'block';
-    if (arrow) arrow.textContent = '▴';
-    ensurePluginSubmenu();  // 已缓存直接渲染，未缓存懒加载（避免空占位闪烁）
-  } else { sub.style.display = 'none'; if (arrow) arrow.textContent = '▾'; }
+  if (sub) {
+    if (configSubOpen) {
+      sub.style.display = 'block';
+      if (arrow) arrow.textContent = '▴';
+      ensurePluginSubmenu();  // 已缓存直接渲染，未缓存懒加载（避免空占位闪烁）
+    } else { sub.style.display = 'none'; if (arrow) arrow.textContent = '▾'; }
+  }
+  // 运行日志二级菜单
+  const subL = document.getElementById('sub_logs');
+  const arrowL = document.getElementById('arrow_logs');
+  if (subL) {
+    if (logsSubOpen) {
+      subL.style.display = 'block';
+      if (arrowL) arrowL.textContent = '▴';
+      renderLogsSubmenu();
+    } else { subL.style.display = 'none'; if (arrowL) arrowL.textContent = '▾'; }
+  }
 }
 
 // 确保插件列表已加载并填充二级菜单（懒加载：展开时才请求；无插件/失败轻提示）
@@ -888,6 +921,51 @@ async function renderLogs() {
   if (logAutoRefresh) startPageTimer(loadLogs, 5000);
 }
 
+// ===== NapCat 日志页（docker logs）=====
+let napcatRawData = '';
+
+function renderNapcatLogsViewer() {
+  const v = document.getElementById('napcatLogViewer');
+  if (!v) return;
+  v.innerHTML = (napcatRawData || '暂无容器日志').split('\n').map(l => escapeHtml(l)).join('\n');
+  v.scrollTop = v.scrollHeight;
+}
+
+async function loadNapcatLogs() {
+  try {
+    const r = await fetch('/api/bot/' + botNum + '/napcat-log?lines=' + logLines);
+    const d = await r.json();
+    napcatRawData = d.log || '';
+    renderNapcatLogsViewer();
+  } catch(e) {}
+}
+
+async function renderNapcatLogs() {
+  hideActionBar();
+  document.getElementById('breadcrumb').innerHTML = '<span class="current">NapCat 日志</span>';
+  renderSidebar();
+  document.getElementById('pageContent').innerHTML = `
+    <div class="card"><div class="card-header"><h3>🐱 NapCat 容器日志</h3><span style="font-size:12px;color:var(--text-secondary)">docker logs（容器 ${botNum}）</span></div>
+    <div class="card-body">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <select id="logLinesSel2" style="padding:7px 10px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none" onchange="logLines=+this.value;loadNapcatLogs()">
+          <option value="50">50 行</option>
+          <option value="100" selected>100 行</option>
+          <option value="200">200 行</option>
+          <option value="500">500 行</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-regular);cursor:pointer">
+          <input type="checkbox" id="logAutoRef2" checked onchange="logAutoRefresh=this.checked; if(logAutoRefresh)startPageTimer(loadNapcatLogs,5000); else clearPageTimer()"> 自动刷新(5s)
+        </label>
+        <button class="btn btn-default" onclick="loadNapcatLogs()">🔄 刷新</button>
+      </div>
+      <div class="log-viewer" id="napcatLogViewer" style="max-height:calc(100vh - 260px)">加载中...</div>
+    </div></div>`;
+  cachePage('napcat_logs');
+  await loadNapcatLogs();
+  if (logAutoRefresh) startPageTimer(loadNapcatLogs, 5000);
+}
+
 function renderPage() {
   const key = currentPage;
   clearPageTimer();  // 切换页面停止上一页的局部刷新
@@ -898,6 +976,7 @@ function renderPage() {
     renderSidebar();
     restoreActionBar();
     if (key === 'logs') { loadLogs(); if (logAutoRefresh) startPageTimer(loadLogs, 5000); }
+    else if (key === 'napcat_logs') { loadNapcatLogs(); if (logAutoRefresh) startPageTimer(loadNapcatLogs, 5000); }
     else if (key === 'manage') { startPageTimer(updateManageStatus, 10000); }
     else if (key === 'dashboard') { startPageTimer(updateDashboardStatus, 10000); }
     return;
@@ -908,6 +987,7 @@ function renderPage() {
     case 'config':    renderConfig(); break;
     case 'groups':    renderGroups(); break;
     case 'logs':      renderLogs(); break;
+    case 'napcat_logs': renderNapcatLogs(); break;
     default: renderDashboard();
   }
 }
@@ -932,7 +1012,7 @@ async function preloadAllPages() {
 
   preloading = true;
   await Promise.all([
-    renderManage(), renderConfig(), renderGroups(), renderLogs(),
+    renderManage(), renderConfig(), renderGroups(), renderLogs(), renderNapcatLogs(),
   ].map(p => p.catch(()=>{})));
   preloading = false;
 
