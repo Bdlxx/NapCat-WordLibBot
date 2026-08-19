@@ -289,8 +289,11 @@ def read_json(path):
 
 def write_json(path, data):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w', encoding='utf-8') as f:
+    # 原子写入：先写临时文件再替换，避免插件热更新读到半截文件
+    tmp = path + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
 
 def build_fields_from_cfg(cfg, prefix='cmd'):
     fields = []

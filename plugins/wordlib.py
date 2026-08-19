@@ -37,17 +37,47 @@ BOT_QQ = get_bot_qq()
 _CFG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "wordlib_config.json")
 _CFG = {}
 
-def _l():
+def _load_cfg():
+    """从配置文件加载配置到内存"""
     global _CFG
-    if os.path.exists(_CFG_FILE):
-        try:
+    try:
+        if os.path.exists(_CFG_FILE):
             with open(_CFG_FILE, 'r', encoding='utf-8') as fh:
                 _CFG = json.load(fh)
-        except:
+        else:
             _CFG = {}
-    else:
-        _CFG = {}
-_l()
+    except Exception:
+        pass  # 解析失败保留旧配置
+
+
+def _l():
+    """读取内存中的配置（热更新由后台定时器完成，处理消息零开销）"""
+    return _CFG
+
+
+# 配置热更新：每 5 秒检查配置文件，变化自动重载（保存后自动生效）
+_CFG_MTIME = 0
+
+
+def _ensure_fresh():
+    global _CFG_MTIME
+    try:
+        mtime = os.stat(_CFG_FILE).st_mtime_ns
+        if mtime != _CFG_MTIME:
+            _CFG_MTIME = mtime
+            _load_cfg()
+    except Exception:
+        pass
+
+
+def _cfg_watchdog():
+    while True:
+        _ensure_fresh()
+        time.sleep(5)
+
+
+threading.Thread(target=_cfg_watchdog, daemon=True).start()
+_load_cfg()
 
 def cmd(k, d=None):
     v = _CFG.get('commands', {}).get(k)
