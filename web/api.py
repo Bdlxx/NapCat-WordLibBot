@@ -525,7 +525,8 @@ DEFAULT_SETTING_LABELS = {
     "concurrent_image": "并发下载图片数", "concurrent_photo": "并发下载章节数",
     "download_dir": "下载目录", "task_timeout_seconds": "任务超时(秒)",
     "cleanup_delay_seconds": "清理延迟(秒)", "recall_enabled": "消息自动撤回",
-    "recall_seconds": "撤回时间(秒)", "recall_notice": "撤回前提醒",
+    "recall_seconds": "前置消息撤回时间(秒)", "recall_prefix_seconds": "前置消息撤回时间(秒)",
+    "recall_pdf_seconds": "PDF撤回时间(秒)", "recall_notice": "撤回前提醒",
     # 结婚
     "success_rate": "结婚成功率(%)", "divorce_cd_hours": "离婚冷却(小时)",
     # 词库
