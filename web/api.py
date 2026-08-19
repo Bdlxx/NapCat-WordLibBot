@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import signal
 import subprocess
 import time
 import hashlib
@@ -246,6 +247,27 @@ def _container_for(n):
     return f"napcat_{qq}"
 
 
+def _bot_proc(b):
+    """探测 bot 主进程（python3 main.py --bot-name ... --bot-qq ...）的真实状态。
+    返回 (running, pid, uptime)。基于进程表而非 screen 会话：
+    screen 窗口挂着不代表 bot 进程存活（进程退出/崩溃时 screen 仍在）。"""
+    qq = b.get('qq')
+    try:
+        r = subprocess.run(
+            f"ps -eo pid,etimes,args | grep 'main.py --bot-name' | grep -w '{qq}' | grep -v grep | grep -v SCREEN | head -1",
+            shell=True, capture_output=True, text=True, timeout=5)
+        parts = r.stdout.strip().split()
+        if parts:
+            pid = parts[0]
+            try:
+                return True, pid, int(parts[1])
+            except (ValueError, IndexError):
+                return True, pid, 0
+    except Exception:
+        pass
+    return False, '', 0
+
+
 def refresh_bots():
     """启动时重建 BOTS：动态发现所有实例（保留现有引用兼容）"""
     global BOTS
@@ -257,16 +279,9 @@ def refresh_bots():
 @app.route('/api/bots')
 def api_bots():
     """返回全部实例列表（供门户/面板切换）"""
-    import subprocess as _sp
     items = []
     for n, b in BOTS.items():
-        running = False
-        try:
-            r = _sp.run(f"screen -list | grep -w {b['screen']}",
-                        shell=True, capture_output=True, text=True, timeout=5)
-            running = r.returncode == 0
-        except Exception:
-            pass
+        running, pid, uptime = _bot_proc(b)
         items.append({
             'num': n,
             'name': b['name'],
@@ -379,9 +394,9 @@ def do_logout():
 def api_status():
     result = {}
     for n, bot in BOTS.items():
-        r = subprocess.run("screen -list | grep -w " + bot['screen'], shell=True, capture_output=True, text=True, timeout=5)
-        running = r.returncode == 0
-        result[n] = {'running': running, 'name': bot['name'], 'status': 'running' if running else 'stopped'}
+        running, pid, uptime = _bot_proc(bot)
+        result[n] = {'running': running, 'name': bot['name'], 'status': 'running' if running else 'stopped',
+                     'pid': pid, 'uptime': uptime}
     return jsonify({'success': True, 'bot1': result.get(1), 'bot2': result.get(2)})
 
 @app.route('/api/bot/<int:n>/info')
@@ -389,23 +404,7 @@ def api_status():
 def bot_info(n):
     if n not in BOTS: return jsonify({'error': '无效编号'}), 404
     b = BOTS[n]
-    r = subprocess.run("screen -list | grep -w " + b['screen'], shell=True, capture_output=True, text=True, timeout=5)
-    running = r.returncode == 0
-    # 通过 main.py 进程获取 PID 与运行时长（秒）
-    pid = ''
-    uptime = 0
-    try:
-        pr = subprocess.run("ps -eo pid,etimes,args | grep 'main.py --bot-name' | grep '" + b['qq'] + "' | grep -v grep | head -1",
-                            shell=True, capture_output=True, text=True, timeout=5)
-        parts = pr.stdout.strip().split()
-        if len(parts) >= 2:
-            pid = parts[0]
-            try:
-                uptime = int(parts[1])
-            except (ValueError, TypeError):
-                uptime = 0
-    except Exception:
-        pass
+    running, pid, uptime = _bot_proc(b)
     return jsonify({'success': True, 'name': b['name'], 'qq': b['qq'], 'master': b['master'],
                     'dir': b['dir'], 'screen': b['screen'], 'running': running,
                     'status': 'running' if running else 'stopped',
@@ -651,7 +650,8 @@ def get_plugins(num):
             for fk, fv in config_data.items():
                 if fk in handled_cats: continue
                 label = DEFAULT_SETTING_LABELS.get(fk) or f'参数「{fk}」'
-                if isinstance(fv, bool):
+                # bool 或 'true'/'false' 字符串（历史遗留）均渲染为开关
+                if isinstance(fv, bool) or (isinstance(fv, str) and str(fv).lower() in ('true', 'false')):
                     pp['fields'].append({
                         'k': f'cfg_{fk}', 'l': label,
                         't': 'sel', 'o': ['true', 'false'], 'v': str(fv).lower(),
@@ -709,6 +709,23 @@ def get_plugins(num):
     return jsonify({'bot': safe_bot, 'plugins': plugins})
 
 
+def _notify_bot_reload(qq):
+    """Web 保存配置后，通知运行中的 bot 进程（SIGUSR1）立即重载配置"""
+    try:
+        r = subprocess.run(
+            f"ps -eo pid,args | grep 'python3 main.py --bot-name' | grep -w '{qq}' | grep -v grep | grep -v SCREEN | awk '{{print $1}}'",
+            shell=True, capture_output=True, text=True, timeout=5)
+        pids = [p for p in r.stdout.strip().split('\n') if p]
+        for pid in pids:
+            os.kill(int(pid), signal.SIGUSR1)
+        if pids:
+            print(f"[API] 已通知 bot {qq} (PID {','.join(pids)}) 重载配置")
+        else:
+            print(f"[API] 未找到 bot {qq} 进程，跳过重载通知")
+    except Exception as e:
+        print(f"[API] 通知 bot 重载失败: {e}")
+
+
 @app.route('/api/bot/<int:num>/config', methods=['POST'])
 @login_required
 def save_config(num):
@@ -754,7 +771,10 @@ def save_config(num):
             merged.setdefault('settings', {})[key] = v
         elif k.startswith('cfg_'):
             key = k.replace('cfg_', '', 1)
-            if isinstance(v, str) and v.replace('.', '', 1).replace('-', '', 1).isdigit():
+            # 布尔型设置（开关）：统一转 bool，保证保存后重载仍是开关
+            if isinstance(v, str) and v.lower() in ('true', 'false'):
+                v = (v.lower() == 'true')
+            elif isinstance(v, str) and v.replace('.', '', 1).replace('-', '', 1).isdigit():
                 try: v = int(v)
                 except: pass
             merged[key] = v
@@ -762,7 +782,9 @@ def save_config(num):
             merged[k] = v
 
     write_json(config_path, merged)
-    return jsonify({'ok': True, 'msg': '配置已保存，请重启生效'})
+    # 通知 bot 立即重载配置（web 端与插件实际配置保持同步，无需重启/轮询）
+    _notify_bot_reload(str(b['qq']))
+    return jsonify({'ok': True, 'msg': '配置已保存并生效'})
 
 
 @app.route('/api/bot/<int:num>/group-toggles', methods=['POST'])
@@ -790,9 +812,9 @@ def restart_bot(num):
 def get_status(num):
     if num not in BOTS: return jsonify({'error': '无效编号'}), 404
     b = BOTS[num]
-    r = subprocess.run("screen -list | grep -w " + b['screen'], shell=True, capture_output=True, text=True, timeout=5)
-    running = r.returncode == 0
-    return jsonify({'running': running, 'status': 'running' if running else 'stopped'})
+    running, pid, uptime = _bot_proc(b)
+    return jsonify({'running': running, 'status': 'running' if running else 'stopped',
+                    'pid': pid, 'uptime': uptime})
 
 @app.route('/api/bot/<int:n>/screen-log')
 @login_required

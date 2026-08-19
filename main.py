@@ -76,6 +76,31 @@ for finder, name, ispkg in pkgutil.iter_modules(plugins.__path__):
         else:
             print(f"  ✓ {cn} v{ver}")
 
+# ====== 配置热重载：Web 端保存后通过 SIGUSR1 通知各插件重新加载配置 ======
+import signal as _signal
+
+
+def _reload_plugins_config(signum, frame):
+    """收到 SIGUSR1 时，调用所有插件的 reload_config()（若提供）"""
+    reloaded = []
+    for finder, name, ispkg in pkgutil.iter_modules(plugins.__path__):
+        try:
+            module = importlib.import_module(f"plugins.{name}")
+            fn = getattr(module, "reload_config", None)
+            if callable(fn):
+                fn()
+                reloaded.append(name)
+        except Exception as e:
+            print(f"重载 {name} 配置失败: {e}")
+    print(f"[配置重载] 已刷新插件配置: {reloaded}")
+
+
+try:
+    _signal.signal(_signal.SIGUSR1, _reload_plugins_config)
+    print("[配置重载] SIGUSR1 处理器已注册（Web 保存配置后自动生效）")
+except Exception as e:
+    print(f"[配置重载] 注册失败: {e}")
+
 def on_message(ws, message):
     try:
         event = json.loads(message)
