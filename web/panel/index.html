@@ -224,6 +224,7 @@ function clearPageTimer() { if (pageTimer) { clearInterval(pageTimer); pageTimer
 
 // 统一底部操作栏（保存按钮固定位置）
 function showActionBar(title, onSave, onSaveRestart) {
+  if (preloading) return;  // 预加载期间不显示底部栏（避免打开时闪现）
   const bar = document.getElementById('actionBar');
   const t = document.getElementById('actionBarTitle');
   const btn = document.getElementById('actionSaveBtn');
@@ -237,6 +238,7 @@ function showActionBar(title, onSave, onSaveRestart) {
   if (bar) bar.style.display = 'flex';
 }
 function hideActionBar() {
+  if (preloading) return;  // 预加载期间保持隐藏
   const bar = document.getElementById('actionBar');
   if (bar) bar.style.display = 'none';
 }
