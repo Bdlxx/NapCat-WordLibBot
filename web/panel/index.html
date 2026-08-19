@@ -688,6 +688,21 @@ function collectCfg(key) {
   }
   return cfg;
 }
+// 保存后仅更新当前插件表单：把 DOM 当前值写回缓存并重建表单区（不重建整个页面）
+function refreshPluginForm(key) {
+  const plugin = configPlugins[key];
+  if (!plugin || !plugin.fields) return;
+  for (const field of plugin.fields) {
+    const el = document.getElementById('f_' + key + '_' + field.k);
+    if (!el) continue;
+    if (field.t === 'num') field.v = parseFloat(el.value);
+    else if (el.type === 'checkbox') field.v = el.checked ? 'true' : 'false';
+    else field.v = el.value;
+  }
+  delete pageCache['config'];
+  switchConfigTab(key);  // 仅重建当前插件的表单区
+}
+
 async function saveCurrentConfig() {
   if (!activePlugin) return; const cfg = collectCfg(activePlugin); if (!cfg) return;
   showToast('💾 保存中...','info');
@@ -696,9 +711,7 @@ async function saveCurrentConfig() {
     const d = await r.json();
     if (!d.ok) throw new Error(d.error||'保存失败');
     dirtyPlugins[activePlugin] = false; showToast('✅ 已保存','success'); fetchStatus();
-    // 清缓存并重新渲染当前插件，确保开关/字段显示保存后的正确状态
-    delete pageCache['config'];
-    renderConfig(activePlugin);
+    refreshPluginForm(activePlugin);  // 只更新当前插件表单（保存的界面）
   } catch(e) { showToast('❌ '+e.message,'error'); }
 }
 async function saveAndRestartConfig() {
@@ -707,8 +720,7 @@ async function saveAndRestartConfig() {
   try {
     await fetch('/api/bot/' + botNum + '/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plugin:activePlugin,cfg})});
     dirtyPlugins[activePlugin] = false;
-    delete pageCache['config'];
-    renderConfig(activePlugin);  // 保存后立即显示正确状态
+    refreshPluginForm(activePlugin);  // 只更新当前插件表单（保存的界面）
     showToast('✅ 已保存，正在重启...','success');
     setTimeout(async () => { await fetch('/api/bot/' + botNum + '/restart',{method:'POST'}); showToast('🔄 已重启','success'); fetchStatus(); }, 500);
   } catch(e) { showToast('❌ '+e.message,'error'); }
