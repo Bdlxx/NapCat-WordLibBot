@@ -479,15 +479,32 @@ def napcat_qr(n):
 @app.route('/api/bot/<int:n>/<action>', methods=['POST'])
 @login_required
 def bot_action(n, action):
+    """Bot 启停/重启：直接用 screen 操作（BOTS 编号为动态 QQ 号，
+    不依赖 bot 命令的固定 1/2 编号，任何实例通用）"""
     if n not in BOTS: return jsonify({'error': '无效编号'}), 404
     b = BOTS[n]
+    if action not in ('stop', 'start', 'restart'):
+        return jsonify({'error': '未知操作'}), 400
+    sn = b['screen']
+    # 看门狗 screen 名：本地 bot→watchdog1、bot2→watchdog2，动态实例用 watchdog_<QQ>
+    if sn == 'bot':
+        wsn = 'watchdog1'
+    elif sn == 'bot2':
+        wsn = 'watchdog2'
+    else:
+        wsn = f"watchdog_{b['qq']}"
     try:
-        if action in ('stop', 'start', 'restart'):
-            r = subprocess.run(['bot', action, str(n)], capture_output=True, text=True, timeout=15)
-            msg = r.stdout.strip() or r.stderr.strip() or f'{b["name"]} {action} 完成'
-            return jsonify({'success': r.returncode == 0, 'message': msg})
-        else:
-            return jsonify({'error': '未知操作'}), 400
+        if action in ('stop', 'restart'):
+            subprocess.run(f"screen -S {sn} -X quit", shell=True, timeout=10)
+            subprocess.run(f"screen -S {wsn} -X quit", shell=True, timeout=10)
+        if action in ('start', 'restart'):
+            cmd = f"cd {b['dir']} && screen -dmS {sn} python3 main.py --bot-name '{b['name']}' --bot-qq {b['qq']}"
+            subprocess.run(cmd, shell=True, timeout=10)
+            # 启动看门狗
+            if os.path.exists(os.path.join(b['dir'], 'watchdog.py')):
+                subprocess.run(f"cd {b['dir']} && screen -dmS {wsn} python3 watchdog.py", shell=True, timeout=10)
+        time.sleep(1)
+        return jsonify({'success': True, 'message': f"{b['name']} {action} 完成"})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -765,14 +782,8 @@ def save_group_toggles(num):
 @app.route('/api/bot/<int:num>/restart', methods=['POST'])
 @login_required
 def restart_bot(num):
-    if num not in BOTS: return jsonify({'error': '无效编号'}), 404
-    b = BOTS[num]
-    try:
-        r = subprocess.run(['bot', 'restart', str(num)], capture_output=True, text=True, timeout=15)
-        msg = r.stdout.strip() or r.stderr.strip() or '已重启 ' + b['name']
-        return jsonify({'ok': True, 'msg': msg})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    """重启 Bot（复用 bot_action 的 screen 逻辑，支持动态实例编号）"""
+    return bot_action(num, 'restart')
 
 @app.route('/api/bot/<int:num>/status')
 @login_required
