@@ -494,8 +494,10 @@ def bot_action(n, action):
         wsn = f"watchdog_{b['qq']}"
     try:
         if action in ('stop', 'restart'):
-            subprocess.run(f"screen -S {sn} -X quit", shell=True, timeout=10)
-            subprocess.run(f"screen -S {wsn} -X quit", shell=True, timeout=10)
+            # 注意：screen -S 是前缀匹配！'-S bot' 会同时命中 bot2，
+            # 'watchdog1' 会命中 watchdog2。必须先查精确会话名（PID.name）再 quit
+            for name in (sn, wsn):
+                _quit_screen_exact(name)
         if action in ('start', 'restart'):
             cmd = f"cd {b['dir']} && screen -dmS {sn} python3 main.py --bot-name '{b['name']}' --bot-qq {b['qq']}"
             r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
@@ -512,6 +514,26 @@ def bot_action(n, action):
         return jsonify({'success': True, 'message': f"{b['name']} {action} 完成"})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+def _quit_screen_exact(name):
+    """精确关闭指定名字的 screen 会话（按 PID.name 精确匹配，避免前缀误杀 bot2）"""
+    try:
+        r = subprocess.run("screen -ls", shell=True, capture_output=True, text=True, timeout=5)
+        for line in r.stdout.splitlines():
+            # 行格式: "12345.name\t(Detached)"
+            parts = line.strip().split('\t')
+            if not parts:
+                continue
+            session = parts[0].strip()
+            if '.' not in session:
+                continue
+            _, sname = session.split('.', 1)
+            if sname == name:
+                subprocess.run(f"screen -S {session} -X quit", shell=True, timeout=10)
+                print(f"[API] 已关闭 screen 会话 {session}")
+    except Exception as e:
+        print(f"[API] 关闭 screen {name} 失败: {e}")
 
 # ====== 插件配置 API ======
 # 常见回复模板键的中文名（Web 面板展示；插件配置 message_labels 优先）
