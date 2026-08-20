@@ -498,10 +498,16 @@ def bot_action(n, action):
             subprocess.run(f"screen -S {wsn} -X quit", shell=True, timeout=10)
         if action in ('start', 'restart'):
             cmd = f"cd {b['dir']} && screen -dmS {sn} python3 main.py --bot-name '{b['name']}' --bot-qq {b['qq']}"
-            subprocess.run(cmd, shell=True, timeout=10)
+            r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
             # 启动看门狗
             if os.path.exists(os.path.join(b['dir'], 'watchdog.py')):
                 subprocess.run(f"cd {b['dir']} && screen -dmS {wsn} python3 watchdog.py", shell=True, timeout=10)
+            time.sleep(1.5)
+            # 校验启动是否真正生效（screen 静默失败时返回码可能为 0，需检查进程）
+            running, pid, _ = _bot_proc(b)
+            if not running:
+                msg = (r.stderr or '').strip() or 'screen 启动失败（可能权限受限）'
+                return jsonify({'success': False, 'message': f"{b['name']} {action} 失败: {msg}"})
         time.sleep(1)
         return jsonify({'success': True, 'message': f"{b['name']} {action} 完成"})
     except Exception as e:
