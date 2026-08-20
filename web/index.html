@@ -108,6 +108,13 @@ body {
 .form-footer { margin-top: 22px; padding: 12px 16px; border-radius: 11px; background: rgba(100,149,237,.08); font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; gap: 12px; }
 .form-footer span { display: flex; align-items: center; gap: 4px; }
 
+/* 统一顶端 Toast（与面板一致） */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:11px;font-size:14px;z-index:9999;opacity:0;transition:all .3s;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.15);white-space:nowrap}
+.toast.show{opacity:1;pointer-events:auto}
+.toast.success{background:#67c23a;color:#fff}
+.toast.error{background:#f56c6c;color:#fff}
+.toast.info{background:#409eff;color:#fff}
+
 .theme-btn {
   position: fixed; top: 16px; right: 16px; width: 38px; height: 38px; z-index: 5;
   border-radius: 50%; border: 1px solid var(--border-color);
@@ -143,6 +150,7 @@ body {
 <div class="bg-deco d2"></div>
 <div class="bg-deco d3"></div>
 <button class="theme-btn" onclick="toggleTheme()" id="themeBtn" title="切换主题">🌙</button>
+<div class="toast" id="toast"></div>
 
 <!-- 登录区：左侧品牌 + 右侧表单 -->
 <div class="login-wrap" id="loginCard">
@@ -229,11 +237,19 @@ function backToLogin() {
   document.getElementById('loginCard').style.display = '';
 }
 
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg; t.className = 'toast ' + (type||'info') + ' show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.className = 'toast', 3000);
+}
+
 async function handleLogin() {
   const pwd = document.getElementById('passwordInput').value.trim();
   const err = document.getElementById('errorMsg');
   const btn = document.getElementById('loginBtn');
-  if (!pwd) { err.textContent = '请输入密码'; return; }
+  if (!pwd) { showToast('⚠️ 请输入密码', 'info'); return; }
   // 加载态
   btn.classList.add('loading'); btn.disabled = true;
   document.getElementById('loginBtnText').textContent = '登录中...';
@@ -242,12 +258,11 @@ async function handleLogin() {
     const d = await r.json();
     if (d.success && d.redirect) { await showBots(d.redirect); }
     else {
-      err.textContent = '密码错误，请重试';
+      showToast('❌ 密码错误，请重试', 'error');
       document.getElementById('passwordInput').value = '';
       document.getElementById('passwordInput').focus();
-      setTimeout(() => err.textContent = '', 2000);
     }
-  } catch(e) { err.textContent = '登录服务异常，请稍后重试'; }
+  } catch(e) { showToast('❌ 登录服务异常，请稍后重试', 'error'); }
   finally {
     btn.classList.remove('loading'); btn.disabled = false;
     document.getElementById('loginBtnText').textContent = '进入管理面板';

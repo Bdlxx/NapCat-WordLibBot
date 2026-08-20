@@ -541,8 +541,7 @@ async function renderManage() {
           <div style="font-size:13px;font-weight:600;margin-bottom:8px">📱 二维码</div>
           <div id="qrContainer">加载中...</div>
         </div>
-      </div></div>
-      <div id="manageMsg" style="text-align:center;font-size:13px;color:var(--text-secondary);min-height:24px"></div>`;
+      </div></div>`;
     cachePage('manage');
     // 局部更新：仅刷新 Bot/NapCat 状态区域，不重渲染整页
     startPageTimer(updateManageStatus, 10000);
@@ -566,15 +565,16 @@ async function updateManageStatus() {
 }
 
 async function doBotAction(action) {
-  const msg = document.getElementById('manageMsg');
-  msg.textContent = '操作中...';
+  showToast('⏳ 操作中...', 'info');
   try {
     const r = await fetch('/api/bot/' + botNum + '/' + action, {method:'POST'});
     const d = await r.json();
-    msg.textContent = d.message || d.msg || action + '成功';
+    const msg = d.message || d.msg || action + '成功';
+    if (d.success === false || d.error) showToast('❌ ' + (d.message || d.error || '操作失败'), 'error');
+    else showToast('✅ ' + msg, 'success');
     setTimeout(fetchStatus, 2000);
     setTimeout(updateManageStatus, 3000);  // 操作后局部刷新状态
-  } catch(e) { msg.textContent = '操作失败'; }
+  } catch(e) { showToast('❌ 操作失败', 'error'); }
 }
 
 async function showQR() {
