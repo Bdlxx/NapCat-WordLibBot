@@ -124,6 +124,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 .log-viewer .error{color:#f44747}
 .log-viewer .info{color:#9cdcfe}
 .log-viewer .warn{color:#ce9178}
+.log-viewer .debug{color:#6a9955;font-style:italic}
 .empty-state{text-align:center;padding:60px 20px;color:var(--text-secondary)}
 .empty-state .icon{font-size:48px;margin-bottom:16px;opacity:.4}
 @media(max-width:768px){
@@ -875,8 +876,8 @@ let logLines = 100;
 let logAutoRefresh = true;
 
 function logLineClass(line) {
-  // 优先识别 NapCat 风格级别标签 [info]/[warn]/[error]
-  const m = line.match(/\[(info|warn|error)\]/i);
+  // 优先识别 NapCat 风格级别标签 [debug]/[info]/[warn]/[error]
+  const m = line.match(/\[(debug|info|warn|error)\]/i);
   if (m) return m[1].toLowerCase();
   if (line.match(/error|exception|traceback|失败|✗|错误/i)) return 'error';
   if (line.match(/warn|警告|⚠/i)) return 'warn';
@@ -893,9 +894,11 @@ function renderLogsViewer() {
   let shown = 0;
   for (const line of lines) {
     const cls = logLineClass(line);
+    // 等级：debug < info < warn < error
     if (logFilter === 'error' && cls !== 'error') continue;
-    if (logFilter === 'warn' && cls !== 'warn') continue;
-    if (logFilter === 'info' && cls !== 'info') continue;
+    if (logFilter === 'warn' && cls !== 'warn' && cls !== 'error') continue;
+    if (logFilter === 'info' && cls === 'debug') continue;      // 默认隐藏 debug（完整 JSON）
+    if (logFilter === 'debug' && cls !== 'debug') continue;
     html += '<div class="' + cls + '">' + escapeHtml(line) + '</div>';
     shown++;
   }
@@ -943,6 +946,7 @@ async function renderLogs() {
         </select>
         <select id="logFilterSel" style="padding:7px 10px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none" onchange="applyLogFilter()">
           <option value="info" selected>默认(仅信息)</option>
+          <option value="debug">仅调试(完整JSON)</option>
           <option value="all">全部级别</option>
           <option value="warn">仅警告</option>
           <option value="error">仅错误</option>

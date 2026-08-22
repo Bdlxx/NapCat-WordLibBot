@@ -51,6 +51,8 @@ def send_forward_msg(event, nodes):
         try:
             from utils.log import log
             log('info', f'发送 -> 合并转发 ({len(nodes)} 条)')
+            # 完整节点内容归入 debug 级
+            log('debug', f'转发详情 <- {request_str}')
         except Exception:
             print(f"通过 WebSocket 发送合并转发: {action}")
     else:
@@ -88,6 +90,8 @@ def send_message(event, message):
         try:
             from utils.log import log, log_msg_event
             log_msg_event(event, "发送")
+            # 完整请求体归入 debug 级（默认不显示，切「全部/仅调试」可见）
+            log('debug', f'发送详情 <- {request_str}')
         except Exception:
             print(f"通过 WebSocket 发送消息: {action}")
     else:
