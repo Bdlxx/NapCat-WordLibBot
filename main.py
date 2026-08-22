@@ -138,8 +138,14 @@ def on_message(ws, message):
                 return
 
         for handler in plugin_handlers:
-            if handler(event):
-                pname = plugin_meta_by_handler.get(handler, '')
+            pname = plugin_meta_by_handler.get(handler, '')
+            from utils.log import set_current_plugin
+            set_current_plugin(pname)
+            try:
+                handled = handler(event)
+            finally:
+                set_current_plugin(None)
+            if handled:
                 if pname and event.get("post_type") == "message":
                     log('info', f'处理 <- 插件「{pname}」')
                 break

@@ -26,6 +26,31 @@ def bot_name():
         return 'Bot'
 
 
+# 当前处理插件（由 main.py 分发插件时设置，发送日志标注来源插件）
+_current_plugin = [None]
+_plugin_lock = threading.Lock()
+
+
+def set_current_plugin(name):
+    """main.py 调用插件 handler 前设置；handler 返回后清空"""
+    with _plugin_lock:
+        _current_plugin[0] = name
+
+
+def get_current_plugin():
+    with _plugin_lock:
+        return _current_plugin[0]
+
+
+def bot_label():
+    """bot 名 + 当前插件标注：依星「视频解析」；无插件时为 依星"""
+    name = bot_name()
+    p = get_current_plugin()
+    if p:
+        return f'{name}「{p}」'
+    return name
+
+
 def log(level, msg):
     """输出分级日志行：MM-DD HH:MM:SS [level] bot名 | msg"""
     if level not in _LEVELS:
@@ -126,7 +151,8 @@ def summarize_message(message):
 
 
 def log_msg_event(event, direction='接收'):
-    """消息事件日志：MM-DD HH:MM:SS [info] bot名 | 接收 <- 群聊 [群名(群号)] [昵称(QQ)] [图片]"""
+    """消息事件日志：MM-DD HH:MM:SS [info] bot名 | 接收 <- 群聊 [群名(群号)] [昵称(QQ)] [图片]
+    发送方向标注当前插件：MM-DD HH:MM:SS [info] 依星「视频解析」| 发送 -> ..."""
     try:
         mtype = event.get('message_type', '')
         uid = event.get('user_id', 0)
@@ -142,6 +168,8 @@ def log_msg_event(event, direction='接收'):
             scene = f'私聊 [{nick}({uid})]'
         else:
             scene = str(mtype or '未知')
-        log('info', f'{arrow} {scene} {summary}')
+        # 发送方向带插件名，接收方向不带
+        label = bot_label() if direction == '发送' else bot_name()
+        print(f"{_fmt_time()} [info] {label} | {arrow} {scene} {summary}")
     except Exception:
         pass
