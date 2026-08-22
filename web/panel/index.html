@@ -125,6 +125,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 .log-viewer .info{color:#9cdcfe}
 .log-viewer .warn{color:#ce9178}
 .log-viewer .debug{color:#6a9955;font-style:italic}
+.log-viewer .recv{color:#4fc3f7}
+.log-viewer .send{color:#67c23a}
 .empty-state{text-align:center;padding:60px 20px;color:var(--text-secondary)}
 .empty-state .icon{font-size:48px;margin-bottom:16px;opacity:.4}
 @media(max-width:768px){
@@ -876,6 +878,9 @@ let logLines = 100;
 let logAutoRefresh = true;
 
 function logLineClass(line) {
+  // 接收/发送用专属颜色（优先于级别标签）
+  if (line.indexOf('接收 <-') !== -1) return 'recv';
+  if (line.indexOf('发送 ->') !== -1) return 'send';
   // 优先识别 NapCat 风格级别标签 [debug]/[info]/[warn]/[error]
   const m = line.match(/\[(debug|info|warn|error)\]/i);
   if (m) return m[1].toLowerCase();
