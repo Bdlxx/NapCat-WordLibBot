@@ -50,6 +50,7 @@ def _is_master(user_id):
 
 # 加载所有插件
 plugin_handlers = []
+plugin_meta_by_handler = {}  # {handler: name_cn}，用于日志标注处理插件
 loaded_plugins_info = {}  # {name: {name_cn, version, desc, ...}}
 for finder, name, ispkg in pkgutil.iter_modules(plugins.__path__):
     module = importlib.import_module(f"plugins.{name}")
@@ -65,6 +66,7 @@ for finder, name, ispkg in pkgutil.iter_modules(plugins.__path__):
             "author": getattr(module, "__plugin_author__", None) or "",
         }
 
+        plugin_meta_by_handler[module.handle] = meta_info["name_cn"]
         loaded_plugins_info[name] = meta_info
 
         # 输出加载信息
@@ -112,6 +114,12 @@ def on_message(ws, message):
                 print(f"[API响应] status={status}, retcode={retcode}, msg={event.get('message','')[:80]}")
             return
 
+        from utils.log import log, log_msg_event
+
+        # 消息事件：NapCat 风格接收日志（不打印完整内容）
+        if event.get("post_type") == "message":
+            log_msg_event(event, "接收")
+
         # 主人私聊「命令表」命令
         if (event.get("post_type") == "message"
                 and event.get("message_type") == "private"
@@ -131,6 +139,9 @@ def on_message(ws, message):
 
         for handler in plugin_handlers:
             if handler(event):
+                pname = plugin_meta_by_handler.get(handler, '')
+                if pname and event.get("post_type") == "message":
+                    log('info', f'处理 <- 插件「{pname}」')
                 break
     except Exception as e:
         import traceback

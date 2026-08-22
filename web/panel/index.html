@@ -870,14 +870,17 @@ async function tgSave() {
 }
 // ===== 运行日志页 =====
 let logRawData = '';        // 原始日志缓存（筛选本地处理，不重复请求）
-let logFilter = 'all';      // all/error/warn/info
+let logFilter = 'info';      // info/all/warn/error（默认仅信息，与 NapCat 一致）
 let logLines = 100;
 let logAutoRefresh = true;
 
 function logLineClass(line) {
+  // 优先识别 NapCat 风格级别标签 [info]/[warn]/[error]
+  const m = line.match(/\[(info|warn|error)\]/i);
+  if (m) return m[1].toLowerCase();
   if (line.match(/error|exception|traceback|失败|✗|错误/i)) return 'error';
   if (line.match(/warn|警告|⚠/i)) return 'warn';
-  if (line.match(/✓|成功|启动|连接|加载|ok/i)) return 'info';
+  if (line.match(/✓|成功|启动|连接|加载|ok|接收|发送|处理/i)) return 'info';
   return '';
 }
 
@@ -939,10 +942,10 @@ async function renderLogs() {
           <option value="500">500 行</option>
         </select>
         <select id="logFilterSel" style="padding:7px 10px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none" onchange="applyLogFilter()">
+          <option value="info" selected>默认(仅信息)</option>
           <option value="all">全部级别</option>
-          <option value="error">仅错误</option>
           <option value="warn">仅警告</option>
-          <option value="info">仅信息</option>
+          <option value="error">仅错误</option>
         </select>
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-regular);cursor:pointer">
           <input type="checkbox" id="logAutoRef" checked onchange="toggleLogAutoRefresh()"> 自动刷新(5s)

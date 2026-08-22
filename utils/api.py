@@ -45,11 +45,14 @@ def send_forward_msg(event, nodes):
     }
 
     request_str = json.dumps(request, ensure_ascii=False)
-    print(f"发送合并转发请求: {request_str[:200]}...")
 
     if utils.ws.ws:
         utils.ws.ws.send(request_str)
-        print(f"通过 WebSocket 发送合并转发: {action}")
+        try:
+            from utils.log import log
+            log('info', f'发送 -> 合并转发 ({len(nodes)} 条)')
+        except Exception:
+            print(f"通过 WebSocket 发送合并转发: {action}")
     else:
         print("WebSocket 未连接，无法发送")
 
@@ -78,11 +81,15 @@ def send_message(event, message):
     }
 
     request_str = json.dumps(request, ensure_ascii=False)
-    print(f"发送请求: {request_str}")
 
     if utils.ws.ws:
         utils.ws.ws.send(request_str)
-        print(f"通过 WebSocket 发送消息: {action}")
+        # NapCat 风格发送日志（不打印完整 JSON）
+        try:
+            from utils.log import log, log_msg_event
+            log_msg_event(event, "发送")
+        except Exception:
+            print(f"通过 WebSocket 发送消息: {action}")
     else:
         print("WebSocket 未连接，无法发送")
 
