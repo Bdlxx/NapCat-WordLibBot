@@ -129,11 +129,16 @@ def get_nickname(uid):
     return nick
 
 
-def summarize_message(message):
-    """消息内容摘要：只显示类型标记与文本前 20 字，不打印完整内容"""
+_SUMMARY_MAX = 60  # 文本摘要最大长度（字符）
+
+
+def summarize_message(message, max_len=_SUMMARY_MAX):
+    """消息内容摘要：显示类型标记与文本内容（截断到 max_len 字），不打印完整内容"""
     if isinstance(message, str):
         text = message.strip().replace('\n', ' ')
-        return f'[文本] {text[:20]}' if text else '[空]'
+        if not text:
+            return '[空]'
+        return f'[文本] {text[:max_len]}' + ('…' if len(text) > max_len else '')
     tags = []
     texts = []
     for seg in message or []:
@@ -168,9 +173,11 @@ def summarize_message(message):
         if t not in seen:
             seen.append(t)
     parts = ' '.join(f'[{t}]' for t in seen)
-    joined = ' '.join(x for x in texts if x).strip().replace('\n', ' ')[:20]
+    joined = ' '.join(x for x in texts if x).strip().replace('\n', ' ')[:max_len]
     if joined:
         parts += f' {joined}'
+        if len(' '.join(x for x in texts if x).strip().replace('\n', ' ')) > max_len:
+            parts += '…'
     return parts or '[空]'
 
 
