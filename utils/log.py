@@ -174,13 +174,15 @@ def summarize_message(message):
     return parts or '[空]'
 
 
-def log_msg_event(event, direction='接收'):
+def log_msg_event(event, direction='接收', msg_content=None):
     """消息事件日志：MM-DD HH:MM:SS [info] bot名 | 接收 <- 群聊 [群名(群号)] [昵称(QQ)] [图片]
-    发送方向标注当前插件：MM-DD HH:MM:SS [info] 依星「视频解析」| 发送 -> ..."""
+    发送方向标注当前插件：MM-DD HH:MM:SS [info] 依星「视频解析」| 发送 -> ...
+    msg_content: 发送方向传入实际发送的消息内容（默认用 event 原始消息）"""
     try:
         mtype = event.get('message_type', '')
         uid = event.get('user_id', 0)
-        summary = summarize_message(event.get('message', ''))
+        content = msg_content if msg_content is not None else event.get('message', '')
+        summary = summarize_message(content)
         arrow = '接收 <-' if direction == '接收' else '发送 ->'
         if mtype == 'group':
             gid = event.get('group_id', 0)

@@ -1,12 +1,88 @@
 # utils/api.py
 import json
 import time
+import threading
 import requests
 import utils.ws
 from utils.config import get_napcat_http, get_access_token
 
 HTTP_URL = get_napcat_http()
 ACCESS_TOKEN = get_access_token()
+
+# ====== WS 发送回调（echo → message_id）======
+# 插件通过 ws_send 发送带 echo 的请求，NapCat 返回响应时由主程序
+# handle_ws_echo 分发到回调（如拿 message_id 调度撤回）
+_echo_callbacks = {}
+_echo_lock = threading.Lock()
+
+
+def ws_send(event, message, on_ok=None, echo=None):
+    """通过 WebSocket 发送消息，NapCat 返回响应时调用 on_ok(data)。
+    data 含 message_id（真实发送成功的标识）。返回 True 表示已发送。"""
+    msg_type = event.get("message_type")
+    user_id = event.get("user_id")
+    group_id = event.get("group_id") if msg_type == "group" else None
+
+    if msg_type == "private":
+        action = "send_private_msg"
+        params = {"user_id": user_id}
+    elif msg_type == "group":
+        action = "send_group_msg"
+        params = {"group_id": group_id}
+    else:
+        return False
+
+    params["message"] = message
+    if echo is None:
+        echo = f"ws_{time.time()}_{id(message)}"
+    request = {"action": action, "params": params, "echo": echo}
+    request_str = json.dumps(request, ensure_ascii=False)
+
+    if not utils.ws.ws:
+        print("WebSocket 未连接，无法发送")
+        return False
+
+    if on_ok is not None:
+        with _echo_lock:
+            _echo_callbacks[echo] = on_ok
+    utils.ws.ws.send(request_str)
+    # NapCat 风格发送日志（不打印完整 JSON）
+    try:
+        from utils.log import log, log_msg_event
+        log_msg_event(event, "发送", msg_content=message)
+        log('debug', f'发送详情 <- {request_str}')
+    except Exception:
+        print(f"通过 WebSocket 发送消息: {action}")
+    return True
+
+
+def handle_ws_echo(event):
+    """main.py on_message 收到带 echo 的 API 响应时调用，分发到已注册回调"""
+    echo = event.get("echo")
+    if not echo:
+        return
+    with _echo_lock:
+        cb = _echo_callbacks.pop(echo, None)
+    if cb:
+        try:
+            cb(event)
+        except Exception as e:
+            print(f"[WS回调] 执行异常: {e}")
+
+
+def ws_delete_msg(message_id):
+    """通过 WebSocket 调用 delete_msg 撤回消息"""
+    if not utils.ws.ws:
+        print("WebSocket 未连接，无法撤回")
+        return False
+    request = {
+        "action": "delete_msg",
+        "params": {"message_id": message_id},
+        "echo": f"del_{message_id}_{time.time()}",
+    }
+    utils.ws.ws.send(json.dumps(request, ensure_ascii=False))
+    return True
+
 
 def send_forward_msg(event, nodes):
     """发送合并转发消息（通过 WebSocket）
@@ -89,7 +165,7 @@ def send_message(event, message):
         # NapCat 风格发送日志（不打印完整 JSON）
         try:
             from utils.log import log, log_msg_event
-            log_msg_event(event, "发送")
+            log_msg_event(event, "发送", msg_content=message)
             # 完整请求体归入 debug 级（默认不显示，切「全部/仅调试」可见）
             log('debug', f'发送详情 <- {request_str}')
         except Exception:
