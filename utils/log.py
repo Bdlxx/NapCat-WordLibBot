@@ -58,6 +58,30 @@ def log(level, msg):
     print(f"{_fmt_time()} [{level}] {bot_name()} | {msg}")
 
 
+def plugin_log(plugin, level, msg):
+    """插件日志：MM-DD HH:MM:SS [level] bot名 | 插件 | msg
+    供各插件替换裸 print，实现统一分级"""
+    if level not in _LEVELS:
+        level = 'info'
+    print(f"{_fmt_time()} [{level}] {bot_name()} | {plugin} | {msg}")
+
+
+def info(plugin, msg):
+    plugin_log(plugin, 'info', msg)
+
+
+def warn(plugin, msg):
+    plugin_log(plugin, 'warn', msg)
+
+
+def error(plugin, msg):
+    plugin_log(plugin, 'error', msg)
+
+
+def debug(plugin, msg):
+    plugin_log(plugin, 'debug', msg)
+
+
 def _cached(key):
     with _name_lock:
         v = _name_cache.get(key)

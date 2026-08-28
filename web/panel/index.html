@@ -884,9 +884,10 @@ function logLineClass(line) {
   // 优先识别 NapCat 风格级别标签 [debug]/[info]/[warn]/[error]
   const m = line.match(/\[(debug|info|warn|error)\]/i);
   if (m) return m[1].toLowerCase();
-  if (line.match(/error|exception|traceback|失败|✗|错误/i)) return 'error';
-  if (line.match(/warn|警告|⚠/i)) return 'warn';
-  if (line.match(/✓|成功|启动|连接|加载|ok|接收|发送|处理/i)) return 'info';
+  // 插件日志（[级别] 插件名 | 内容）按内容关键词分级
+  if (line.match(/失败|异常|错误|✗|❌|error|exception|traceback/i)) return 'error';
+  if (line.match(/超时|警告|⚠|防抖|跳过|不可用|无效|warn/i)) return 'warn';
+  if (line.match(/✓|成功|完成|启动|连接|加载|ok|发送|接收|处理|info/i)) return 'info';
   return '';
 }
 
@@ -904,7 +905,13 @@ function renderLogsViewer() {
     if (logFilter === 'warn' && cls !== 'warn' && cls !== 'error') continue;
     if (logFilter === 'info' && cls === 'debug') continue;      // 默认隐藏 debug（完整 JSON）
     if (logFilter === 'debug' && cls !== 'debug') continue;
-    html += '<div class="' + cls + '">' + escapeHtml(line) + '</div>';
+    // 渲染：时间戳灰、级别标签彩色、插件名加粗
+    let display = escapeHtml(line);
+    const tm = line.match(/^(\d{2}-\d{2} \d{2}:\d{2}:\d{2})/);
+    if (tm) {
+      display = '<span style="color:#6a737d">' + tm[1] + '</span>' + display.slice(tm[1].length);
+    }
+    html += '<div class="' + cls + '">' + display + '</div>';
     shown++;
   }
   if (shown === 0) html = '<div style="color:var(--text-secondary);padding:10px">无匹配日志</div>';
