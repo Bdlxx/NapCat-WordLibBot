@@ -592,7 +592,13 @@ DEFAULT_SETTING_LABELS = {
     "max_images": "最大图片数", "auto_send_video": "自动发送视频",
     "auto_send_images": "自动发送图片", "show_source": "显示来源",
     "merge_images": "合并图片", "@_reply": "@回复",
-    "douyin_cookie": "抖音Cookie", "browser_timeout": "浏览器超时(秒)",
+    "douyin_cookie": "抖音Cookie", "browser_timeout": "下载超时(秒)",
+    # 视频解析 - 新解析核心
+    "download_retry_times": "下载重试次数", "download_max_size": "下载大小上限(MB)",
+    "download_max_duration": "视频时长上限(秒)", "forward_threshold": "合并转发阈值(段数)",
+    "debounce_seconds": "解析防抖间隔(秒,0=关闭)", "show_download_fail_tip": "下载失败提示",
+    "audio_to_file": "音频以文件发送", "proxy": "代理地址",
+    "bili_video_quality": "B站画质", "bili_video_codec": "B站编码",
 }
 
 
@@ -689,6 +695,16 @@ def get_plugins(num):
                     pp['fields'].append({
                         'k': f'cfg_{fk}', 'l': label,
                         't': 'num', 'v': fv,
+                    })
+                elif fk == 'bili_video_quality':
+                    pp['fields'].append({
+                        'k': f'cfg_{fk}', 'l': label,
+                        't': 'sel', 'o': ['P_360P', 'P_480P', 'P_720P', 'P_1080P'], 'v': str(fv),
+                    })
+                elif fk == 'bili_video_codec':
+                    pp['fields'].append({
+                        'k': f'cfg_{fk}', 'l': label,
+                        't': 'sel', 'o': ['AVC', 'HEVC', 'AV1'], 'v': str(fv),
                     })
                 elif isinstance(fv, str):
                     field_type = 'password' if ('cookie' in fk.lower() or 'key' in fk.lower() or 'token' in fk.lower()) else 'text'
