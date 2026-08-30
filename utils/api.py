@@ -136,10 +136,30 @@ def send_forward_msg(event, nodes):
 
 
 def send_message(event, message):
-    """通过 WebSocket 发送消息，message 可以是字符串或消息段列表"""
+    """通过 WebSocket 发送消息，message 可以是字符串或消息段列表。
+    含 forward（合并转发）段时自动改用 send_forward_msg（QQ 合并转发需
+    send_group_forward_msg 动作，send_group_msg 无法解析 forward 段）"""
     msg_type = event.get("message_type")
     user_id = event.get("user_id")
     group_id = event.get("group_id") if msg_type == "group" else None
+
+    # 检测合并转发段：message 是列表且含 type=forward，或本身就是 forward 列表
+    if isinstance(message, list) and any(
+        isinstance(m, dict) and m.get("type") == "forward" for m in message
+    ):
+        forward_seg = next(m for m in message if isinstance(m, dict) and m.get("type") == "forward")
+        nodes = forward_seg.get("data", {}).get("messages") or []
+        # 转为 send_forward_msg 期望的节点格式
+        node_list = []
+        for n in nodes:
+            nd = n.get("data", {})
+            node_list.append({
+                "name": nd.get("name", "机器人"),
+                "uin": nd.get("uin", ""),
+                "content": nd.get("content", []),
+            })
+        send_forward_msg(event, node_list)
+        return
 
     if msg_type == "private":
         action = "send_private_msg"
