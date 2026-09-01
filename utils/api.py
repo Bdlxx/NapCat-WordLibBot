@@ -84,9 +84,11 @@ def ws_delete_msg(message_id):
     return True
 
 
-def send_forward_msg(event, nodes):
+def send_forward_msg(event, nodes, news=None):
     """发送合并转发消息（通过 WebSocket）
     nodes: [{"name": "昵称", "uin": "QQ号", "content": [消息段列表]}, ...]
+    news: 可选，自定义卡片外显文字列表 [{"text": "..."}, ...]
+          （NapCat ForwardMsgBuilder 支持，控制合并转发卡片每行显示）
     """
     msg_type = event.get("message_type")
     user_id = event.get("user_id")
@@ -113,6 +115,8 @@ def send_forward_msg(event, nodes):
         })
 
     params["messages"] = messages
+    if news:
+        params["news"] = news
 
     request = {
         "action": action,
@@ -148,7 +152,9 @@ def send_message(event, message):
         isinstance(m, dict) and m.get("type") == "forward" for m in message
     ):
         forward_seg = next(m for m in message if isinstance(m, dict) and m.get("type") == "forward")
-        nodes = forward_seg.get("data", {}).get("messages") or []
+        fdata = forward_seg.get("data", {})
+        nodes = fdata.get("messages") or []
+        news = fdata.get("news")
         # 转为 send_forward_msg 期望的节点格式
         node_list = []
         for n in nodes:
@@ -158,7 +164,7 @@ def send_message(event, message):
                 "uin": nd.get("uin", ""),
                 "content": nd.get("content", []),
             })
-        send_forward_msg(event, node_list)
+        send_forward_msg(event, node_list, news=news)
         return
 
     if msg_type == "private":
