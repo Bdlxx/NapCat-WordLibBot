@@ -107,6 +107,12 @@ def on_message(ws, message):
     try:
         event = json.loads(message)
         if "echo" in event:
+            # 分发到已注册的 WS 回调（如 jm 撤回调度拿 message_id）
+            try:
+                from utils.api import handle_ws_echo
+                handle_ws_echo(event)
+            except Exception:
+                pass
             # API 调用的响应 — 记录失败情况以便调试
             status = event.get("status")
             retcode = event.get("retcode")
