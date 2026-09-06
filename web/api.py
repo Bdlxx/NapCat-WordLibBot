@@ -776,6 +776,7 @@ def save_config(num):
     data = request.get_json()
     plugin = data.get('plugin')
     cfg = data.get('cfg', {})
+    cookie_syncs = []
     b = BOTS[num]
     dd = os.path.join(b['dir'], 'data')
     pd = os.path.join(b['dir'], 'plugins')
