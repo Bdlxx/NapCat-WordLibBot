@@ -596,6 +596,7 @@ DEFAULT_SETTING_LABELS = {
     "debounce_seconds": "解析防抖间隔(秒,0=关闭)", "show_download_fail_tip": "下载失败提示",
     "audio_to_file": "音频以文件发送", "proxy": "代理地址",
     "bili_video_quality": "B站画质", "bili_video_codec": "B站编码",
+    "bili_cookie": "B站Cookie(含SESSDATA,填后重启生效，绕过412风控)",
 }
 
 
