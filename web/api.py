@@ -583,8 +583,8 @@ DEFAULT_SETTING_LABELS = {
     "record_group_unrelated": "记录无关群消息", "max_history": "历史消息上限",
     "context_window": "上下文窗口(条)", "temperature": "温度参数",
     "max_tokens": "最大Token数", "api_timeout": "API超时(秒)",
-    "health_check_interval": "健康检查间隔(秒)", "default_persona": "默认人设(第一层,留空用内置)", "persona": "自定义人格(第二层,深度演绎)",
-    "user_persona": "用户补充人设", "group_model_map": "分群模型映射",
+    "health_check_interval": "健康检查间隔(秒)", "default_persona": "默认人设(第一层,留空用内置)",
+    "user_persona": "自定义人格(第二层,深度演绎)", "group_model_map": "分群模型映射",
     # 视频解析
     "max_images": "最大图片数", "auto_send_video": "自动发送视频",
     "auto_send_images": "自动发送图片", "show_source": "显示来源",
