@@ -29,11 +29,45 @@ bash <(curl -s https://raw.githubusercontent.com/Bdlxx/NapCat-WordLibBot/master/
 
 - [🚀 快速开始](#-快速开始)
 - [📖 使用教程 (USAGE.md)](USAGE.md)
+- [🔌 支持的协议](#-支持的协议)
 - [一键安装脚本](#-一键安装脚本-installsh)
 - [Web 管理面板](#-web-管理面板)
 - [插件开发 (SDK)](#-插件开发-sdk)
 - [内置插件](#-内置插件)
 - [项目结构](#-项目结构)
+
+---
+
+## 🔌 支持的协议
+
+机器人通过 **OneBot v11** 标准与 [NapCat](https://napcat.napneko.icu/) 通信，遵循 OneBot v11 消息与事件规范。
+
+### 传输方式
+
+| 通道 | 说明 |
+|------|------|
+| **WebSocket（正向）** | 机器人作为客户端连接 NapCat（`WS_URL`），接收事件推送、下发 API 调用，为主通道 |
+| **HTTP API** | NapCat 的 REST API（`NAPCAT_HTTP`），用于状态探测/管理面板等场景 |
+
+### 鉴权
+
+- 所有请求携带 `access_token`（NapCat 配置一致）：WebSocket 以 URL 查询参数传入，HTTP 以查询参数/请求头传入
+- 机器人配置见 `config.json` 的 `WS_URL` / `NAPCAT_HTTP` / `ACCESS_TOKEN`
+
+### 事件类型（`post_type`）
+
+- `message` —— 群聊/私聊消息（含 `text` / `image` / `video` / `file` / `at` / `forward` 等消息段）
+- 携带 `echo` 字段的报文为 API 调用响应（非用户消息），由框架自动过滤
+
+### 消息段支持
+
+文字、图片、视频、文件、@、回复、语音（record）、**合并转发（forward / 聊天记录卡片）** 等；
+合并转发通过 `send_group_forward_msg` 发送，支持自定义 `news` 外显（平台 / @作者 / 简介）。
+
+### 适配说明
+
+- 框架只依赖 OneBot v11 的 WebSocket / HTTP 接口，NapCat 之外的 OneBot v11 实现（如 go-cqhttp 等）也可对接
+- 机器人账号登录、二维码、状态等由 NapCat 负责，不在本仓库范围
 
 ---
 
