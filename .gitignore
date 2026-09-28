@@ -38,3 +38,6 @@ package.json
 # 本地设置
 .claude/
 CLAUDE.md
+
+# 运维重建/备份现场（含真实 token 与 docker inspect 输出，一律不入公开仓库）
+ops/napcat-upgrade-*/

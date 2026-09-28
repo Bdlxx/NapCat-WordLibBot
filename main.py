@@ -40,7 +40,13 @@ from utils.config import get_config as _get_cfg
 from utils.command_table import build_command_table
 from utils.api import send_message
 
-WS_URL = _get_cfg("WS_URL", "ws://127.0.0.1:3003/?access_token=pdlKE8P2vfQD0nVZ")
+# WebSocket 连接地址：**必须**写在实例 config.json 的 WS_URL 里（含 access_token）。
+# 这里绝不硬编码 token —— 本仓库是公开的，写进来的凭据等于公开；
+# 而且一旦进了 git 历史就删不掉（远端缓存/他人克隆），只能靠轮换作废。
+WS_URL = _get_cfg("WS_URL", "ws://127.0.0.1:3001/")
+if "access_token=" not in WS_URL:
+    print("⚠ WS_URL 里没有 access_token：请在实例 config.json 的 WS_URL 里带上它"
+          "（NapCat 开启 WS token 校验时会连不上）。")
 
 def _is_master(user_id):
     ml = _get_cfg("MASTER_QQ", [])
