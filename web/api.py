@@ -15,6 +15,12 @@ _PROJECT_ROOT = os.path.dirname(STATIC_DIR)
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
+# 面板自身目录（config_schema / ui_pages 与 api.py 同目录）
+if STATIC_DIR not in sys.path:
+    sys.path.insert(0, STATIC_DIR)
+import config_schema as _cs      # 插件配置 schema（与 Windows 端 AsterCore 同一份实现）
+import ui_pages as _ui           # 面板页面片段（页面内容由后端生成，前端只挂载）
+
 # ====== 鉴权配置 ======
 CONFIG_PATH = '/etc/mybot-panel/config.json'
 
@@ -204,6 +210,8 @@ def discover_instances() -> dict:
                 'master': _read_master_qq(project_dir),
                 'napcat_port': _parse_napcat_port(env.get('INST_HTTP', '')),
                 'container': env.get('INST_CONTAINER') or f"napcat_{qq}",
+                # 可选：NapCat WebUI 访问路径（供面板"打开 NapCat 面板"跳转用）
+                'napcat_webui': env.get('INST_NAPCAT_WEBUI', ''),
             }
 
     # 3. install.sh 项目目录规范（新布局 instances/<QQ> + 旧布局 /root/mybot_<QQ>）
@@ -247,6 +255,76 @@ def _container_for(n):
     return f"napcat_{qq}"
 
 
+def _napcat_http_info(b):
+    """读取实例 config.json 里的 NapCat HTTP 地址与令牌（探测账号在线状态用）"""
+    cfg = read_json(os.path.join(b.get('dir', ''), 'config.json'))
+    http = cfg.get('NAPCAT_HTTP') or f"http://127.0.0.1:{b.get('napcat_port', 3000)}"
+    return str(http).rstrip('/'), str(cfg.get('ACCESS_TOKEN') or '')
+
+
+def _napcat_online(b):
+    """查询 NapCat 的**账号在线状态**（容器在跑 ≠ QQ 在线，必须问 NapCat 本身）
+
+    返回 {online: True/False/None, login: {...}/None, error: str}
+    online=None 表示探测失败（接口不可用/超时/未安装 requests），前端按"未知"展示。
+    """
+    http, token = _napcat_http_info(b)
+    out = {'online': None, 'login': None, 'error': ''}
+    if not http:
+        out['error'] = '未配置 NapCat 地址'
+        return out
+    try:
+        import requests
+    except ImportError:
+        out['error'] = 'requests 未安装'
+        return out
+    params = {'access_token': token} if token else {}
+    try:
+        r = requests.post(f"{http}/get_status", params=params, timeout=5)
+        j = r.json() if r.status_code == 200 else {}
+        if j.get('status') == 'ok':
+            out['online'] = bool((j.get('data') or {}).get('online'))
+        else:
+            out['error'] = str(j.get('message') or j.get('wording') or f"HTTP {r.status_code}")[:120]
+    except Exception as e:
+        # 连不上 NapCat（容器未就绪/进程未起/端口不通）→ 账号必然不可用，按离线处理，
+        # 前端会显示"离线"并给出重启按钮（比"未知"更贴近实际可用性）
+        out['online'] = False
+        out['error'] = 'NapCat 接口无响应: ' + str(e)[:80]
+    # 登录身份（登录态仍有效时可取，用于展示昵称；掉线时可能取不到）
+    try:
+        r = requests.post(f"{http}/get_login_info", params=params, timeout=5)
+        j = r.json() if r.status_code == 200 else {}
+        if j.get('status') == 'ok':
+            out['login'] = j.get('data') or None
+    except Exception:
+        pass
+    return out
+
+
+def _napcat_webui(b):
+    """该实例的 NapCat WebUI 地址（来自实例注册文件的 INST_NAPCAT_WEBUI）
+
+    约定用**同源相对路径**（如 /yixing/napcat/），由 Nginx 反代到各容器的 6099；
+    未配置则返回空串，前端不显示跳转按钮。
+    """
+    return str(b.get('napcat_webui') or '')
+
+
+def _systemd_unit_for(b):
+    """该实例对应的 systemd 单元名（按 QQ 派生；存在则由 systemd 托管）"""
+    return f"mybot-bot-{b.get('qq')}.service"
+
+
+def _unit_exists(unit):
+    try:
+        r = subprocess.run(f"systemctl list-unit-files {unit} --no-legend",
+                           shell=True, capture_output=True, text=True, timeout=5)
+        return bool((r.stdout or '').strip())
+    except Exception:
+        return False
+
+
 def _bot_proc(b):
     """探测 bot 主进程（python3 main.py --bot-name ... --bot-qq ...）的真实状态。
     返回 (running, pid, uptime)。基于进程表而非 screen 会话：
@@ -266,6 +344,41 @@ def _bot_proc(b):
     except Exception:
         pass
     return False, '', 0
+
+
+def _bot_info(b):
+    """Bot 概览数据（页面片段与 /info 接口共用同一份口径）"""
+    running, pid, uptime = _bot_proc(b)
+    return {'success': True, 'name': b['name'], 'qq': b['qq'], 'master': b['master'],
+            'dir': b['dir'], 'screen': b['screen'], 'running': running,
+            'status': 'running' if running else 'stopped', 'pid': pid, 'uptime': uptime}
+
+
+def _toggles_payload(b, plugin_keys):
+    """群组开关矩阵 + 群信息（/plugins 与页面片段 groups 共用）"""
+    import utils.plugin_toggle as _pt
+    group_info = {}
+    try:
+        import requests as _req
+        bc = read_json(os.path.join(b['dir'], 'config.json'))
+        nh = bc.get('NAPCAT_HTTP', 'http://127.0.0.1:3000')
+        tk = bc.get('ACCESS_TOKEN', '')
+        gl = _req.get(f'{nh}/get_group_list', params={'access_token': tk}, timeout=5).json()
+        if gl.get('status') == 'ok' and gl.get('data'):
+            for g in gl['data']:
+                gid = str(g.get('group_id', ''))
+                group_info[gid] = {'name': g.get('group_name') or '未知群',
+                                   'avatar': f'https://p.qlogo.cn/gh/{gid}/{gid}/'}
+    except Exception as e:
+        print(f'[API] 获取群列表失败: {e}')
+    tg = _pt.get_toggles_matrix(os.path.join(b['dir'], 'data'), list(plugin_keys))
+    all_groups = sorted(set(tg['groups'] + sorted(group_info.keys())))
+    tg['groups'] = all_groups
+    tg['toggles'] = {gid: tg['toggles'].get(gid, {p: False for p in tg['plugins']}) for gid in all_groups}
+    tg['groupInfo'] = group_info
+    tg['_pluginMeta'] = {k: {'name_cn': v['name_cn'], 'name_en': v['name_en']}
+                         for k, v in _pt.get_plugin_meta(None, os.path.join(b['dir'], 'plugins')).items()}
+    return tg
 
 
 def refresh_bots():
@@ -309,6 +422,101 @@ def write_json(path, data):
     with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     os.replace(tmp, path)
+
+# ====== 插件配置声明（schema）======
+# 面板不再靠"猜"配置 JSON 的形状：可配置项**由插件自己声明**（模块级 __config_schema__），
+# 面板只实现「字段类型 → 控件」这套映射，所以加插件不用改面板。
+
+def _plugin_source_path(pd, meta):
+    """插件源码路径（按 name_en 推导，与主程序的模块名一致）"""
+    name_en = (meta or {}).get('name_en') or ''
+    p = os.path.join(pd, name_en + '.py') if name_en else ''
+    return p if p and os.path.exists(p) else ''
+
+
+def _read_declared_schema(src_path):
+    """读插件源码里的模块级 __config_schema__。
+
+    **用 ast 解析，绝不 import**：老插件导入期有副作用（video_parser 会注册解析器、
+    起线程/子进程），面板进程里 import 它们是事故。
+    返回 (声明 dict|None, 来源, 错误列表)
+    """
+    if not src_path:
+        return None, '', []
+    try:
+        with open(src_path, 'r', encoding='utf-8') as fh:
+            src = fh.read()
+    except Exception as e:
+        return None, '', [f'读不到插件源码: {e}']
+    try:
+        import ast as _ast
+        tree = _ast.parse(src)
+    except SyntaxError as e:
+        return None, '', [f'插件源码语法错误: {e}']
+    for node in tree.body:
+        targets = list(getattr(node, 'targets', []) or [])
+        if getattr(node, 'target', None) is not None:
+            targets.append(node.target)
+        for t in targets:
+            if isinstance(t, getattr(__import__('ast'), 'Name')) and t.id == '__config_schema__':
+                try:
+                    import ast as _ast2
+                    val = _ast2.literal_eval(node.value)
+                except Exception as e:
+                    return None, '__config_schema__', [f'__config_schema__ 必须是字面量字典: {e}']
+                if not isinstance(val, dict):
+                    return None, '__config_schema__', ['__config_schema__ 必须是 dict']
+                return val, '__config_schema__', []
+    return None, '', []
+
+
+def _plugin_cfg_payload(b, meta, pkey=None):
+    """一个插件的完整配置数据：声明字段 + 当前值 + 是否声明 + schema 自身的问题"""
+    dd = os.path.join(b['dir'], 'data')
+    pd = os.path.join(b['dir'], 'plugins')
+    cf = (meta or {}).get('config_file') or ''
+    cfg = read_json(os.path.join(dd, cf)) if cf else {}
+    declared, declared_by, errs = _read_declared_schema(_plugin_source_path(pd, meta))
+    payload = _cs.build_payload(declared, cfg)
+    payload['schema_errors'] = list(payload.get('schema_errors') or []) + list(errs or [])
+    payload['declared_by'] = declared_by
+    payload['plugin'] = pkey or (meta or {}).get('name_en') or ''
+    payload['plugin_name'] = (meta or {}).get('name_cn') or payload['plugin']
+    payload['config_file'] = cf
+    return payload
+
+
+def _legacy_merge(merged, cfg):
+    """未声明 schema 的老插件：沿用历史前缀解码（cmd_/msg_/setting_/cfg_/admins），
+    并支持点号路径 —— 与 build_payload 的 flat 视图一致，语义与改动前完全一样。"""
+    for k, v in (cfg or {}).items():
+        if k == 'admins':
+            merged['admins'] = v
+        elif k.startswith('cmd_'):
+            merged.setdefault('commands', {})[k.replace('cmd_', '', 1)] = v
+        elif k.startswith('msg_'):
+            merged.setdefault('messages', {})[k.replace('msg_', '', 1)] = v
+        elif k.startswith('setting_'):
+            key = k.replace('setting_', '', 1)
+            old_val = merged.get('settings', {}).get(key)
+            # 布尔型设置（开关）：统一转 bool，保证保存后重载仍是开关
+            if isinstance(old_val, bool) or str(v).lower() in ('true', 'false'):
+                v = (str(v).lower() == 'true')
+            elif isinstance(v, str) and v.replace('.', '', 1).replace('-', '', 1).isdigit():
+                v2 = float(v) if '.' in v else int(v)
+                v = type(old_val)(v2) if isinstance(old_val, (int, float)) else v2
+            merged.setdefault('settings', {})[key] = v
+        elif k.startswith('cfg_'):
+            key = k.replace('cfg_', '', 1)
+            if isinstance(v, str) and v.lower() in ('true', 'false'):
+                v = (v.lower() == 'true')
+            merged[key] = v
+        elif '.' in k:
+            _cs.set_path(merged, k, v)      # 面板回传的未声明键（扁平路径）
+        else:
+            merged[k] = v
+    return merged
+
 
 def build_fields_from_cfg(cfg, prefix='cmd'):
     fields = []
@@ -450,15 +658,21 @@ def bot_napcat_log(n):
 @app.route('/api/bot/<int:n>/napcat-status')
 @login_required
 def napcat_status(n):
+    """NapCat 状态 = **账号在线状态**（不再检测容器状态）
+
+    容器在跑不代表账号可用：NTQQ 掉线 / 登录态失效时容器仍是 running，
+    但机器人收不到任何消息，所以以 NapCat 上报的账号在线状态为准。
+    返回：{online: True/False/None, login: {user_id,nickname}/None, error}
+    """
     if n not in BOTS: return jsonify({'error': '无效编号'}), 404
-    container = _container_for(n)
-    try:
-        r = subprocess.run("docker inspect " + container + " --format '{{.State.Status}}'", shell=True, capture_output=True, text=True, timeout=5)
-        status = r.stdout.strip()
-        running = status == 'running'
-        return jsonify({'running': running, 'container': container, 'status': status})
-    except Exception as e:
-        return jsonify({'running': False, 'container': container, 'status': 'unknown', 'error': str(e)})
+    b = BOTS[n]
+    info = _napcat_online(b)
+    return jsonify({'online': info.get('online'),
+                    'login': info.get('login'),
+                    'error': info.get('error') or '',
+                    'qq': b.get('qq'),
+                    'name': b.get('name'),
+                    'webui': _napcat_webui(b)})
 
 @app.route('/api/bot/<int:n>/napcat-qr')
 @login_required
@@ -475,6 +689,36 @@ def napcat_qr(n):
     except Exception as e:
         return jsonify({'qr': None, 'error': str(e)})
 
+
+@app.route('/api/bot/<int:n>/napcat-restart', methods=['POST'])
+@login_required
+def napcat_restart(n):
+    """重启 NapCat 容器（账号离线时的恢复手段）
+
+    离线两类常见原因：① NTQQ 连接坏了 → 重启即恢复；
+    ② 登录态失效 → 重启后转等待扫码，需配合「查看二维码」。
+    重启后回读一次在线状态，把结果与提示一并返回给前端。
+    """
+    if n not in BOTS: return jsonify({'error': '无效编号'}), 404
+    b = BOTS[n]
+    container = _container_for(n)
+    try:
+        r = subprocess.run("docker restart " + container, shell=True,
+                           capture_output=True, text=True, timeout=120)
+        if r.returncode != 0:
+            msg = (r.stderr or r.stdout or '').strip() or 'docker restart 失败'
+            return jsonify({'success': False, 'message': 'NapCat 重启失败: ' + msg})
+        time.sleep(3)
+        info = _napcat_online(b)
+        if info.get('online'):
+            return jsonify({'success': True, 'online': True,
+                            'message': f"{b['name']} NapCat 已重启，账号已在线"})
+        return jsonify({'success': True, 'online': False,
+                        'message': f"{b['name']} NapCat 已重启，账号仍未在线"
+                                   "（登录态可能已失效，请点「查看二维码」扫码登录）"})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/bot/<int:n>/<action>', methods=['POST'])
 @login_required
 def bot_action(n, action):
@@ -484,6 +728,28 @@ def bot_action(n, action):
     b = BOTS[n]
     if action not in ('stop', 'start', 'restart'):
         return jsonify({'error': '未知操作'}), 400
+    # 若该实例已交给 systemd 托管（mybot-bot-<QQ>.service），必须用 systemctl 操作：
+    # 否则 screen 方式会再起一个重复实例（同一账号双开，消息会重复回复）
+    unit = _systemd_unit_for(b)
+    if _unit_exists(unit):
+        try:
+            cmd = {'stop': 'systemctl stop ' + unit,
+                   'start': 'systemctl start ' + unit,
+                   'restart': 'systemctl restart ' + unit}[action]
+            r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+            if r.returncode != 0:
+                msg = (r.stderr or r.stdout or '').strip() or 'systemctl 执行失败'
+                return jsonify({'success': False, 'message': f"{b['name']} {action} 失败: {msg}"})
+            time.sleep(1.5)
+            running, pid, _ = _bot_proc(b)
+            if action in ('start', 'restart') and not running:
+                return jsonify({'success': False,
+                                'message': f"{b['name']} {action} 失败: systemd 未拉起进程"})
+            return jsonify({'success': True,
+                            'message': f"{b['name']} {action} 完成（systemd 托管）"})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     sn = b['screen']
     # 看门狗 screen 名：本地 bot→watchdog1、bot2→watchdog2，动态实例用 watchdog_<QQ>
     if sn == 'bot':
@@ -611,143 +877,31 @@ def get_plugins(num):
 
     plugins = {}
 
-    # 1. 动态扫描插件目录：与主程序实际加载的插件（有 handle()）保持一致
+    # 动态扫描插件目录：与主程序实际加载的插件（有 handle()）保持一致
     avail_list = list(_pt.get_available_plugins(pd))
+
+    # 1. 插件元数据（**可配置项由插件自己声明**，见 /plugins/<key>/schema 接口；
+    #    这里只给导航与概览用的轻量信息，不再猜配置 JSON 的形状）
     for pkey, meta in avail_list:
-        pp = {'name_cn': meta['name_cn'], 'name_en': meta['name_en'], 'fields': [], 'has_config': False}
-
         cf = meta.get('config_file')
-        if cf and os.path.exists(os.path.join(dd, cf)):
-            pp['has_config'] = True
-            config_data = read_json(os.path.join(dd, cf))
+        decl, _dby, decl_errs = _read_declared_schema(_plugin_source_path(pd, meta))
+        plugins[pkey] = {
+            'name_cn': meta.get('name_cn') or pkey,
+            'display': meta.get('name_cn') or pkey,
+            'name_en': meta.get('name_en') or '',
+            'description': meta.get('description', ''),
+            'version': meta.get('version', ''),
+            'author': meta.get('author', ''),
+            'config_file': cf or '',
+            'has_config': bool(cf and os.path.exists(os.path.join(dd, cf))),
+            'declared': bool(decl),
+            'declared_fields': len(decl or {}),
+            'schema_errors': decl_errs,
+        }
 
-            # 命令段（标签优先使用插件注册表同步的中文指令名）
-            cmd_labels = config_data.get('command_labels', {})
-            for cmd_key, cmd_val in config_data.get('commands', {}).items():
-                label = cmd_labels.get(cmd_val, f'指令「{cmd_key}」')
-                pp['fields'].append({
-                    'k': f'cmd_{cmd_key}', 'l': label,
-                    't': 'text', 'v': cmd_val,
-                    'hint': f'触发「{meta["name_cn"]}」的{cmd_key}命令',
-                })
+    # 2. 群组开关表格数据（helper 与页面片段共用）
+    plugins['_toggles'] = _toggles_payload(b, [k for k, _ in avail_list])
 
-            # 设置段（标签用中文参数名）
-            set_labels = config_data.get('setting_labels', {})
-            for set_key, set_val in config_data.get('settings', {}).items():
-                label = set_labels.get(set_key) or DEFAULT_SETTING_LABELS.get(set_key) or f'参数「{set_key}」'
-                # bool 或 'true'/'false' 字符串（历史遗留）均渲染为开关
-                if isinstance(set_val, bool) or (isinstance(set_val, str) and str(set_val).lower() in ('true', 'false')):
-                    pp['fields'].append({
-                        'k': f'setting_{set_key}',
-                        'l': label,
-                        't': 'sel', 'o': ['true', 'false'],
-                        'v': str(set_val).lower(),
-                        'hint': '全局开关，关闭后所有人无法使用' if set_key == 'enabled' else '',
-                    })
-                elif isinstance(set_val, (int, float)):
-                    pp['fields'].append({
-                        'k': f'setting_{set_key}', 'l': label,
-                        't': 'num', 'v': set_val, 'hint': '',
-                    })
-                else:
-                    pp['fields'].append({
-                        'k': f'setting_{set_key}', 'l': label,
-                        't': 'text', 'v': str(set_val) if set_val else '',
-                    })
-
-            # 回复段（标签优先使用 message_labels 中文名）
-            msg_labels = config_data.get('message_labels', {})
-            for msg_key, msg_val in config_data.get('messages', {}).items():
-                is_long = isinstance(msg_val, str) and len(msg_val) > 30
-                label = msg_labels.get(msg_key) or DEFAULT_MSG_LABELS.get(msg_key) or f'回复「{msg_key}」'
-                pp['fields'].append({
-                    'k': f'msg_{msg_key}', 'l': label,
-                    't': 'textarea' if is_long else 'text', 'v': msg_val,
-                    'hint': f'触发{msg_key}时的回复',
-                })
-
-            # 管理员
-            admins = config_data.get('admins')
-            if admins is not None:
-                pp['fields'].append({
-                    'k': 'admins', 'l': '管理员QQ（每行一个）',
-                    't': 'textlist', 'v': admins if isinstance(admins, list) else [],
-                    'hint': '每行填一个QQ号，管理员可管理插件',
-                })
-
-            # 扁平配置兜底：不在 commands/settings/messages 中的其他字段
-            handled_cats = {'commands', 'settings', 'messages', 'admins', '_note'}
-            for ck in config_data.get('commands', {}): handled_cats.add(ck)
-            for sk in config_data.get('settings', {}): handled_cats.add(sk)
-            for mk in config_data.get('messages', {}): handled_cats.add(mk)
-            for fk, fv in config_data.items():
-                if fk in handled_cats: continue
-                label = DEFAULT_SETTING_LABELS.get(fk) or f'参数「{fk}」'
-                # bool 或 'true'/'false' 字符串（历史遗留）均渲染为开关
-                if isinstance(fv, bool) or (isinstance(fv, str) and str(fv).lower() in ('true', 'false')):
-                    pp['fields'].append({
-                        'k': f'cfg_{fk}', 'l': label,
-                        't': 'sel', 'o': ['true', 'false'], 'v': str(fv).lower(),
-                    })
-                elif isinstance(fv, (int, float)):
-                    pp['fields'].append({
-                        'k': f'cfg_{fk}', 'l': label,
-                        't': 'num', 'v': fv,
-                    })
-                elif fk == 'bili_video_quality':
-                    pp['fields'].append({
-                        'k': f'cfg_{fk}', 'l': label,
-                        't': 'sel', 'o': ['P_360P', 'P_480P', 'P_720P', 'P_1080P'], 'v': str(fv),
-                    })
-                elif fk == 'bili_video_codec':
-                    pp['fields'].append({
-                        'k': f'cfg_{fk}', 'l': label,
-                        't': 'sel', 'o': ['AVC', 'HEVC', 'AV1'], 'v': str(fv),
-                    })
-                elif isinstance(fv, str):
-                    field_type = 'password' if ('cookie' in fk.lower() or 'key' in fk.lower() or 'token' in fk.lower()) else 'text'
-                    pp['fields'].append({
-                        'k': f'cfg_{fk}', 'l': label,
-                        't': field_type, 'v': fv,
-                    })
-                elif isinstance(fv, list):
-                    pp['fields'].append({
-                        'k': f'cfg_{fk}', 'l': f'参数「{fk}」',
-                        't': 'textlist', 'v': fv,
-                    })
-
-        plugins[pkey] = pp
-
-    # 2. 群组开关表格数据
-    import requests as _req
-    group_info = {}
-    try:
-        bc = read_json(os.path.join(b['dir'], 'config.json'))
-        nh = bc.get('NAPCAT_HTTP', 'http://127.0.0.1:3000')
-        tk = bc.get('ACCESS_TOKEN', '')
-        gl = _req.get(f'{nh}/get_group_list', params={'access_token': tk}, timeout=5).json()
-        if gl.get('status') == 'ok' and gl.get('data'):
-            for g in gl['data']:
-                gid = str(g.get('group_id', ''))
-                gname = g.get('group_name', '未知群') or '未知群'
-                gavatar = f"https://p.qlogo.cn/gh/{gid}/{gid}/"
-                group_info[gid] = {'name': gname, 'avatar': gavatar}
-    except Exception as e:
-        print(f'[API] 获取群列表失败: {e}')
-
-    tg = _pt.get_toggles_matrix(os.path.join(b['dir'], 'data'), [k for k, _ in avail_list])
-    # 合并全部群（包括没有开关记录的）
-    all_groups = sorted(set(tg['groups'] + sorted(group_info.keys())))
-    merged_toggles = {}
-    for gid in all_groups:
-        merged_toggles[gid] = tg['toggles'].get(gid, {p: False for p in tg['plugins']})
-    tg['groups'] = all_groups
-    tg['toggles'] = merged_toggles
-    tg['groupInfo'] = group_info
-    plugins['_toggles'] = tg
-    plugins['_toggles']['_pluginMeta'] = {k: {'name_cn': v['name_cn'], 'name_en': v['name_en']} for k, v in _pt.get_plugin_meta(None, pd).items()}
-
-    # 避免暴露服务器路径
     safe_bot = {k: v for k, v in b.items() if k not in ('dir', 'screen', 'napcat_port')}
     return jsonify({'bot': safe_bot, 'plugins': plugins})
 
@@ -769,14 +923,104 @@ def _notify_bot_reload(qq):
         print(f"[API] 通知 bot 重载失败: {e}")
 
 
+@app.route('/api/bot/<int:num>/plugins/<pkey>/schema')
+@login_required
+def get_plugin_schema(num, pkey):
+    """插件可配置项声明（面板据此渲染表单）。
+
+    没有声明的插件返回按当前值**推断**的字段（declared=false）：面板会注明
+    "自动推断"，并永远保留 JSON 原文兜底 —— 不会出现"空页面"。
+    """
+    if num not in BOTS: return jsonify({'ok': False, 'error': '无效编号'}), 404
+    b = BOTS[num]
+    pd = os.path.join(b['dir'], 'plugins')
+    import utils.plugin_toggle as _pt
+    meta = _pt.get_plugin_meta(pkey, pd)
+    if not meta:
+        return jsonify({'ok': False, 'error': f'未知插件: {pkey}'}), 404
+    return jsonify({'ok': True, 'data': _plugin_cfg_payload(b, meta, pkey)})
+
+
+def _page_ctx(b, num, page):
+    """页面片段需要的上下文；只取该页真正要用的东西（少一次请求就快一点）"""
+    pd = os.path.join(b['dir'], 'plugins')
+    dd = os.path.join(b['dir'], 'data')
+    import utils.plugin_toggle as _pt
+    avail = list(_pt.get_available_plugins(pd))
+    ctx = {'bot_num': num, 'bot': {k: v for k, v in b.items() if k != 'dir'}}
+    if page in ('dashboard', 'manage'):
+        ctx['info'] = _bot_info(b)
+        ctx['napcat'] = _napcat_online(b)
+        ctx['napcat']['webui'] = _napcat_webui(b)
+    if page == 'dashboard':
+        ctx['plugins'] = [{'key': k, 'name_cn': m.get('name_cn'), 'name_en': m.get('name_en'),
+                           'declared': bool(_read_declared_schema(_plugin_source_path(pd, m))[0])}
+                          for k, m in avail]
+        tg = _toggles_payload(b, [k for k, _ in avail])
+        ctx['group_count'] = len(tg.get('groups') or [])
+    if page == 'groups':
+        ctx['toggles'] = _toggles_payload(b, [k for k, _ in avail])
+    if page == 'config':
+        pkey = request.args.get('plugin') or ''
+        if not pkey and avail:
+            pkey = avail[0][0]
+        meta = _pt.get_plugin_meta(pkey, pd) if pkey else None
+        ctx['plugin_key'] = pkey
+        ctx['plugin_name'] = (meta or {}).get('name_cn') or pkey
+    return ctx
+
+
+@app.route('/api/bot/<int:num>/ui/page/<page>')
+@login_required
+def ui_page(num, page):
+    """页面内容片段。
+
+    框架（web/panel/index.html）是静态文件、浏览器直接缓存，首屏快；
+    页面内容统一由后端生成（web/ui_pages.py），前端只挂载 + 事件委托。
+    """
+    if num not in BOTS: return jsonify({'ok': False, 'error': '无效编号'}), 404
+    if page not in _ui.PAGES:
+        return jsonify({'ok': False, 'error': f'未知页面: {page}'}), 404
+    return jsonify({'ok': True, 'data': _ui.render_page(page, _page_ctx(BOTS[num], num, page))})
+
+
+@app.route('/api/bot/<int:num>/ui/status')
+@login_required
+def ui_status(num):
+    """轮询用的状态片段（Bot / NapCat 状态区）：标记只在后端维护一份，前端不拼 HTML"""
+    if num not in BOTS: return jsonify({'ok': False, 'error': '无效编号'}), 404
+    b = BOTS[num]
+    info = _bot_info(b)
+    nc = _napcat_online(b)
+    nc['webui'] = _napcat_webui(b)
+    return jsonify({'ok': True, 'data': {
+        # 状态区一律用"元素 id → 内容"的通用形状：两端页面骨架相同，外壳一套代码就能套用
+        'html': {
+            'botStatusArea': _ui.bot_status_html(info),
+            'napcatStatusArea': _ui.napcat_status_html(nc, info),
+            'napcatActionArea': _ui.napcat_restart_btn(nc) + _ui.napcat_webui_btn(nc),
+            'dashNapcatAction': _ui.napcat_restart_btn(nc, True) + _ui.napcat_webui_btn(nc, True),
+        },
+        'text': {
+            'dashBotVal': '运行中' if info['running'] else '已停止',
+            'dashBotDesc': f"{info.get('name') or ''} · PID {info.get('pid') or '-'}",
+            'dashNapcatVal': _ui.napcat_text(nc),
+            'dashNapcatDesc': _ui.napcat_desc(nc, info.get('qq')),
+        },
+        'napcat_online': nc.get('online'),
+    }})
+
+
 @app.route('/api/bot/<int:num>/config', methods=['POST'])
 @login_required
 def save_config(num):
     if num not in BOTS: return jsonify({'error': '无效编号'}), 404
-    data = request.get_json()
+    data = request.get_json() or {}
     plugin = data.get('plugin')
     cfg = data.get('cfg', {})
-    cookie_syncs = []
+    raw = bool(data.get('raw'))          # JSON 原文页签：原样写入，不做类型校验
+
+
     b = BOTS[num]
     dd = os.path.join(b['dir'], 'data')
     pd = os.path.join(b['dir'], 'plugins')
@@ -793,42 +1037,23 @@ def save_config(num):
     config_path = os.path.join(dd, cf)
     merged = read_json(config_path)
 
-    for k, v in cfg.items():
-        if k == 'admins':
-            merged['admins'] = v
-        elif k.startswith('cmd_'):
-            merged.setdefault('commands', {})[k.replace('cmd_', '', 1)] = v
-        elif k.startswith('msg_'):
-            merged.setdefault('messages', {})[k.replace('msg_', '', 1)] = v
-        elif k.startswith('setting_'):
-            key = k.replace('setting_', '', 1)
-            old_val = merged.get('settings', {}).get(key)
-            # 布尔型设置（开关）：统一转 bool，保证保存后重载仍是开关
-            if isinstance(old_val, bool) or str(v).lower() in ('true', 'false'):
-                v = (str(v).lower() == 'true')
-            elif isinstance(v, str) and v.replace('.', '', 1).replace('-', '', 1).isdigit():
-                v2 = float(v) if '.' in v else int(v)
-                if isinstance(old_val, (int, float)):
-                    v = type(old_val)(v2)
-                else:
-                    v = v2
-            merged.setdefault('settings', {})[key] = v
-        elif k.startswith('cfg_'):
-            key = k.replace('cfg_', '', 1)
-            # 布尔型设置（开关）：统一转 bool，保证保存后重载仍是开关
-            if isinstance(v, str) and v.lower() in ('true', 'false'):
-                v = (v.lower() == 'true')
-            elif isinstance(v, str) and v.replace('.', '', 1).replace('-', '', 1).isdigit():
-                try: v = int(v)
-                except: pass
-            merged[key] = v
-        else:
-            merged[k] = v
+    payload = _plugin_cfg_payload(b, meta, plugin)
+    if payload['declared'] and not raw:
+        # 插件**自己声明**了配置项 → 按声明做类型转换与校验（path 决定写回哪一段）
+        fields = {f['name']: f for f in payload['fields']}
+        ok, merged, errs = _cs.validate_and_merge(fields, merged, cfg, strict=True)
+        if not ok:
+            # 精确到字段的错误：前端能标红到控件，且**一字节都不落盘**
+            return jsonify({'ok': False, 'error': '配置校验未通过', 'field_errors': errs}), 400
+    else:
+        # 未声明（或 JSON 原文页签）：沿用历史语义原样合并
+        merged = _legacy_merge(merged, cfg)
 
     write_json(config_path, merged)
     # 通知 bot 立即重载配置（web 端与插件实际配置保持同步，无需重启/轮询）
     _notify_bot_reload(str(b['qq']))
-    return jsonify({'ok': True, 'msg': '配置已保存并生效'})
+    return jsonify({'ok': True, 'validated': bool(payload['declared']) and not raw,
+                    'msg': '配置已保存并生效'})
 
 
 @app.route('/api/bot/<int:num>/group-toggles', methods=['POST'])

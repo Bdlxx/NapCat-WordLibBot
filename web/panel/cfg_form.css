@@ -1,0 +1,61 @@
+/* ==========================================================================
+   插件配置表单：**两端共用的控件样式**
+   主本：/root/mybot2/web/panel/cfg_form.css
+   副本：/root/astercore/src/astercore/web/static/cfg_form.css（必须字节一致）
+   一致性校验：/root/mybot2/tests/test_dual_end_assets.py
+
+   只使用 --cf-* 适配令牌；两个面板各自在自己的样式里把 --cf-* 指到本项目的设计令牌，
+   这样这份文件不用认识任何一端的变量名。每个 var 仍带兜底，漏配也能看。
+   ========================================================================== */
+.cf-form{display:block}
+.cf-group{margin:16px 0 6px;font-size:12px;font-weight:600;letter-spacing:.04em;
+  color:var(--cf-muted,var(--text-secondary,#6b7280));text-transform:uppercase;
+  border-bottom:1px solid var(--cf-line,var(--border-light,#e5e7eb));padding-bottom:5px}
+.cf-group:first-child{margin-top:2px}
+.cf-field{margin:12px 0}
+.cf-label{display:block;font-size:13px;font-weight:600;margin-bottom:5px;
+  color:var(--cf-fg,var(--text-primary,#111827))}
+.cf-help{font-size:11.5px;color:var(--cf-muted,var(--text-secondary,#6b7280));
+  margin-top:4px;line-height:1.5;word-break:break-word}
+.cf-field input[type=text],.cf-field input[type=password],.cf-field input[type=number],
+.cf-field select,.cf-field textarea{width:100%;box-sizing:border-box;font-family:inherit;
+  background:var(--cf-input-bg,var(--bg-input,#fff));color:var(--cf-fg,var(--text-primary,#111827));
+  border:1px solid var(--cf-line,var(--border-color,#d1d5db));
+  border-radius:var(--cf-radius,var(--radius,6px));padding:8px 10px;font-size:13px;outline:none}
+.cf-field input[type=text]:focus,.cf-field input[type=password]:focus,.cf-field input[type=number]:focus,
+.cf-field select:focus,.cf-field textarea:focus{border-color:var(--cf-acc,var(--color-primary,#1E40AF))}
+.cf-field textarea{resize:vertical;line-height:1.55;font-family:var(--cf-mono,var(--font-mono,Consolas,Monaco,monospace))}
+.cf-field input[type=color]{width:52px;height:34px;padding:0;cursor:pointer;
+  border:1px solid var(--cf-line,var(--border-color,#d1d5db));
+  border-radius:var(--cf-radius,var(--radius,6px));background:var(--cf-input-bg,var(--bg-input,#fff))}
+.cf-field select[multiple]{padding:4px}
+.cf-inline{display:flex;gap:8px;align-items:center}
+.cf-inline input[type=text],.cf-inline input[type=password]{flex:1}
+.cf-unit{font-size:12px;color:var(--cf-muted,var(--text-secondary,#6b7280));flex-shrink:0}
+.cf-check{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:13px;
+  color:var(--cf-fg,var(--text-primary,#111827))}
+.cf-check input{width:16px;height:16px;accent-color:var(--cf-acc,var(--color-primary,#1E40AF));cursor:pointer}
+.cf-rows{display:flex;flex-direction:column;gap:6px}
+.cf-rowitem{display:flex;gap:6px;align-items:center}
+.cf-bad input,.cf-bad select,.cf-bad textarea{
+  border-color:var(--cf-danger,var(--color-danger,#dc2626))!important}
+.cf-err{color:var(--cf-danger,var(--color-danger,#dc2626));font-size:11.5px;margin-top:4px}
+.cf-advanced{margin:12px 0;border:1px dashed var(--cf-line,var(--border-color,#d1d5db));
+  border-radius:var(--cf-radius,var(--radius,6px));padding:8px 10px}
+.cf-advanced>summary{cursor:pointer;font-size:12.5px;
+  color:var(--cf-muted,var(--text-secondary,#6b7280))}
+.cf-tabs{display:flex;gap:6px}
+.cf-tabs button.on{background:var(--cf-acc,var(--color-primary,#1E40AF));
+  color:var(--cf-acc-fg,var(--text-on-primary,#fff));border-color:transparent}
+.cf-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+/* 移动端：触控目标不低于 44px（iOS HIG / Material 的最小可点区域） */
+@media (max-width:768px){
+  .cf-field{margin:16px 0}
+  .cf-field input[type=text],.cf-field input[type=password],.cf-field input[type=number],
+  .cf-field select{min-height:44px}
+  .cf-check{min-height:44px}
+  .cf-field input[type=color]{width:56px;height:44px}
+}
+
+/* 字段类型徽标（不是字段说明：`.cf-help` 留给 help 文本） */
+.cf-type{font-weight:400;font-size:11px;color:var(--cf-muted,var(--text-secondary,#6b7280))}

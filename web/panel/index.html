@@ -4,1110 +4,159 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>机器人管理面板</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
-<style>
-:root {
-  --bg-page: #f4f7f9; --bg-sidebar: #fff; --bg-header: #fff; --bg-card: #fff;
-  --bg-input: #f2f5fa; --bg-hover: #eef3fb; --bg-active: #e8f0fd;
-  --text-primary: #1f2733; --text-regular: #4a5568; --text-secondary: #8a94a6;
-  --border-color: #e4e9f0; --border-light: #eef2f7;
-  --color-primary: #6495ed; --color-primary-light: #91b9fa; --color-primary-dark: #4a71c7;
-  --color-success: #67c23a; --color-warning: #e6a23c; --color-danger: #ed6f6f;
-  --shadow-card: 0 4px 16px 0 rgba(74,113,199,.08);
-  --radius: 8px; --radius-lg: 12px; --sidebar-width: 220px;
-}
-[data-theme="dark"] {
-  --bg-page: #2c344a; --bg-sidebar: #333c52; --bg-header: #333c52; --bg-card: #3a4256;
-  --bg-input: #444e66; --bg-hover: #3d4760; --bg-active: #3b4a70;
-  --text-primary: #e8ecf4; --text-regular: #c3cad9; --text-secondary: #8f99b0;
-  --border-color: #4a5470; --border-light: #3f4a64;
-  --shadow-card: 0 4px 16px 0 rgba(0,0,0,.35);
-}
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans SC',sans-serif;font-size:14px;color:var(--text-primary);background:var(--bg-page);-webkit-font-smoothing:antialiased}
-.app{display:flex;height:100vh;overflow:hidden}
-.sidebar{width:var(--sidebar-width);background:var(--bg-sidebar);border-right:1px solid var(--border-color);display:flex;flex-direction:column;flex-shrink:0;z-index:10}
-.sidebar-logo{padding:18px 16px;font-size:16px;font-weight:700;border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px}
-.sidebar-logo .logo-text{color:var(--color-primary)}
-.sidebar-nav{flex:1;overflow-y:auto;padding:8px 0}
-.sidebar-nav::-webkit-scrollbar{width:4px}
-.sidebar-nav::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:2px}
-.nav-group-title{padding:14px 16px 6px;font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;font-weight:600}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;color:var(--text-regular);transition:all .2s;border-left:3px solid transparent;margin:2px 0;font-size:13px;border-radius:0 8px 8px 0;margin-right:8px}
-.nav-item:hover{background:var(--bg-hover);color:var(--text-primary)}
-.nav-item.active{background:linear-gradient(90deg,rgba(100,149,237,.14),rgba(100,149,237,.03));color:var(--color-primary);border-left-color:var(--color-primary);font-weight:600}
-.nav-item.active .icon{background:linear-gradient(135deg,var(--color-primary),var(--color-primary-dark));color:#fff;box-shadow:0 3px 8px rgba(100,149,237,.35)}
-.nav-arrow{margin-left:auto;font-size:10px;color:var(--text-secondary);transition:transform .2s}
-.nav-sub{display:none;padding:2px 0 8px 30px}
-.nav-sub-item{padding:7px 12px;font-size:12px;color:var(--text-regular);cursor:pointer;border-radius:6px;margin:1px 8px 1px 0;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nav-sub-item:hover{background:var(--bg-hover);color:var(--color-primary)}
-.nav-sub-item.active{background:var(--bg-active);color:var(--color-primary);font-weight:600}
-.nav-sub-loading{padding:6px 12px;font-size:12px;color:var(--text-secondary)}
-.nav-item .icon{font-size:15px;width:28px;height:28px;border-radius:8px;background:var(--bg-input);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
-.nav-item:hover .icon{background:var(--bg-hover);transform:scale(1.05)}
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-.header{background:var(--bg-header);border-bottom:1px solid var(--border-color);padding:0 24px;height:56px;display:flex;align-items:center;gap:12px;flex-shrink:0}
-.header-breadcrumb{font-size:14px;color:var(--text-secondary)}
-.header-breadcrumb .current{color:var(--text-primary);font-weight:500}
-.header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
-.el-tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:500}
-.el-tag.success{background:rgba(103,194,58,.15);color:var(--color-success)}
-.el-tag.danger{background:rgba(245,108,108,.15);color:var(--color-danger)}
-.el-tag.warning{background:rgba(230,162,60,.15);color:var(--color-warning)}
-.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
-.status-dot.green{background:var(--color-success)}
-.status-dot.red{background:var(--color-danger)}
-.status-dot.yellow{background:var(--color-warning);animation:pulse 1.2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.theme-btn{width:32px;height:32px;border-radius:50%;border:1px solid var(--border-color);background:var(--bg-input);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--text-regular);transition:all .2s}
-.theme-btn:hover{border-color:var(--color-primary);color:var(--color-primary)}
-.header-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border-color);background:var(--bg-input);cursor:pointer;font-size:12px;color:var(--text-regular);transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
-.header-btn:hover{border-color:var(--color-primary);color:var(--color-primary)}
-.content{flex:1;overflow-y:auto;padding:20px}
-.content::-webkit-scrollbar{width:6px}
-.content::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:3px}
-.card{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);border:1px solid var(--border-light);margin-bottom:16px}
-.card-header{padding:16px 20px;border-bottom:1px solid var(--border-light);display:flex;align-items:center;justify-content:space-between}
-.card-header h3{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
-.card-header h3::before{content:'';width:4px;height:15px;border-radius:2px;background:linear-gradient(180deg,var(--color-primary),var(--color-primary-light))}
-.card-body{padding:16px 20px}
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:20px}
-.stat-card{background:var(--bg-card);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow-card);border:1px solid var(--border-light);display:flex;align-items:flex-start;gap:16px;position:relative;overflow:hidden}
-.stat-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--color-primary)}
-.stat-card:has(.stat-icon.green)::before{background:var(--color-success)}
-.stat-card:has(.stat-icon.orange)::before{background:var(--color-warning)}
-.stat-card:has(.stat-icon.purple)::before{background:var(--color-primary-dark)}
-.stat-card:hover{box-shadow:0 4px 16px 0 rgba(0,0,0,.1)}
-.stat-icon{width:44px;height:44px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.stat-icon.blue{background:rgba(100,149,237,.12)}
-.stat-icon.green{background:rgba(103,194,58,.12)}
-.stat-icon.orange{background:rgba(230,162,60,.12)}
-.stat-icon.purple{background:rgba(144,107,224,.12)}
-.stat-info{flex:1;min-width:0}
-.stat-info .label{font-size:12px;color:var(--text-secondary);margin-bottom:4px}
-.stat-info .value{font-size:22px;font-weight:700;color:var(--text-primary)}
-.stat-info .desc{font-size:12px;color:var(--text-secondary);margin-top:4px}
-.el-switch{position:relative;display:inline-flex;align-items:center;cursor:pointer;gap:8px}
-.el-switch input{display:none}
-.el-switch .track{width:40px;height:20px;border-radius:10px;background:var(--border-color);transition:background .2s;position:relative;display:inline-block;flex-shrink:0}
-.el-switch .track::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
-.el-switch input:checked + .track{background:var(--color-primary)}
-.el-switch input:checked + .track::after{left:22px}
-.el-table{width:100%;border-collapse:collapse;font-size:13px}
-.el-table th{padding:12px 16px;text-align:left;font-weight:600;background:var(--bg-input);color:var(--text-regular);border-bottom:1px solid var(--border-color)}
-.el-table td{padding:12px 16px;border-bottom:1px solid var(--border-light)}
-.el-table tr:hover td{background:var(--bg-hover)}
-.el-table thead th{position:sticky;top:0;z-index:2;box-shadow:0 1px 0 0 var(--border-color)}
-.table-wrapper{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 280px)}
-.el-table .group-cell{display:flex;align-items:center;gap:12px;min-height:48px}
-.el-table .group-cell .g-avatar{width:40px;height:40px;border-radius:50%;background:var(--bg-input);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px}
-.el-table .group-cell .g-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
-.el-table .group-cell .g-info{display:flex;flex-direction:column;justify-content:center;min-width:0}
-.el-table .group-cell .g-info .g-name{font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
-.el-table .group-cell .g-info .g-id{font-size:11px;color:var(--text-secondary);margin-top:1px}
-.action-bar{position:sticky;bottom:0;display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--bg-card);border-top:1px solid var(--border-color);box-shadow:0 -4px 16px rgba(0,0,0,.06);z-index:20;margin-top:8px}
-
-.btn{padding:9px 20px;border-radius:var(--radius);border:none;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
-.btn:active{transform:scale(.97)}
-.btn-primary{background:var(--color-primary);color:#fff}
-.btn-primary:hover{background:var(--color-primary-light)}
-.btn-success{background:var(--color-success);color:#fff}
-.btn-default{background:var(--bg-input);color:var(--text-regular);border:1px solid var(--border-color)}
-.btn-default:hover{color:var(--color-primary);border-color:var(--color-primary)}
-.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:var(--radius);font-size:14px;z-index:9999;opacity:0;transition:all .3s;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.15);white-space:nowrap}
-.toast.show{opacity:1;pointer-events:auto}
-.toast.success{background:var(--color-success);color:#fff}
-.toast.error{background:var(--color-danger);color:#fff}
-.toast.info{background:var(--color-primary);color:#fff}
-.log-viewer{background:#1e1e1e;color:#d4d4d4;font-family:Consolas,Monaco,monospace;font-size:12px;padding:16px;border-radius:var(--radius);max-height:500px;overflow-y:auto;line-height:1.6;white-space:pre-wrap;word-break:break-all}
-.log-viewer .error{color:#f44747}
-.log-viewer .info{color:#9cdcfe}
-.log-viewer .warn{color:#ce9178}
-.log-viewer .debug{color:#6a9955;font-style:italic}
-.log-viewer .recv{color:#4fc3f7}
-.log-viewer .send{color:#67c23a}
-.empty-state{text-align:center;padding:60px 20px;color:var(--text-secondary)}
-.empty-state .icon{font-size:48px;margin-bottom:16px;opacity:.4}
-@media(max-width:768px){
-  .sidebar{position:fixed;left:-260px;top:0;bottom:0;transition:left .3s;z-index:100}
-  .sidebar.open{left:0}
-  .sidebar-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:99;display:none}
-  .sidebar-overlay.open{display:block}
-  .content{padding:12px}
-  .stat-grid{grid-template-columns:1fr 1fr}
-  .mobile-menu-btn{display:flex!important}
-}
-.mobile-menu-btn{display:none}
-</style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22%231E40AF%22 d=%22M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z%22/></svg>">
+<!-- 两端共用的面板样式与外壳（与 Windows 端同一份字节，见 tests/test_dual_end_assets.py） -->
+<link rel="stylesheet" href="panel.css">
+<link rel="stylesheet" href="cfg_form.css">
 </head>
 <body>
-<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-<div class="app">
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo" style="flex-direction:column;align-items:flex-start;gap:2px;">
-      <div style="display:flex;align-items:center;gap:8px;width:100%;">
-        <img id="botAvatar" src="" style="width:36px;height:36px;border-radius:50%;background:var(--bg-input);flex-shrink:0" alt="">
-        <div style="min-width:0;flex:1;">
-          <div class="logo-text" id="botName" style="font-size:14px;">加载中...</div>
-          <div style="font-size:11px;color:var(--text-secondary);" id="botQQ"></div>
-        </div>
-      </div>
-    </div>
-    <nav class="sidebar-nav" id="sidebarNav"></nav>
-  </aside>
-  <div class="main">
-    <header class="header">
-      <button class="header-btn mobile-menu-btn" onclick="toggleSidebar()" style="border:none;background:transparent;font-size:18px;">☰</button>
-      <div class="header-breadcrumb" id="breadcrumb"><span class="current">仪表盘</span></div>
-      <div class="header-right">
-        <span class="el-tag" id="statusTag"><span class="status-dot yellow"></span> 检测中</span>
-        <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
-        <button class="header-btn" onclick="refreshCurrentPage()" title="重新加载当前页数据">🔄 刷新</button>
-        <a class="header-btn" onclick="handleLogout()" style="cursor:pointer;">🚪 退出</a>
-      </div>
-    </header>
-    <div class="content" id="pageContent"></div>
-    <!-- 统一底部操作栏：所有需要保存的页面共用（保存按钮位置一致） -->
-    <div class="action-bar" id="actionBar" style="display:none">
-      <span id="actionBarTitle" style="font-size:13px;color:var(--text-secondary)"></span>
-      <div style="display:flex;gap:10px;margin-left:auto">
-        <button class="btn btn-success" id="actionSaveRestartBtn" style="display:none">💾 保存并重启</button>
-        <button class="btn btn-primary" id="actionSaveBtn">💾 保存</button>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="toast" id="toast"></div>
-
+<script src="cfg_form.js"></script>
+<script src="panel.js"></script>
 <script>
+/* ==========================================================================
+   Linux 机器人面板：这里**只声明"接口在哪"和"显示哪些页"**。
+   界面（骨架/导航/交互）全在共用的 panel.js，页面内容全在后端 web/ui_pages.py。
+   ========================================================================== */
 const botNum = parseInt(new URLSearchParams(location.search).get('bot') || '0', 10) || 1;
-const BOT_NAME = botNum === 1 ? '依星' : '羽笙';
-// 所有API请求自动带CSRF防护头
-const _origFetch = window.fetch;
-window.fetch = function(url, opts) {
-  opts = opts || {};
-  opts.headers = opts.headers || {};
+const BOT_NAME_HINT = botNum === 1 ? '依星' : '羽笙';
+const BASE = '/api/bot/' + botNum;
+
+/* 写操作要带 CSRF 防护头（面板后端要求） */
+const _rawFetch = window.fetch;
+window.fetch = function (url, opts) {
+  opts = opts || {}; opts.headers = opts.headers || {};
   opts.headers['X-Requested-With'] = 'XMLHttpRequest';
-  return _origFetch.call(this, url, opts);
+  return _rawFetch.call(this, url, opts);
 };
-fetch('/api/check-auth').then(r=>r.json()).then(d=>{if(!d.authenticated)window.location.href='/'}).catch(()=>window.location.href='/');
-// 加载头像、昵称、QQ号；同步设置网页标题与图标为对应机器人
-function setPageIcon(qq) {
-  const iconEl = document.querySelector('link[rel="icon"]');
-  if (iconEl && qq) iconEl.href = 'https://q1.qlogo.cn/g?b=qq&nk=' + qq + '&s=640';
+function post(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  }).then(function (r) { return r.json(); });
 }
-fetch('/api/bot/' + botNum + '/info').then(r=>r.json()).then(d=>{
-  if (d.success) {
-    document.getElementById('botAvatar').src = 'https://q1.qlogo.cn/g?b=qq&nk=' + d.qq + '&s=640';
-    document.getElementById('botName').textContent = d.name || BOT_NAME;
-    document.getElementById('botQQ').textContent = 'QQ ' + d.qq;
-    document.title = (d.name || BOT_NAME) + ' - 管理面板';
-    setPageIcon(d.qq);
-  }
-}).catch(()=>{
-  document.getElementById('botName').textContent = BOT_NAME;
-});
+fetch('/api/check-auth').then(function (r) { return r.json(); })
+  .then(function (d) { if (!d.authenticated) location.href = '/'; })
+  .catch(function () { location.href = '/'; });
 
-const savedTheme = localStorage.getItem('theme');
-if (savedTheme === 'dark') { document.documentElement.setAttribute('data-theme','dark'); document.getElementById('themeBtn').textContent = '☀️'; }
+PANEL.endpoints = {
+  page: function (p) {
+    return BASE + '/ui/page/' + p + (p === 'config' && PANEL.key ? '?plugin=' + encodeURIComponent(PANEL.key) : '');
+  },
+  headerStatus: function () { return BASE + '/status'; },
+  status: function () { return BASE + '/ui/status'; },
+  plugins: function () { return BASE + '/plugins'; },
+  schema: function (k) { return BASE + '/plugins/' + encodeURIComponent(k) + '/schema'; },
+  saveConfig: function (k, cfg, raw) { return post(BASE + '/config' + (raw ? '?raw=1' : ''), { plugin: k, cfg: cfg, raw: raw }); },
+  logs: function (sfx, lines) { return BASE + (sfx === '2' ? '/napcat-log' : '/log') + '?lines=' + lines; },
+  saveToggles: function (t) { return post(BASE + '/group-toggles', { toggles: t }); },
+  qr: function () { return BASE + '/napcat-qr'; }
+};
 
-let currentPage = 'dashboard';
-// 页面内容缓存：切换页面不重复加载（数据可能过期，可点顶部刷新按钮重载）
-let pageCache = {};
-const PAGE_CRUMBS = { dashboard:'仪表盘', manage:'运行管理', config:'插件配置', groups:'群组开关', logs:'运行日志' };
-function cachePage(key) { pageCache[key || currentPage] = document.getElementById('pageContent').innerHTML; }
-function refreshCurrentPage() { delete pageCache[currentPage]; renderPage(); }
-
-// 局部更新定时器：仅刷新变化区域（状态等），不重渲染整页
-let pageTimer = null;
-let preloading = false;  // 预加载全部页面期间不启动定时器
-function startPageTimer(fn, ms) { if (preloading) return; clearPageTimer(); if (fn) pageTimer = setInterval(fn, ms || 10000); }
-function clearPageTimer() { if (pageTimer) { clearInterval(pageTimer); pageTimer = null; } }
-
-// 统一底部操作栏（保存按钮固定位置）
-function showActionBar(title, onSave, onSaveRestart) {
-  if (preloading) return;  // 预加载期间不显示底部栏（避免打开时闪现）
-  const bar = document.getElementById('actionBar');
-  const t = document.getElementById('actionBarTitle');
-  const btn = document.getElementById('actionSaveBtn');
-  const btn2 = document.getElementById('actionSaveRestartBtn');
-  if (t) t.textContent = title || '';
-  if (btn) { btn.style.display = ''; btn.onclick = onSave; }
-  if (btn2) {
-    if (onSaveRestart) { btn2.style.display = ''; btn2.onclick = onSaveRestart; }
-    else { btn2.style.display = 'none'; btn2.onclick = null; }
-  }
-  if (bar) bar.style.display = 'flex';
-}
-function hideActionBar() {
-  if (preloading) return;  // 预加载期间保持隐藏
-  const bar = document.getElementById('actionBar');
-  if (bar) bar.style.display = 'none';
-}
-// 缓存恢复时同步底部操作栏状态
-function restoreActionBar() {
-  if (currentPage === 'config') {
-    const t = activePlugin && configPlugins[activePlugin] ? configPlugins[activePlugin] : null;
-    showActionBar('正在配置：' + ((t||{}).name_cn||(activePlugin||'')),
-      async () => { await saveCurrentConfig(); },
-      async () => { await saveAndRestartConfig(); });
-  } else if (currentPage === 'groups') {
-    showActionBar('群组开关', tgSave);
-  } else {
-    hideActionBar();
-  }
-}
-
-function toggleTheme() {
-  const html = document.documentElement;
-  const isDark = html.getAttribute('data-theme') === 'dark';
-  html.setAttribute('data-theme', isDark ? '' : 'dark');
-  localStorage.setItem('theme', isDark ? 'light' : 'dark');
-  document.getElementById('themeBtn').textContent = isDark ? '🌙' : '☀️';
-}
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('sidebarOverlay').classList.toggle('open');
-}
-function showToast(msg, type) {
-  type = type || 'info';
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast ' + type + ' show';
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.className = 'toast', 3000);
-}
-function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
-function handleLogout() { fetch('/api/logout',{method:'POST'}).then(()=>window.location.href='/'); }
-
-const NAV_ITEMS = [
-  { id:'dashboard', icon:'📊', label:'仪表盘', group:'概览' },
-  { id:'manage',    icon:'🛠️',  label:'运行管理', group:'管理' },
-  { id:'config',    icon:'⚙️',  label:'插件配置', group:'管理', sub:true },
-  { id:'groups',    icon:'👥',  label:'群组开关', group:'管理' },
-  { id:'logs',      icon:'📋',  label:'运行日志', group:'管理', sub:true },
+/* 与 Windows 端同一套导航结构（那边多一个「账号」页，此处确实用不到） */
+PANEL.nav = [
+  { id: 'dashboard', icon: '📊', label: '仪表盘', group: '概览' },
+  { id: 'manage', icon: '🛠️', label: '运行管理', group: '管理' },
+  { id: 'config', icon: '⚙️', label: '插件配置', group: '管理', sub: true },
+  { id: 'groups', icon: '👥', label: '群组开关', group: '管理' },
+  { id: 'logs', icon: '📋', label: '运行日志', group: '管理', sub: true, ids: ['napcat_logs'] }
 ];
 
-function navigate(page) {
-  currentPage = page;
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebarOverlay').classList.remove('open');
-  renderPage();
-}
-
-function renderSidebar() {
-  const nav = document.getElementById('sidebarNav');
-  const groups = {};
-  NAV_ITEMS.forEach(item => {
-    if (!groups[item.group]) groups[item.group] = [];
-    groups[item.group].push(item);
-  });
-  let html = '';
-  for (const [g, items] of Object.entries(groups)) {
-    html += '<div class="nav-group-title">' + g + '</div>';
-    for (const item of items) {
-      if (item.sub) {
-        html += '<div class="nav-item ' + (currentPage===item.id?'active':'') + '" data-page="' + item.id + '" onclick="toggleSubMenu(\'' + item.id + '\')"><span class="icon">' + item.icon + '</span> ' + item.label + '<span class="nav-arrow" id="arrow_' + item.id + '">▾</span></div>';
-        html += '<div class="nav-sub" id="sub_' + item.id + '"></div>';
-      } else {
-        html += '<div class="nav-item ' + (currentPage===item.id?'active':'') + '" data-page="' + item.id + '" onclick="navigate(\'' + item.id + '\')"><span class="icon">' + item.icon + '</span> ' + item.label + '</div>';
+/* 群列表（给 cfg_form.js 的群号选择器用）：从群组页片段里取，拿不到就退化成手填 */
+let _groupsCache = null, _groupsErr = '';
+PANEL.hooks = {
+  identity: async function () {
+    const d = await PANEL.api(BASE + '/info');
+    if (!d.success) return;
+    PANEL.$('botAvatar').src = 'https://q1.qlogo.cn/g?b=qq&nk=' + d.qq + '&s=640';
+    PANEL.$('botName').textContent = d.name || BOT_NAME_HINT;
+    PANEL.$('botSub').textContent = 'QQ ' + d.qq;
+    document.title = (d.name || BOT_NAME_HINT) + ' - 管理面板';
+    const icon = document.querySelector('link[rel="icon"]');
+    if (icon) icon.href = 'https://q1.qlogo.cn/g?b=qq&nk=' + d.qq + '&s=640';
+  },
+  logout: function () { post('/api/logout').then(function () { location.href = '/'; }); },
+  subMenus: {
+    config: function (sub) { renderPluginList(sub); },
+    logs: function (sub) {
+      function item(id, label) {
+        const active = PANEL.page === id;
+        return '<div class="nav-sub-item ' + (active ? 'active' : '') + '" role="button" tabindex="0"'
+          + (active ? ' aria-current="page"' : '') + ' onclick="PANEL.openPage(\'' + id + '\')">' + label + '</div>';
       }
+      sub.innerHTML = item('logs', '📄 项目日志') + item('napcat_logs', '🐱 NapCat 日志');
     }
-  }
-  nav.innerHTML = html;
-  restoreSubMenu();
-}
-
-let configSubOpen = false;  // 二级菜单默认收起；进入面板时预加载数据，点击展开即时显示
-let logsSubOpen = false;
-
-// 运行日志二级菜单（固定项：项目日志 / NapCat 日志）
-function renderLogsSubmenu() {
-  const sub = document.getElementById('sub_logs');
-  if (!sub) return;
-  const active = currentPage;
-  sub.innerHTML =
-    '<div class="nav-sub-item ' + (active==='logs'?'active':'') + '" onclick="selectLogPage(\'logs\')">📄 项目日志</div>' +
-    '<div class="nav-sub-item ' + (active==='napcat_logs'?'active':'') + '" onclick="selectLogPage(\'napcat_logs\')">🐱 NapCat 日志</div>';
-}
-function selectLogPage(page) {
-  currentPage = page;
-  logsSubOpen = true;
-  renderLogsSubmenu();
-  renderPage();
-}
-
-// 展开/收起二级菜单（主项点击；页面切换由 data-page 事件委托完成）
-function toggleSubMenu(id) {
-  const sub = document.getElementById('sub_' + id);
-  const arrow = document.getElementById('arrow_' + id);
-  if (!sub) return;
-  const willOpen = sub.style.display !== 'block';
-  sub.style.display = willOpen ? 'block' : 'none';
-  if (arrow) arrow.textContent = willOpen ? '▴' : '▾';
-  if (id === 'config') {
-    configSubOpen = willOpen;
-    if (willOpen) ensurePluginSubmenu();  // 展开时才加载插件列表
-  }
-  if (id === 'logs') {
-    logsSubOpen = willOpen;
-    if (willOpen) renderLogsSubmenu();
-  }
-}
-
-// 恢复子菜单展开状态（renderSidebar 重渲染后调用）
-function restoreSubMenu() {
-  // 插件配置二级菜单
-  const sub = document.getElementById('sub_config');
-  const arrow = document.getElementById('arrow_config');
-  if (sub) {
-    if (configSubOpen) {
-      sub.style.display = 'block';
-      if (arrow) arrow.textContent = '▴';
-      ensurePluginSubmenu();  // 已缓存直接渲染，未缓存懒加载（避免空占位闪烁）
-    } else { sub.style.display = 'none'; if (arrow) arrow.textContent = '▾'; }
-  }
-  // 运行日志二级菜单
-  const subL = document.getElementById('sub_logs');
-  const arrowL = document.getElementById('arrow_logs');
-  if (subL) {
-    if (logsSubOpen) {
-      subL.style.display = 'block';
-      if (arrowL) arrowL.textContent = '▴';
-      renderLogsSubmenu();
-    } else { subL.style.display = 'none'; if (arrowL) arrowL.textContent = '▾'; }
-  }
-}
-
-// 确保插件列表已加载并填充二级菜单（懒加载：展开时才请求；无插件/失败轻提示）
-function ensurePluginSubmenu() {
-  const sub = document.getElementById('sub_config');
-  if (!sub) return;
-  if (Object.keys(configPlugins).length > 0) { renderPluginSubmenu(); return; }
-  sub.innerHTML = '<div class="nav-sub-loading">加载中...</div>';
-  fetch('/api/bot/' + botNum + '/plugins').then(r=>r.json()).then(d=>{
-    configPlugins = {};
-    for (const [key, val] of Object.entries(d.plugins || {})) {
-      if (key !== '_toggles') configPlugins[key] = val;
+  },
+  mounted: {
+    dashboard: function () { PANEL.startPoll(PANEL.refreshStatusParts, 10000); },
+    manage: function () { PANEL.startPoll(PANEL.refreshStatusParts, 10000); },
+    groups: function () { PANEL.readGroupsState('groupsState'); },
+    logs: function () {
+      PANEL.syncLogState('');
+      PANEL.loadLogs('');
+      if (PANEL.logState('').auto) PANEL.startPoll(function () { PANEL.loadLogs(''); }, 5000);
+    },
+    napcat_logs: function () {
+      PANEL.syncLogState('2');
+      PANEL.loadLogs('2');
+      if (PANEL.logState('2').auto) PANEL.startPoll(function () { PANEL.loadLogs('2'); }, 5000);
+    },
+    config: function () { PANEL.renderConfigForm(PANEL.key); }
+  },
+  save: { config: function (btn) { PANEL.saveConfig(btn, false); }, groups: function (btn) { PANEL.tgSave(btn); } },
+  saveRestart: function (btn) { PANEL.saveConfig(btn, true); },
+  restart: function () { return post(BASE + '/restart'); },
+  actions: {
+    start: function () { return post(BASE + '/start'); },
+    stop: function () { return post(BASE + '/stop'); },
+    restart: function () { return post(BASE + '/restart'); },
+    'napcat-restart': function () { return post(BASE + '/napcat-restart'); }
+  },
+  loadGroups: async function (force) {
+    if (_groupsCache && !force) return _groupsCache;
+    try {
+      const d = await PANEL.api(BASE + '/ui/page/groups');
+      const html = (d.data || {}).html || '';
+      const ids = Array.from(html.matchAll(/data-tgg="(\d+)"/g)).map(function (m) { return m[1]; });
+      const names = Array.from(html.matchAll(/<div class="g-name">([^<]*)<\/div>/g)).map(function (m) { return m[1]; });
+      _groupsCache = Array.from(new Set(ids)).map(function (id) { return { group_id: id, group_name: names[ids.indexOf(id)] || '' }; });
+      _groupsErr = '';
+    } catch (e) { _groupsCache = []; _groupsErr = (e.message || '接口不可用'); }
+    if (force) {
+      PANEL.renderConfigForm(PANEL.key);
+      PANEL.toast('已刷新群列表（' + (_groupsCache || []).length + ' 个）', 'success');
     }
-    configKeys = Object.keys(configPlugins);
-    renderPluginSubmenu();
-  }).catch(()=>{
-    sub.innerHTML = '<div class="nav-sub-item" style="color:var(--color-danger)">加载失败，点击重试</div>';
-    sub.onclick = function() { sub.onclick = null; ensurePluginSubmenu(); };
-  });
-}
+    return _groupsCache;
+  },
+  groupSelect: function () { return { groups: _groupsCache || [], error: _groupsErr }; }
+};
 
-// 渲染二级菜单插件列表
-function renderPluginSubmenu() {
-  const sub = document.getElementById('sub_config');
-  if (!sub) return;
+/* 插件二级菜单：名字来自后端插件元数据，未保存的插件带圆点 */
+let configPlugins = {};
+function renderPluginList(sub) {
   const keys = Object.keys(configPlugins);
-  if (keys.length === 0) { sub.innerHTML = '<div class="nav-sub-item" style="color:var(--text-secondary)">暂无插件</div>'; return; }
-  sub.innerHTML = keys.map(key => {
-    const p = configPlugins[key];
-    return '<div class="nav-sub-item ' + (activePlugin===key?'active':'') + '" onclick="selectPlugin(\'' + key + '\')">' + (p.name_cn||key) + '</div>';
+  if (!keys.length) { sub.innerHTML = '<div class="nav-sub-loading">加载中...</div>'; return loadPlugins(); }
+  sub.innerHTML = keys.map(function (k) {
+    const p = configPlugins[k], active = PANEL.key === k && PANEL.page === 'config';
+    return '<div class="nav-sub-item ' + (active ? 'active' : '') + '" role="button" tabindex="0"'
+      + (active ? ' aria-current="page"' : '') + ' onclick="PANEL.openPage(\'config\',\'' + k + '\')">'
+      + PANEL.esc(p.name_cn || k) + (PANEL.dirty[k] ? '<span class="unsaved-dot" title="有未保存的修改"></span>' : '') + '</div>';
   }).join('');
 }
-
-// 从二级菜单选择插件
-function selectPlugin(key) {
-  activePlugin = key;
-  currentPage = 'config';
-  configSubOpen = true;  // 保持二级菜单展开，高亮当前插件
-  delete pageCache['config'];  // 切换插件需重新渲染表单
-  renderPluginSubmenu();
-  renderConfig(key);
-}
-
-async function fetchStatus() {
-  try {
-    const r = await fetch('/api/bot/' + botNum + '/status');
-    const d = await r.json();
-    const tag = document.getElementById('statusTag');
-    if (d.running) { tag.innerHTML = '<span class="status-dot green"></span> 运行中'; tag.className = 'el-tag success'; }
-    else { tag.innerHTML = '<span class="status-dot red"></span> 已停止'; tag.className = 'el-tag danger'; }
-  } catch { tag.innerHTML = '<span class="status-dot yellow"></span> 连接失败'; tag.className = 'el-tag warning'; }
-}
-
-// === Dashboard ===
-function fmtUptime(sec) {
-  if (!sec || sec <= 0) return '-';
-  const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
-  return (d > 0 ? d + ' 天 ' : '') + (h > 0 ? h + ' 小时 ' : '') + m + ' 分钟';
-}
-
-async function renderDashboard() {
-  hideActionBar();
-  document.getElementById('breadcrumb').innerHTML = '<span class="current">仪表盘</span>';
-  renderSidebar();
-  document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
-  try {
-    const [infoR, napcatR, pluginsR] = await Promise.all([
-      fetch('/api/bot/' + botNum + '/info').catch(()=>null),
-      fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
-      fetch('/api/bot/' + botNum + '/plugins').catch(()=>null),
-    ]);
-    const info = infoR ? await infoR.json() : {};
-    const napcat = napcatR ? await napcatR.json() : {};
-    // 插件与群组统计
-    let pluginList = {}, pluginCount = 0, groupCount = 0;
-    try {
-      const d = await pluginsR.json();
-      for (const [k, v] of Object.entries(d.plugins || {})) { if (k !== '_toggles') pluginList[k] = v; }
-      pluginCount = Object.keys(pluginList).length;
-      groupCount = ((d.plugins || {})._toggles || {}).groups ? ((d.plugins || {})._toggles.groups).length : 0;
-    } catch(e) {}
-    // 插件概览列表
-    let pluginHtml = Object.keys(pluginList).length === 0
-      ? '<div style="padding:20px;color:var(--text-secondary);text-align:center">暂无插件</div>'
-      : '<div style="display:flex;flex-wrap:wrap;gap:10px;padding:4px 0">' + Object.keys(pluginList).map(k => {
-          const p = pluginList[k];
-          return '<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--border-light);border-radius:var(--radius);background:var(--bg-input);cursor:pointer" onclick="navigate(\'config\');selectPlugin(\'' + k + '\')"><span style="font-size:16px">🧩</span><span style="font-size:13px;font-weight:500">' + (p.name_cn||k) + '</span><span style="font-size:11px;color:var(--text-secondary)">' + (p.name_en||'') + '</span></div>';
-        }).join('') + '</div>';
-    document.getElementById('pageContent').innerHTML = `
-      <div class="stat-grid">
-        <div class="stat-card"><div class="stat-icon blue">🤖</div><div class="stat-info"><div class="label">Bot 状态</div><div class="value" id="dashBotVal">${info.running?'运行中':'已停止'}</div><div class="desc" id="dashBotDesc">${info.name||BOT_NAME} · PID ${info.pid||'-'}</div></div></div>
-        <div class="stat-card"><div class="stat-icon green">🐱</div><div class="stat-info"><div class="label">NapCat 状态</div><div class="value" id="dashNapcatVal">${napcat.running?'运行中':'已停止'}</div><div class="desc" id="dashNapcatDesc">容器 ${napcat.container||info.container||'-'}</div></div></div>
-        <div class="stat-card"><div class="stat-icon orange">🧩</div><div class="stat-info"><div class="label">已安装插件</div><div class="value">${pluginCount} 个</div><div class="desc">点击下方插件可直接配置</div></div></div>
-        <div class="stat-card"><div class="stat-icon purple">👥</div><div class="stat-info"><div class="label">关联群组</div><div class="value">${groupCount} 个</div><div class="desc"><a href="#" onclick="navigate(\'groups\');return false" style="color:var(--color-primary)">管理群组开关 →</a></div></div></div>
-      </div>
-      <div class="card"><div class="card-header"><h3>🧩 插件概览</h3><span style="font-size:12px;color:var(--text-secondary)">点击进入对应插件配置</span></div><div class="card-body">${pluginHtml}</div></div>
-      <div class="card"><div class="card-header"><h3>🔍 系统信息</h3></div><div class="card-body"><table class="el-table"><tr><th width="130">项目</th><th>值</th></tr>
-        <tr><td>机器人</td><td>${info.name||BOT_NAME} (QQ:${info.qq||'-'})</td></tr>
-        <tr><td>主人 QQ</td><td>${info.master||'-'}</td></tr>
-        <tr><td>运行时长</td><td>${fmtUptime(info.uptime)} ${info.pid?'(PID '+info.pid+')':''}</td></tr>
-        <tr><td>运行目录</td><td>${info.dir||'-'}</td></tr>
-        <tr><td>Screen</td><td>${info.screen||'-'}</td></tr>
-        <tr><td>NapCat 容器</td><td>${napcat.container||info.container||'-'} · ${napcat.status||'-'}</td></tr>
-      </table></div></div>`;
-    cachePage('dashboard');
-    startPageTimer(updateDashboardStatus, 10000);
-  } catch(e) {
-    document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
-  }
-}
-
-// 仪表盘局部更新：仅刷新 Bot/NapCat 状态卡片，不重渲染整页
-async function updateDashboardStatus() {
-  try {
-    const [ir, nr] = await Promise.all([
-      fetch('/api/bot/' + botNum + '/info').catch(()=>null),
-      fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
-    ]);
-    const i = ir ? await ir.json() : null, nc = nr ? await nr.json() : null;
-    const bv = document.getElementById('dashBotVal'), bd = document.getElementById('dashBotDesc');
-    const nv = document.getElementById('dashNapcatVal'), nd = document.getElementById('dashNapcatDesc');
-    if (bv && i) bv.textContent = i.running ? '运行中' : '已停止';
-    if (bd && i) bd.textContent = (i.name||'') + ' · PID ' + (i.pid||'-');
-    if (nv && nc) nv.textContent = nc.running ? '运行中' : '已停止';
-    if (nd && nc) nd.textContent = '容器 ' + (nc.container||'-');
-  } catch(e) {}
-}
-
-// === Manage ===
-async function renderManage() {
-  document.getElementById('breadcrumb').innerHTML = '<span class="current">运行管理</span>';
-  renderSidebar();
-  hideActionBar();
-  document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
-  try {
-    const [infoR, napcatR] = await Promise.all([
-      fetch('/api/bot/' + botNum + '/info').catch(()=>null),
-      fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
-    ]);
-    const info = infoR ? await infoR.json() : {};
-    const napcat = napcatR ? await napcatR.json() : {};
-    document.getElementById('pageContent').innerHTML = `
-      <div class="card"><div class="card-header"><h3>🤖 Bot 管理</h3></div><div class="card-body">
-        <div style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap" id="botStatusArea">
-          <span class="el-tag ${info.running?'success':'danger'}"><span class="status-dot ${info.running?'green':'red'}"></span> ${info.running?'运行中':'已停止'}</span>
-          <span style="font-size:13px;font-weight:600">${info.name||BOT_NAME}</span>
-          <span style="font-size:12px;color:var(--text-secondary)">PID: ${info.pid||'-'} · 运行时长: ${fmtUptime(info.uptime)}</span>
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="doBotAction('start')">▶ 启动</button>
-          <button class="btn btn-default" onclick="doBotAction('stop')">⏹ 停止</button>
-          <button class="btn btn-default" onclick="doBotAction('restart')">🔄 重启</button>
-        </div>
-      </div></div>
-      <div class="card"><div class="card-header"><h3>🐱 NapCat 容器</h3></div><div class="card-body">
-        <div style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap" id="napcatStatusArea">
-          <span class="el-tag ${napcat.running?'success':'danger'}"><span class="status-dot ${napcat.running?'green':'red'}"></span> ${napcat.running?'运行中':'已停止'}</span>
-          <span style="font-size:13px;font-weight:600">${napcat.container||info.container||'-'}</span>
-          <span style="font-size:12px;color:var(--text-secondary)">${napcat.status||''}</span>
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="showQR()">📱 查看二维码</button>
-        </div>
-        <div id="qrArea" style="display:none;margin-top:14px;border-top:1px solid var(--border-light);padding-top:12px;text-align:center">
-          <div style="font-size:13px;font-weight:600;margin-bottom:8px">📱 二维码</div>
-          <div id="qrContainer">加载中...</div>
-        </div>
-      </div></div>`;
-    cachePage('manage');
-    // 局部更新：仅刷新 Bot/NapCat 状态区域，不重渲染整页
-    startPageTimer(updateManageStatus, 10000);
-  } catch(e) {
-    document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
-  }
-}
-
-// 局部更新 Bot/NapCat 状态区域（运行管理页，不重渲染整页）
-async function updateManageStatus() {
-  try {
-    const [ir, nr] = await Promise.all([
-      fetch('/api/bot/' + botNum + '/info').catch(()=>null),
-      fetch('/api/bot/' + botNum + '/napcat-status').catch(()=>null),
-    ]);
-    const i = ir ? await ir.json() : null, nc = nr ? await nr.json() : null;
-    const bs = document.getElementById('botStatusArea'), ns = document.getElementById('napcatStatusArea');
-    if (bs && i) bs.innerHTML = '<span class="el-tag ' + (i.running?'success':'danger') + '"><span class="status-dot ' + (i.running?'green':'red') + '"></span> ' + (i.running?'运行中':'已停止') + '</span><span style="font-size:13px;font-weight:600">' + (i.name||'') + '</span><span style="font-size:12px;color:var(--text-secondary)">PID: ' + (i.pid||'-') + ' · 运行时长: ' + fmtUptime(i.uptime) + '</span>';
-    if (ns && nc) ns.innerHTML = '<span class="el-tag ' + (nc.running?'success':'danger') + '"><span class="status-dot ' + (nc.running?'green':'red') + '"></span> ' + (nc.running?'运行中':'已停止') + '</span><span style="font-size:13px;font-weight:600">' + (nc.container||'-') + '</span><span style="font-size:12px;color:var(--text-secondary)">' + (nc.status||'') + '</span>';
-  } catch(e) {}
-}
-
-async function doBotAction(action) {
-  showToast('⏳ 操作中...', 'info');
-  try {
-    const r = await fetch('/api/bot/' + botNum + '/' + action, {method:'POST'});
-    const d = await r.json();
-    const msg = d.message || d.msg || action + '成功';
-    if (d.success === false || d.error) showToast('❌ ' + (d.message || d.error || '操作失败'), 'error');
-    else showToast('✅ ' + msg, 'success');
-    setTimeout(fetchStatus, 2000);
-    setTimeout(updateManageStatus, 3000);  // 操作后局部刷新状态
-  } catch(e) { showToast('❌ 操作失败', 'error'); }
-}
-
-async function showQR() {
-  const area = document.getElementById('qrArea');
-  if (!area) return;
-  if (area.style.display === 'block') { area.style.display = 'none'; return; }
-  area.style.display = 'block';
-  document.getElementById('qrContainer').innerHTML = '获取中...';
-  try {
-    const r = await fetch('/api/bot/' + botNum + '/napcat-qr');
-    const d = await r.json();
-    if (d.qr) document.getElementById('qrContainer').innerHTML = '<img src="data:image/png;base64,' + d.qr + '" style="max-width:240px;border-radius:8px" alt="QR">';
-    else document.getElementById('qrContainer').innerHTML = '<div style="color:var(--text-secondary)">暂无二维码<br>NapCat 可能未启动</div>';
-  } catch(e) { document.getElementById('qrContainer').innerHTML = '<div style="color:var(--color-danger)">获取失败</div>'; }
-}
-
-// === Config ===
-let configPlugins = {}, configKeys = [], activePlugin = null, dirtyPlugins = {};
-
-async function renderConfig(pluginKey) {
-  document.getElementById('breadcrumb').innerHTML = '<span class="current">插件配置</span>';
-  renderSidebar();
-  hideActionBar();
-  document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
-  try {
-    if (Object.keys(configPlugins).length === 0) {
-      const r = await fetch('/api/bot/' + botNum + '/plugins');
-      const d = await r.json();
-      configPlugins = {};
-      // 只取有插件文件存在的（排除 _toggles 元数据）
-      for (const [key, val] of Object.entries(d.plugins)) {
-        if (key !== '_toggles') configPlugins[key] = val;
-      }
-      configKeys = Object.keys(configPlugins);
-      dirtyPlugins = {};
-      renderPluginSubmenu();
-    }
-    if (configKeys.length === 0) { document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>暂无可用配置</p></div>'; return; }
-    // 插件选择已移至左侧「插件配置」二级菜单；保存按钮统一在底部操作栏
-    document.getElementById('pageContent').innerHTML = '<div id="configContent"></div>';
-    const target = pluginKey || (activePlugin && configPlugins[activePlugin] ? activePlugin : configKeys[0]);
-    activePlugin = target;
-    renderPluginSubmenu();
-    switchConfigTab(target);
-    cachePage('config');
-    // 统一底部保存栏（保存/保存并重启）
-    showActionBar('正在配置：' + ((configPlugins[target]||{}).name_cn||target),
-      async () => { await saveCurrentConfig(); },
-      async () => { await saveAndRestartConfig(); });
-  } catch(e) { document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>'; }
-}
-function switchConfigTab(key) {
-  activePlugin = key;
-  document.querySelectorAll('[id^="tab_"]').forEach(el => el.className = 'btn ' + (el.id === 'tab_'+key ? 'btn-primary' : 'btn-default'));
-  const plugin = configPlugins[key]; if (!plugin) return;
-
-  // 标题：中文名 + 英文名副标题
-  let html = '<div class="card"><div class="card-header"><h3>' + (plugin.name_cn||key) + '</h3><span class="badge" style="font-size:11px;padding:2px 10px;border-radius:10px;background:var(--bg-active);color:var(--color-primary)">' + (plugin.fields?plugin.fields.length:'0') + ' 项</span></div>';
-  if (plugin.name_en) {
-    html += '<div style="padding:0 20px 8px;font-size:12px;color:var(--text-secondary);border-bottom:1px solid var(--border-light)">' + plugin.name_en + '</div>';
-  }
-
-  if (!plugin.has_config || !plugin.fields || plugin.fields.length === 0) {
-    html += '<div class="card-body"><div style="text-align:center;padding:30px;color:var(--text-secondary)">📭 该插件无可配置项</div></div></div>';
-    document.getElementById('configContent').innerHTML = html;
-    return;
-  }
-
-  for (const field of plugin.fields) {
-    const fid = 'f_' + key + '_' + field.k;
-    let inp = '';
-    if (field.t === 'num') inp = '<input type="number" id="' + fid + '" value="' + field.v + '" min="' + (field.min||0) + '" max="' + (field.max||'') + '" step="' + (field.s||1) + '" style="width:120px;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none">';
-    else if (field.t === 'sel' && field.o && field.o.length === 2 && field.o.includes('true')) {
-      const ch = String(field.v) === 'true';
-      inp = '<label class="el-switch"><input type="checkbox" id="' + fid + '" ' + (ch?'checked':'') + ' onchange="onCfgChange(this)"><span class="track"></span><span class="sw-text" style="font-size:12px;color:var(--text-secondary)">' + (ch?'已开启':'已关闭') + '</span></label>';
-    } else if (field.t === 'sel') {
-      const opts = field.o.map(o => '<option value="' + o + '" ' + (String(o)===String(field.v)?'selected':'') + '>' + o + '</option>').join('');
-      inp = '<select id="' + fid + '" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none;max-width:240px">' + opts + '</select>';
-    } else if (field.t === 'textlist') inp = '<textarea id="' + fid + '" placeholder="每行一个" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none;resize:vertical;min-height:80px">' + (Array.isArray(field.v)?field.v.join('\n'):'') + '</textarea>';
-    else if (field.t === 'password') inp = '<input type="password" id="' + fid + '" value="' + field.v + '" autocomplete="off" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none">';
-    else if (field.t === 'textarea') inp = '<textarea id="' + fid + '" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none;resize:vertical;min-height:120px">' + field.v + '</textarea>';
-    else inp = '<input type="text" id="' + fid + '" value="' + (field.v||'') + '" style="width:100%;padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none">';
-    html += '<div class="card-body" style="border-bottom:1px solid var(--border-light);padding:14px 20px"><label style="display:block;font-size:13px;font-weight:500;margin-bottom:8px">' + field.l + '</label>' + inp + (field.hint?'<div style="font-size:12px;color:var(--text-secondary);margin-top:6px">' + field.hint + '</div>':'') + '</div>';
-  }
-  html += '</div>';
-  document.getElementById('configContent').innerHTML = html;
-  for (const field of plugin.fields) {
-    const el = document.getElementById('f_' + key + '_' + field.k);
-    if (el) el.oninput = el.onchange = function() { if (!isDirty(key)) { dirtyPlugins[key]=true; } };
-  }
-}
-function onCfgChange(el) {
-  if (activePlugin && !isDirty(activePlugin)) dirtyPlugins[activePlugin] = true;
-  // 小球滑动与变色由 CSS(:checked) 自动完成，这里仅更新状态文字
-  if (el && el.type === 'checkbox') {
-    const label = el.closest('label');
-    if (label) {
-      const txt = label.querySelector('.sw-text');
-      if (txt) txt.textContent = el.checked ? '已开启' : '已关闭';
-    }
-  }
-}
-function collectCfg(key) {
-  const cfg = {}, plugin = configPlugins[key]; if (!plugin) return null;
-  for (const field of plugin.fields) {
-    const el = document.getElementById('f_' + key + '_' + field.k); if (!el) continue;
-    if (field.t === 'num') cfg[field.k] = parseFloat(el.value);
-    else if (field.t === 'textlist') cfg[field.k] = el.value.split('\n').map(s=>s.trim()).filter(s=>s);
-    else if (el.type === 'checkbox') cfg[field.k] = el.checked ? 'true' : 'false';
-    else cfg[field.k] = el.value;
-  }
-  return cfg;
-}
-// 保存后仅更新当前插件表单：把 DOM 当前值写回缓存并重建表单区（不重建整个页面）
-function refreshPluginForm(key) {
-  const plugin = configPlugins[key];
-  if (!plugin || !plugin.fields) return;
-  for (const field of plugin.fields) {
-    const el = document.getElementById('f_' + key + '_' + field.k);
-    if (!el) continue;
-    if (field.t === 'num') field.v = parseFloat(el.value);
-    else if (el.type === 'checkbox') field.v = el.checked ? 'true' : 'false';
-    else field.v = el.value;
-  }
-  delete pageCache['config'];
-  switchConfigTab(key);  // 仅重建当前插件的表单区
-}
-
-async function saveCurrentConfig() {
-  if (!activePlugin) return; const cfg = collectCfg(activePlugin); if (!cfg) return;
-  showToast('💾 保存中...','info');
-  try {
-    const r = await fetch('/api/bot/' + botNum + '/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plugin:activePlugin,cfg})});
-    const d = await r.json();
-    if (!d.ok) throw new Error(d.error||'保存失败');
-    dirtyPlugins[activePlugin] = false; showToast('✅ 已保存','success'); fetchStatus();
-    refreshPluginForm(activePlugin);  // 只更新当前插件表单（保存的界面）
-  } catch(e) { showToast('❌ '+e.message,'error'); }
-}
-async function saveAndRestartConfig() {
-  if (!activePlugin) return; const cfg = collectCfg(activePlugin); if (!cfg) return;
-  showToast('💾 保存中...','info');
-  try {
-    await fetch('/api/bot/' + botNum + '/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plugin:activePlugin,cfg})});
-    dirtyPlugins[activePlugin] = false;
-    refreshPluginForm(activePlugin);  // 只更新当前插件表单（保存的界面）
-    showToast('✅ 已保存，正在重启...','success');
-    setTimeout(async () => { await fetch('/api/bot/' + botNum + '/restart',{method:'POST'}); showToast('🔄 已重启','success'); fetchStatus(); }, 500);
-  } catch(e) { showToast('❌ '+e.message,'error'); }
-}
-
-// === Groups ===
-async function renderGroups() {
-  hideActionBar();
-  document.getElementById('breadcrumb').innerHTML = '<span class="current">群组开关</span>';
-  renderSidebar();
-  document.getElementById('pageContent').innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)">⏳ 加载中...</div>';
-  try {
-    const r = await fetch('/api/bot/' + botNum + '/plugins');
-    const d = await r.json();
-    const tg = d.plugins._toggles;
-    if (!tg || !tg.groups || !tg.groups.length) {
-      document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">🔀</div><p>暂无群组数据</p><div style="margin-top:8px;font-size:12px;color:var(--text-secondary)">无法获取群列表，请确认 NapCat 运行正常</div></div>'; return;
-    }
-
-    const groups = tg.groups;
-    const plugins = tg.plugins;
-    const toggles = tg.toggles;
-
-    // 初始化本地状态
-    if (!window._tgState) window._tgState = {};
-    for (const g of groups) {
-      if (!window._tgState[g]) window._tgState[g] = {};
-      for (const p of plugins) {
-        window._tgState[g][p] = toggles[g] ? !!toggles[g][p] : false;
-      }
-    }
-
-    let html = '<div class="card"><div class="card-header"><h3>👥 分群插件开关</h3><span class="badge" style="font-size:11px;padding:2px 10px;border-radius:10px;background:var(--bg-active);color:var(--color-primary)">' + groups.length + ' 个群</span></div>';
-    html += '<div class="card-body"><div class="table-wrapper"><table class="el-table" style="min-width:600px"><thead><tr><th style="position:sticky;left:0;background:var(--bg-card);z-index:1">群号</th>';
-    for (const p of plugins) {
-      const meta = tg._pluginMeta && tg._pluginMeta[p] ? tg._pluginMeta[p] : null;
-      html += '<th style="text-align:center;min-width:90px">' + (meta?meta.name_cn:p) + '<br><span style="font-weight:400;font-size:11px;color:var(--text-secondary)">' + (meta?meta.name_en:p) + '</span></th>';
-    }
-    html += '<th style="text-align:center;min-width:70px">全选</th></tr></thead><tbody>';
-
-    // 全选行
-    html += '<tr style="background:var(--bg-active)"><td style="font-weight:600">全选</td>';
-    for (const p of plugins) {
-      const allChecked = groups.every(g => window._tgState[g][p]);
-      html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" ' + (allChecked?'checked':'') + ' class="tg-ac" data-tgp="' + p + '"><span class="track"></span></label></td>';
-    }
-    html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" onchange="tgToggleAll(this.checked)"><span class="track"></span></label></td></tr>';
-
-    // 数据行（卡片式：头像+名称+群号）
-    const groupInfo = tg.groupInfo || {};
-    for (const g of groups) {
-      const gAll = plugins.every(p => window._tgState[g][p]);
-      const info = groupInfo[g] || {};
-      const gName = info.name || g;
-      const gAvatar = info.avatar || '';
-      html += '<tr><td style="position:sticky;left:0;background:var(--bg-card)"><div class="group-cell">';
-      html += '<div class="g-avatar">';
-      if (gAvatar) {
-        html += '<img src="' + gAvatar + '" alt="" onerror="this.style.display=\'none\';this.parentElement.textContent=\'👥\'">';
-      } else {
-        html += '👥';
-      }
-      html += '</div>';
-      html += '<div class="g-info"><div class="g-name">' + escapeHtml(gName) + '</div><div class="g-id">' + g + '</div></div>';
-      html += '</div></td>';
-      for (const p of plugins) {
-        const ch = window._tgState[g][p];
-        html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" ' + (ch?'checked':'') + ' class="tg-c" data-tgg="' + g + '" data-tgp="' + p + '"><span class="track"></span></label></td>';
-      }
-      html += '<td style="text-align:center"><label class="el-switch"><input type="checkbox" ' + (gAll?'checked':'') + ' class="tg-r" data-tgg="' + g + '"><span class="track"></span></label></td></tr>';
-    }
-    html += '</tbody></table></div></div></div>';
-    // 保存按钮统一在底部操作栏（与插件配置一致）；刷新用顶部栏「🔄 刷新」
-    showActionBar('群组开关（' + groups.length + ' 个群 × ' + plugins.length + ' 个插件）', tgSave);
-    html += '<div class="card"><div class="card-header"><h3>💡 说明</h3></div><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.8">所有插件在每个群默认关闭。<br>在群内发送对应命令开启：<code>开启词库</code> / <code>关闭词库</code><br>私聊发送 = 全局控制。横向「全选」列控制单个插件在所有群的状态，纵向「全选」行控制单个群的所有插件。</div></div>';
-    document.getElementById('pageContent').innerHTML = html;
-    cachePage('groups');
-  } catch(e) {
-    document.getElementById('pageContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
-  }
-}
-
-// 群组开关辅助函数
-function tgToggle(gid, plugin, checked) {
-  if (!window._tgState) return;
-  if (!window._tgState[gid]) window._tgState[gid] = {};
-  window._tgState[gid][plugin] = checked;
-  // 同步本行全选 + 本列全选状态（不用重绘）
-  var plugins = Object.keys(window._tgState[gid]);
-  var rowAll = plugins.every(function(p) { return window._tgState[gid][p]; });
-  var rowChk = document.querySelector('.tg-r[data-tgg="' + gid + '"]');
-  if (rowChk) rowChk.checked = rowAll;
-  var colAll = Object.keys(window._tgState).every(function(g) {
-    return window._tgState[g] && window._tgState[g][plugin];
+function loadPlugins() {
+  return PANEL.api(PANEL.endpoints.plugins()).then(function (d) {
+    configPlugins = {};
+    Object.keys(d.plugins || {}).forEach(function (k) { if (k !== '_toggles') configPlugins[k] = d.plugins[k]; });
+    const sub = PANEL.$('sub_config');
+    if (sub) renderPluginList(sub);
+    return configPlugins;
+  }).catch(function () {
+    const sub = PANEL.$('sub_config');
+    if (sub) sub.innerHTML = '<div class="nav-sub-item" style="color:var(--color-danger)">加载失败，展开菜单可重试</div>';
   });
-  var colChk = document.querySelector('.tg-ac[data-tgp="' + plugin + '"]');
-  if (colChk) colChk.checked = colAll;
-}
-function tgToggleGroup(gid, checked) {
-  if (!window._tgState || !window._tgState[gid]) return;
-  for (var p = 0; p < Object.keys(window._tgState[gid]).length; p++) {
-    var pk = Object.keys(window._tgState[gid])[p];
-    window._tgState[gid][pk] = checked;
-  }
-  // 更新这一行所有 checkbox
-  var cbs = document.querySelectorAll('.tg-c[data-tgg="' + gid + '"]');
-  for (var i = 0; i < cbs.length; i++) { cbs[i].checked = checked; }
-  document.querySelector('.tg-r[data-tgg="' + gid + '"]').checked = checked;
-}
-function tgToggleAllPlugin(plugin, checked) {
-  if (!window._tgState) return;
-  for (var g = 0; g < Object.keys(window._tgState).length; g++) {
-    var gid = Object.keys(window._tgState)[g];
-    window._tgState[gid][plugin] = checked;
-  }
-  // 更新这一列所有 checkbox
-  var cbs = document.querySelectorAll('.tg-c[data-tgp="' + plugin + '"]');
-  for (var i = 0; i < cbs.length; i++) { cbs[i].checked = checked; }
-  document.querySelector('.tg-ac[data-tgp="' + plugin + '"]').checked = checked;
-}
-function tgToggleAll(checked) {
-  if (!window._tgState) return;
-  var groups = Object.keys(window._tgState);
-  for (var g = 0; g < groups.length; g++) {
-    var gid = groups[g];
-    var plugins = Object.keys(window._tgState[gid]);
-    for (var p = 0; p < plugins.length; p++) {
-      window._tgState[gid][plugins[p]] = checked;
-    }
-  }
-  // 更新全部 checkbox
-  var allCbs = document.querySelectorAll('.tg-c, .tg-r, .tg-ac');
-  for (var i = 0; i < allCbs.length; i++) { allCbs[i].checked = checked; }
-}
-async function tgSave() {
-  if (!window._tgState || !Object.keys(window._tgState).length) return;
-  showToast('💾 保存群组开关...', 'info');
-  try {
-    const r = await fetch('/api/bot/' + botNum + '/group-toggles', {
-      method: 'POST', headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
-      body: JSON.stringify({toggles: window._tgState})
-    });
-    const d = await r.json();
-    if (d.ok) { showToast('✅ 已保存', 'success'); } 
-    else { throw new Error(d.error || '保存失败'); }
-  } catch(e) { showToast('❌ ' + e.message, 'error'); }
-}
-// ===== 运行日志页 =====
-let logRawData = '';        // 原始日志缓存（筛选本地处理，不重复请求）
-let logFilter = 'info';      // info/all/warn/error（默认仅信息，与 NapCat 一致）
-let logLines = 100;
-let logAutoRefresh = true;
-
-function logLineClass(line) {
-  // 接收/发送用专属颜色（优先于级别标签）
-  if (line.indexOf('接收 <-') !== -1) return 'recv';
-  if (line.indexOf('发送 ->') !== -1) return 'send';
-  // 优先识别 NapCat 风格级别标签 [debug]/[info]/[warn]/[error]
-  const m = line.match(/\[(debug|info|warn|error)\]/i);
-  if (m) return m[1].toLowerCase();
-  // 插件日志（[级别] 插件名 | 内容）按内容关键词分级
-  if (line.match(/失败|异常|错误|✗|❌|error|exception|traceback/i)) return 'error';
-  if (line.match(/超时|警告|⚠|防抖|跳过|不可用|无效|warn/i)) return 'warn';
-  if (line.match(/✓|成功|完成|启动|连接|加载|ok|发送|接收|处理|info/i)) return 'info';
-  return '';
 }
 
-function renderLogsViewer() {
-  const v = document.getElementById('logViewer');
-  if (!v) return;
-  const raw = logRawData || '暂无日志';
-  const lines = raw.split('\n');
-  let html = '';
-  let shown = 0;
-  for (const line of lines) {
-    const cls = logLineClass(line);
-    // 等级：debug < info < warn < error
-    if (logFilter === 'error' && cls !== 'error') continue;
-    if (logFilter === 'warn' && cls !== 'warn' && cls !== 'error') continue;
-    if (logFilter === 'info' && cls === 'debug') continue;      // 默认隐藏 debug（完整 JSON）
-    if (logFilter === 'debug' && cls !== 'debug') continue;
-    // 渲染：时间戳灰、级别标签彩色、插件名加粗
-    let display = escapeHtml(line);
-    const tm = line.match(/^(\d{2}-\d{2} \d{2}:\d{2}:\d{2})/);
-    if (tm) {
-      display = '<span style="color:#6a737d">' + tm[1] + '</span>' + display.slice(tm[1].length);
-    }
-    html += '<div class="' + cls + '">' + display + '</div>';
-    shown++;
-  }
-  if (shown === 0) html = '<div style="color:var(--text-secondary);padding:10px">无匹配日志</div>';
-  v.innerHTML = html;
-  // 自动滚动到底部（新日志）
-  v.scrollTop = v.scrollHeight;
-}
-
-async function loadLogs() {
-  try {
-    const r = await fetch('/api/bot/' + botNum + '/log?lines=' + logLines);
-    const d = await r.json();
-    logRawData = d.log || '暂无日志';
-    renderLogsViewer();
-    const total = document.getElementById('logTotalInfo');
-    if (total) total.textContent = '共 ' + (d.total||'-') + ' 行 · 显示 ' + logLines + ' 行';
-  } catch(e) {}
-}
-
-function applyLogFilter() {
-  logFilter = document.getElementById('logFilterSel').value;
-  renderLogsViewer();
-}
-
-function toggleLogAutoRefresh() {
-  logAutoRefresh = document.getElementById('logAutoRef').checked;
-  if (logAutoRefresh) startPageTimer(loadLogs, 5000);
-  else clearPageTimer();
-}
-
-async function renderLogs() {
-  hideActionBar();
-  document.getElementById('breadcrumb').innerHTML = '<span class="current">运行日志</span>';
-  renderSidebar();
-  document.getElementById('pageContent').innerHTML = `
-    <div class="card"><div class="card-header"><h3>📋 运行日志</h3><span style="font-size:12px;color:var(--text-secondary)" id="logTotalInfo">runtime.log</span></div>
-    <div class="card-body">
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-        <select id="logLinesSel" style="padding:7px 10px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none" onchange="logLines=+this.value;loadLogs()">
-          <option value="50">50 行</option>
-          <option value="100" selected>100 行</option>
-          <option value="200">200 行</option>
-          <option value="500">500 行</option>
-        </select>
-        <select id="logFilterSel" style="padding:7px 10px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none" onchange="applyLogFilter()">
-          <option value="info" selected>默认(仅信息)</option>
-          <option value="debug">仅调试(完整JSON)</option>
-          <option value="all">全部级别</option>
-          <option value="warn">仅警告</option>
-          <option value="error">仅错误</option>
-        </select>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-regular);cursor:pointer">
-          <input type="checkbox" id="logAutoRef" checked onchange="toggleLogAutoRefresh()"> 自动刷新(5s)
-        </label>
-        <button class="btn btn-default" onclick="loadLogs()">🔄 刷新</button>
-        <button class="btn btn-default" onclick="logLines=200;loadLogs()">⬇ 加载更多</button>
-      </div>
-      <div class="log-viewer" id="logViewer" style="max-height:calc(100vh - 260px)">加载中...</div>
-    </div></div>`;
-  cachePage('logs');
-  await loadLogs();
-  if (logAutoRefresh) startPageTimer(loadLogs, 5000);
-}
-
-// ===== NapCat 日志页（docker logs）=====
-let napcatRawData = '';
-
-function renderNapcatLogsViewer() {
-  const v = document.getElementById('napcatLogViewer');
-  if (!v) return;
-  v.innerHTML = (napcatRawData || '暂无容器日志').split('\n').map(l => escapeHtml(l)).join('\n');
-  v.scrollTop = v.scrollHeight;
-}
-
-async function loadNapcatLogs() {
-  try {
-    const r = await fetch('/api/bot/' + botNum + '/napcat-log?lines=' + logLines);
-    const d = await r.json();
-    napcatRawData = d.log || '';
-    renderNapcatLogsViewer();
-  } catch(e) {}
-}
-
-async function renderNapcatLogs() {
-  hideActionBar();
-  document.getElementById('breadcrumb').innerHTML = '<span class="current">NapCat 日志</span>';
-  renderSidebar();
-  document.getElementById('pageContent').innerHTML = `
-    <div class="card"><div class="card-header"><h3>🐱 NapCat 容器日志</h3><span style="font-size:12px;color:var(--text-secondary)">docker logs（容器 ${botNum}）</span></div>
-    <div class="card-body">
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-        <select id="logLinesSel2" style="padding:7px 10px;border:1px solid var(--border-color);border-radius:var(--radius);background:var(--bg-input);color:var(--text-primary);font-size:13px;outline:none" onchange="logLines=+this.value;loadNapcatLogs()">
-          <option value="50">50 行</option>
-          <option value="100" selected>100 行</option>
-          <option value="200">200 行</option>
-          <option value="500">500 行</option>
-        </select>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-regular);cursor:pointer">
-          <input type="checkbox" id="logAutoRef2" checked onchange="logAutoRefresh=this.checked; if(logAutoRefresh)startPageTimer(loadNapcatLogs,5000); else clearPageTimer()"> 自动刷新(5s)
-        </label>
-        <button class="btn btn-default" onclick="loadNapcatLogs()">🔄 刷新</button>
-      </div>
-      <div class="log-viewer" id="napcatLogViewer" style="max-height:calc(100vh - 260px)">加载中...</div>
-    </div></div>`;
-  cachePage('napcat_logs');
-  await loadNapcatLogs();
-  if (logAutoRefresh) startPageTimer(loadNapcatLogs, 5000);
-}
-
-function renderPage() {
-  const key = currentPage;
-  clearPageTimer();  // 切换页面停止上一页的局部刷新
-  if (pageCache[key] !== undefined) {
-    // 命中缓存：直接恢复页面内容，不重新请求
-    document.getElementById('pageContent').innerHTML = pageCache[key];
-    document.getElementById('breadcrumb').innerHTML = '<span class="current">' + (PAGE_CRUMBS[key]||key) + '</span>';
-    renderSidebar();
-    restoreActionBar();
-    if (key === 'logs') { loadLogs(); if (logAutoRefresh) startPageTimer(loadLogs, 5000); }
-    else if (key === 'napcat_logs') { loadNapcatLogs(); if (logAutoRefresh) startPageTimer(loadNapcatLogs, 5000); }
-    else if (key === 'manage') { startPageTimer(updateManageStatus, 10000); }
-    else if (key === 'dashboard') { startPageTimer(updateDashboardStatus, 10000); }
-    return;
-  }
-  switch (key) {
-    case 'dashboard': renderDashboard(); break;
-    case 'manage':    renderManage(); break;
-    case 'config':    renderConfig(); break;
-    case 'groups':    renderGroups(); break;
-    case 'logs':      renderLogs(); break;
-    case 'napcat_logs': renderNapcatLogs(); break;
-    default: renderDashboard();
-  }
-}
-
-fetchStatus();
-// 当前页（仪表盘）正常可见加载渲染，完成后后台预加载其余页面
-(async () => {
-  await renderDashboard();
-  ensurePluginSubmenu();  // 预加载插件二级菜单数据（不展开，点击展开即时显示）
-  preloadAllPages();
-})();
-
-// 预加载其余页面（当前页已正常显示）：渲染到隐藏容器，避免可见区内容反复切换
-async function preloadAllPages() {
-  const realContent = document.getElementById('pageContent');
-  // 真实容器暂时改名（仍在 DOM 中可见），渲染函数会写入隐藏容器
-  realContent.id = 'pageContent_visible';
-  const hidden = document.createElement('div');
-  hidden.id = 'pageContent';
-  hidden.style.display = 'none';
-  realContent.parentNode.insertBefore(hidden, realContent);
-
-  preloading = true;
-  // 日志页（项目日志/NapCat日志）不参与预加载：点开时才渲染，加快启动速度
-  await Promise.all([
-    renderManage(), renderConfig(), renderGroups(),
-  ].map(p => p.catch(()=>{})));
-  preloading = false;
-
-  // 恢复真实容器（当前页内容不动）
-  hidden.parentNode.removeChild(hidden);
-  realContent.id = 'pageContent';
-}
-setInterval(fetchStatus, 15000);
-
-// 事件委托：配置标签页(data-sk)、导航(data-page)、群组开关(data-nav/checkbox)
-document.addEventListener('click', function(e) {
-  var el = e.target.closest('[data-sk]');
-  if (el) { switchConfigTab(el.getAttribute('data-sk')); return; }
-  el = e.target.closest('[data-page]');
-  if (el) { navigate(el.getAttribute('data-page')); return; }
-  el = e.target.closest('[data-nav]');
-  if (el) {
-    var act = el.getAttribute('data-nav');
-    if (act === 'tgsave') { tgSave(); }
-    else if (act === 'groups') { renderGroups(); }
-    return;
-  }
-  // 全选 checkbox（class="tg-ac" 单插件全选 .tg-r 群全选 .tg-c 单个开关）
-  el = e.target.closest('.tg-ac');
-  if (el) { tgToggleAllPlugin(el.getAttribute('data-tgp'), el.checked); return; }
-  el = e.target.closest('.tg-r');
-  if (el) { tgToggleGroup(el.getAttribute('data-tgg'), el.checked); return; }
-  el = e.target.closest('.tg-c');
-  if (el) { tgToggle(el.getAttribute('data-tgg'), el.getAttribute('data-tgp'), el.checked); return; }
-});
-// 监听 checkbox change 事件（处理键盘/空格触发的切换）
-document.addEventListener('change', function(e) {
-  var el = e.target.closest('.tg-ac');
-  if (el) { tgToggleAllPlugin(el.getAttribute('data-tgp'), el.checked); return; }
-  el = e.target.closest('.tg-r');
-  if (el) { tgToggleGroup(el.getAttribute('data-tgg'), el.checked); return; }
-  el = e.target.closest('.tg-c');
-  if (el) { tgToggle(el.getAttribute('data-tgg'), el.getAttribute('data-tgp'), el.checked); return; }
-});
+PANEL.start();
 </script>
 </body>
 </html>
