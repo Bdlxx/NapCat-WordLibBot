@@ -47,3 +47,6 @@ ops/napcat-upgrade-*/
 
 # 插件仓库的本地 checkout（只读 deploy key，改动在这里攒着待推送）
 .plugin-src/
+
+# 各仓库 deploy key 私钥（只留本机，公钥贴到对应仓库的 Deploy keys）
+.ssh-keys/
