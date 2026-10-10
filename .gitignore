@@ -44,3 +44,6 @@ ops/napcat-upgrade-*/
 
 # DSH 工具产物（本地视觉路由缓存，不入库）
 .dsh-vision-router/
+
+# 插件仓库的本地 checkout（只读 deploy key，改动在这里攒着待推送）
+.plugin-src/
