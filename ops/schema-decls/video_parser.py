@@ -127,9 +127,46 @@ __config_schema__ = {
         "path": "@_reply",
         "help": "配置里的键名是 @_reply（字段名不能带 @，故用 path 指回）；当前解析核心不读取",
     },
+    "parse_timeout": {
+        "type": "number", "label": "解析总时长上限", "group": "参数", "advanced": True,
+        "path": "parse_timeout", "min": 30, "max": 3600, "step": 30, "unit": "秒",
+        "help": "解析+下载+合并+发送 的总时长。网络慢或视频大时必须放宽，否则会报「解析失败」；"
+                "超时不会取消后台下载，因此还可能出现「先提示失败、稍后又发出视频」",
+    },
+    "download_parallel": {
+        "type": "number", "label": "分段下载路数", "group": "参数", "advanced": True,
+        "path": "download_parallel",
+        "default": 8, "min": 1, "max": 16, "step": 1, "unit": "路",
+        "help": "大文件改用多连接 Range 分段下载（1=单连接）。单连接被 CDN 限速时 8 路能快一个数量级；"
+                "服务端不支持 Range 会自动回退单连接，断了只补那一段",
+    },
+    "cache_cleanup_enabled": {
+        "type": "bool", "label": "自动清理解析缓存", "group": "缓存",
+        "path": "cache_cleanup_enabled",
+        "default": True,
+        "help": "解析下载的中间文件只增不减（线上曾到 11GB），开启后按下面的天数/大小周期清理",
+    },
+    "cache_max_age_days": {
+        "type": "number", "label": "缓存保留天数", "group": "缓存",
+        "path": "cache_max_age_days",
+        "default": 7, "min": 0, "max": 365, "step": 1, "unit": "天",
+        "help": "超过这个天数的缓存会被删除；0 = 不按时间清理。最近 1 小时动过的文件永不删",
+    },
+    "cache_max_size_mb": {
+        "type": "number", "label": "缓存大小上限", "group": "缓存",
+        "path": "cache_max_size_mb",
+        "default": 2048, "min": 0, "max": 102400, "step": 128, "unit": "MB",
+        "help": "缓存总量超过上限时，从最旧的文件开始删到上限的 90%；0 = 不按大小清理",
+    },
+    "cache_cleanup_interval_hours": {
+        "type": "number", "label": "清理间隔", "group": "缓存", "advanced": True,
+        "path": "cache_cleanup_interval_hours",
+        "default": 6, "min": 1, "max": 168, "step": 1, "unit": "小时",
+        "help": "多久检查清理一次（启动后先等 90 秒再清第一次）",
+    },
     "download_timeout": {
         "type": "number", "label": "下载超时（核心别名）", "group": "其它", "advanced": True,
-        "path": "download_timeout", "min": 5, "max": 600, "step": 5, "unit": "秒",
+        "path": "download_timeout", "min": 5, "max": 3600, "step": 5, "unit": "秒",
         "help": "解析核心 config.py 也会读这个键；与 browser_timeout 同时存在时以本键为准",
     },
     "source_max_size": {

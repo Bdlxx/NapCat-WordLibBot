@@ -6,12 +6,12 @@
 <title>机器人管理面板</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22%231E40AF%22 d=%22M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z%22/></svg>">
 <!-- 两端共用的面板样式与外壳（与 Windows 端同一份字节，见 tests/test_dual_end_assets.py） -->
-<link rel="stylesheet" href="panel.css">
-<link rel="stylesheet" href="cfg_form.css">
+<link rel="stylesheet" href="panel.css?v=aa009abf">
+<link rel="stylesheet" href="cfg_form.css?v=64b4e908">
 </head>
 <body>
-<script src="cfg_form.js"></script>
-<script src="panel.js"></script>
+<script src="cfg_form.js?v=9c545ed8"></script>
+<script src="panel.js?v=0a7d00a2"></script>
 <script>
 /* ==========================================================================
    Linux 机器人面板：这里**只声明"接口在哪"和"显示哪些页"**。
@@ -157,6 +157,22 @@ function loadPlugins() {
 }
 
 PANEL.start();
+</script>
+<script>
+/* 兜底：共用外壳没加载成功时页面会是一片空白 —— 与其留白，不如说清楚怎么修。
+   （2026-10-10 真踩过：nginx 缺 mime.types → panel.js 以 application/octet-stream
+     下发 → 浏览器拒绝执行 → 远程访问空白页，而本机直连一切正常。） */
+window.addEventListener('load', function () {
+  if (window.PANEL) return;
+  document.body.insertAdjacentHTML('afterbegin',
+    '<div style="margin:16px;padding:14px 18px;border:1px solid #B91C1C;border-radius:10px;'
+    + 'background:#FEF2F2;color:#B91C1C;font:14px/1.7 system-ui;max-width:760px">'
+    + '<b>面板外壳 panel.js 没有加载成功</b>，所以页面是空的。<br>'
+    + '1) 先按 <b>Ctrl+F5</b> 强制刷新（多半是缓存了旧的错误响应）；<br>'
+    + '2) 仍不行：开发者工具里看 <code>/panel/panel.js</code> 的状态与 '
+    + '<code>Content-Type</code>（必须是 javascript，不能是 octet-stream）；<br>'
+    + '3) 服务端自检：<code>curl -I https://你的域名/panel/panel.js</code>。</div>');
+});
 </script>
 </body>
 </html>
