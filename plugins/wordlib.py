@@ -424,7 +424,9 @@ def plog(level, msg):
         print(msg)
 
 
-# 配置热更新：每 5 秒检查配置文件，变化自动重载（保存后自动生效）
+# 配置热更新：面板保存 → 主程序发 SIGUSR1 → reload_config() 立即重载（无需轮询）
+# 下面的 _ensure_fresh/_CFG_MTIME 是早期"每 5 秒轮询"实现的遗留，已无调用方；
+# 轮询线程（_cfg_watchdog）已按设计移除（见 web/api.py save_config 的"无需重启/轮询"）
 _CFG_MTIME = 0
 
 
@@ -437,16 +439,6 @@ def _ensure_fresh():
             _load_cfg()
     except Exception:
         pass
-
-
-def _cfg_watchdog():
-    while True:
-        _ensure_fresh()
-        time.sleep(5)
-
-
-# 配置热更新线程（上面注释写的就是它：每 5 秒看一次配置文件 mtime）
-threading.Thread(target=_cfg_watchdog, daemon=True).start()
 
 
 def reload_config():
