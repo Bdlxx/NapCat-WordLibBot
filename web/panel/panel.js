@@ -863,3 +863,98 @@ P.syncDirtyUI = syncDirtyUI; P.hasUnsaved = hasUnsaved; P.clearDirty = clearDirt
 P.dismissToast = dismissToast;
 P.logout = function () { if (P.hooks.logout) P.hooks.logout(); };
 })(window);
+
+/* ============================================================
+   桌面端顶栏 + 账号浮层（规格 §三）
+   能力探测：Linux 端没有 /api/app/* → 404 → 顶栏保持隐藏，共用面板不受影响。
+   状态与托盘菜单读的是桌面壳里同一份 snapshot()，所以天然同步。
+   ============================================================ */
+(function () {
+  var bar = document.getElementById('desktopBar');
+  var overlay = document.getElementById('acctOverlay');
+  if (!bar || !overlay) { return; }
+  var appState = null;
+
+  function appApi(path, body) {
+    return fetch(path, {
+      method: body ? 'POST' : 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (r) { return r.json().catch(function () { return { ok: false }; }); });
+  }
+
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; });
+  }
+
+  function render() {
+    if (!appState) { return; }
+    bar.style.display = 'flex';
+    document.getElementById('dbAvatar').textContent = (appState.nickname || '?').slice(0, 1);
+    document.getElementById('dbNick').textContent = appState.nickname || '—';
+    document.getElementById('dbState').textContent = appState.state_label || '—';
+    var bt = document.getElementById('dbToggle');
+    bt.textContent = appState.button || '启动机器人';
+    bt.disabled = !appState.button_enabled;
+    document.getElementById('dbRestart').disabled = !appState.restart_enabled;
+  }
+
+  function refresh() {
+    return appApi('/api/app/state').then(function (j) {
+      if (!j || !j.ok) { bar.style.display = 'none'; return false; }  // 非桌面端：不渲染
+      appState = j.data; render(); return true;
+    }).catch(function () { bar.style.display = 'none'; return false; });
+  }
+
+  function loadAccounts() {
+    return appApi('/api/app/accounts').then(function (j) {
+      if (!j || !j.ok) { return; }
+      var list = j.data.accounts || [];
+      var html = list.map(function (a) {
+        return '<div class="acct-card' + (a.current ? ' current' : '') + '" data-aid="'
+          + esc(a.account_id) + '"><div class="acct-avatar">' + esc(a.short) + '</div><div>'
+          + '<div class="acct-name">' + esc(a.display_name) + '</div><div class="acct-qq">'
+          + esc(a.account_id) + (a.running ? ' · 运行中' : '') + '</div></div></div>';
+      }).join('');
+      overlay.querySelector('.acct-list').innerHTML = html || '<div class="acct-empty">还没有账号</div>';
+    });
+  }
+
+  document.getElementById('dbAvatar').addEventListener('click', function () {
+    var show = (overlay.style.display === 'none' || !overlay.style.display);
+    overlay.style.display = show ? 'flex' : 'none';
+    if (show) { loadAccounts(); }
+  });
+
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) { overlay.style.display = 'none'; return; }  // 点遮罩关闭
+    var card = e.target.closest ? e.target.closest('.acct-card') : null;
+    if (card) {
+      appApi('/api/app/account/' + encodeURIComponent(card.getAttribute('data-aid')) + '/current', {})
+        .then(function () { refresh(); overlay.style.display = 'none'; });
+    }
+  });
+
+  document.getElementById('dbToggle').addEventListener('click', function () {
+    var path = (appState && appState.state === 'running') ? '/api/app/stop' : '/api/app/start';
+    appApi(path, {}).then(function () { refresh(); });
+  });
+
+  document.getElementById('dbRestart').addEventListener('click', function () {
+    appApi('/api/app/restart', {}).then(function () { refresh(); });
+  });
+
+  document.getElementById('dbExit').addEventListener('click', function () {
+    try {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.rpc) {
+        window.pywebview.api.rpc('app.quit', {}); return;   // 桌面壳：原生退出
+      }
+    } catch (e) { /* 落回 window.close */ }
+    window.close();
+  });
+
+  refresh();
+  setInterval(refresh, 1500);   // 与托盘状态保持同步
+})();
+

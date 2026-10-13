@@ -426,3 +426,31 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 .acct-row.active{background:var(--bg-active);border-color:var(--color-primary-soft,var(--border-light))}
 .acct-row .a-name{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .acct-row .a-sub{font-size:11px;color:var(--text-secondary)}
+
+/* ---- 桌面端顶栏 + 账号浮层（Linux 端不会渲染，见 panel.js 的能力探测） ---- */
+#desktopBar{position:fixed;top:0;left:0;right:0;height:52px;z-index:60;display:flex;align-items:center;
+  gap:10px;padding:0 12px;background:#171a21;color:#e6e6e6;border-bottom:1px solid #262b36}
+#desktopBar .db-avatar{width:34px;height:34px;border-radius:50%;border:0;background:#2b6cff;color:#fff;
+  font-size:15px;cursor:pointer}
+#desktopBar .db-info{flex:1;min-width:0}
+#desktopBar .db-nick{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#desktopBar .db-state{font-size:12px;color:#9aa4b2}
+#desktopBar .db-btn{background:#2b6cff;color:#fff;border:0;border-radius:8px;padding:7px 12px;
+  font-size:13px;cursor:pointer}
+#desktopBar .db-btn.ghost{background:#2a2f3a}
+#desktopBar .db-btn:disabled{opacity:.5;cursor:not-allowed}
+#acctOverlay{position:fixed;inset:0;z-index:70;background:rgba(15,17,21,.45);display:flex;
+  align-items:flex-start;justify-content:flex-start}
+#acctOverlay .acct-panel{margin:64px 0 0 12px;background:#fff;border-radius:12px;padding:12px;
+  min-width:260px;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+#acctOverlay .acct-title{font-size:13px;color:#6b7280;margin-bottom:8px}
+#acctOverlay .acct-card{display:flex;gap:10px;align-items:center;padding:8px;border-radius:10px;cursor:pointer}
+#acctOverlay .acct-card:hover{background:#f3f6ff}
+#acctOverlay .acct-card.current{background:#eaf0ff}
+#acctOverlay .acct-avatar{width:34px;height:34px;border-radius:50%;background:#2b6cff;color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:14px}
+#acctOverlay .acct-name{font-size:14px;color:#1e2230}
+#acctOverlay .acct-qq{font-size:12px;color:#6b7280}
+#acctOverlay .acct-empty{color:#6b7280;font-size:13px;padding:8px}
+body{padding-top:52px}
+
