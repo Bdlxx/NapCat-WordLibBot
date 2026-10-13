@@ -891,6 +891,7 @@ P.logout = function () { if (P.hooks.logout) P.hooks.logout(); };
   function render() {
     if (!appState) { return; }
     bar.style.display = 'flex';
+    document.body.style.paddingTop = '52px';
     document.getElementById('dbAvatar').textContent = (appState.nickname || '?').slice(0, 1);
     document.getElementById('dbNick').textContent = appState.nickname || '—';
     document.getElementById('dbState').textContent = appState.state_label || '—';
@@ -902,9 +903,9 @@ P.logout = function () { if (P.hooks.logout) P.hooks.logout(); };
 
   function refresh() {
     return appApi('/api/app/state').then(function (j) {
-      if (!j || !j.ok) { bar.style.display = 'none'; return false; }  // 非桌面端：不渲染
+      if (!j || !j.ok) { bar.style.display = 'none'; document.body.style.paddingTop = ''; return false; }
       appState = j.data; render(); return true;
-    }).catch(function () { bar.style.display = 'none'; return false; });
+    }).catch(function () { bar.style.display = 'none'; document.body.style.paddingTop = ''; return false; });
   }
 
   function loadAccounts() {

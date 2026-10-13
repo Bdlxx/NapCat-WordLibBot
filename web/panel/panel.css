@@ -452,5 +452,5 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 #acctOverlay .acct-name{font-size:14px;color:#1e2230}
 #acctOverlay .acct-qq{font-size:12px;color:#6b7280}
 #acctOverlay .acct-empty{color:#6b7280;font-size:13px;padding:8px}
-body{padding-top:52px}
+/* 顶栏显示时由 panel.js 动态加 body 顶距（Linux 端不显示顶栏 → 不留白）*/
 
