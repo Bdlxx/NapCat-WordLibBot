@@ -918,6 +918,15 @@ P.logout = function () { if (P.hooks.logout) P.hooks.logout(); };
           + esc(a.account_id) + (a.running ? ' · 运行中' : '') + '</div></div></div>';
       }).join('');
       overlay.querySelector('.acct-list').innerHTML = html || '<div class="acct-empty">还没有账号</div>';
+      var box = overlay.querySelector('.acct-list');
+      if (box) {
+        var s = document.createElement('div');
+        s.className = 'acct-card';
+        s.setAttribute('data-nav', '/settings');
+        s.innerHTML = '<div class="acct-avatar">\u2699</div><div><div class="acct-name">设置</div>'
+          + '<div class="acct-qq">鉴权 · 页面模式与端口</div></div>';
+        box.appendChild(s);
+      }
     });
   }
 
@@ -930,6 +939,9 @@ P.logout = function () { if (P.hooks.logout) P.hooks.logout(); };
   overlay.addEventListener('click', function (e) {
     if (e.target === overlay) { overlay.style.display = 'none'; return; }  // 点遮罩关闭
     var card = e.target.closest ? e.target.closest('.acct-card') : null;
+    if (card && card.getAttribute('data-nav')) {      // 浮层里的「设置」入口
+      location.href = card.getAttribute('data-nav'); overlay.style.display = 'none'; return;
+    }
     if (card) {
       appApi('/api/app/account/' + encodeURIComponent(card.getAttribute('data-aid')) + '/current', {})
         .then(function () { refresh(); overlay.style.display = 'none'; });
@@ -944,6 +956,12 @@ P.logout = function () { if (P.hooks.logout) P.hooks.logout(); };
   document.getElementById('dbRestart').addEventListener('click', function () {
     appApi('/api/app/restart', {}).then(function () { refresh(); });
   });
+
+  var settingsBtn = document.getElementById('dbSettings');
+  if (settingsBtn) {
+    // 规格 §三：主界面顶栏要有「设置」入口（独立页面 /settings）
+    settingsBtn.addEventListener('click', function () { location.href = '/settings'; });
+  }
 
   document.getElementById('dbExit').addEventListener('click', function () {
     try {
