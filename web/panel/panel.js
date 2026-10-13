@@ -727,6 +727,7 @@ const ACTIONS = {
   'up-refresh': { label: '刷新状态', busy: '刷新中…', done: '状态已刷新' },
   'gd-prefill': { label: '填入账号表单', busy: '填入中…', done: '已填入账号表单' },
   'gd-create': { label: '一键建账号', busy: '正在建账号…', done: '账号已建好' },
+  'gd-open': { label: '打开下载页', busy: '正在打开…', done: '已在浏览器打开官方下载页' },
   'gd-install': { label: '下载安装组件', busy: '开始下载…', done: '已开始后台下载，进度看「看日志」' },
   'gd-config': { label: '写配置', busy: '写入中…', done: '配置已写入（端口与令牌已自动生成）' },
   'gd-host': { label: '启动组件', busy: '启动中…', done: '组件已启动' },
