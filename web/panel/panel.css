@@ -454,3 +454,12 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 #acctOverlay .acct-empty{color:#6b7280;font-size:13px;padding:8px}
 /* 顶栏显示时由 panel.js 动态加 body 顶距（Linux 端不显示顶栏 → 不留白）*/
 
+/* ---- 无边框窗口：顶栏即拖动区 + 自绘三按钮（左最小化 / 中收起托盘 / 右退出程序） ---- */
+#desktopBar{-webkit-app-region:drag}
+#desktopBar button,#desktopBar input{-webkit-app-region:no-drag}
+#desktopBar .db-sep{width:1px;height:22px;background:#2a2f3a;margin:0 4px}
+#desktopBar .db-winbtn{width:34px;height:30px;border:0;border-radius:6px;background:transparent;
+  color:#cfd6e4;font-size:13px;line-height:1;cursor:pointer}
+#desktopBar .db-winbtn:hover{background:#2a2f3a}
+#desktopBar .db-winbtn.danger:hover{background:#b3261e;color:#fff}
+
