@@ -718,6 +718,7 @@ const ACTIONS = {
   'up-apply': { label: '应用更新', busy: '准备退出…', done: '即将退出并替换',
       confirm: { title: '应用更新并重启？', message: '程序会退出，交接脚本替换文件后自动重新打开。若新版起不来会自动回滚。', confirmText: '应用并重启' } },
   'up-refresh': { label: '刷新状态', busy: '刷新中…', done: '状态已刷新' },
+  'gd-prefill': { label: '填入账号表单', busy: '填入中…', done: '已填入账号表单' },
   'gd-create': { label: '一键建账号', busy: '正在建账号…', done: '账号已建好' },
   'gd-install': { label: '下载安装组件', busy: '开始下载…', done: '已开始后台下载，进度看「看日志」' },
   'gd-config': { label: '写配置', busy: '写入中…', done: '配置已写入（端口与令牌已自动生成）' },
