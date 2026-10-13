@@ -310,8 +310,14 @@ async function refreshHeaderStatus() {
   const tag = $('statusTag');
   if (!tag || !P.endpoints.headerStatus) return;
   try {
-    const d = await api(P.endpoints.headerStatus());
-    if (d.running) { tag.innerHTML = '<span class="status-dot green"></span> 运行中'; tag.className = 'el-tag success'; }
+    /* 还没有账号 / 还没选号时 headerStatus() 返回 null：直接丢给 api() 会去请求
+       当前页（file:// 或 /），解析失败 → 顶栏误报"连接失败"。 */
+    const url = P.endpoints.headerStatus();
+    if (!url) { tag.innerHTML = '未选账号'; tag.className = 'el-tag muted'; return; }
+    const d = await api(url);
+    /* 信封两端不同：Linux 是扁平 `{running,...}`，桌面端是 `{ok,data:{running,...}}` */
+    const s = (d && d.data && typeof d.data === 'object') ? d.data : (d || {});
+    if (s.running) { tag.innerHTML = '<span class="status-dot green"></span> 运行中'; tag.className = 'el-tag success'; }
     else { tag.innerHTML = '<span class="status-dot red"></span> 已停止'; tag.className = 'el-tag danger'; }
   } catch (e) { tag.innerHTML = '<span class="status-dot yellow"></span> 连接失败'; tag.className = 'el-tag warning'; }
 }
@@ -456,12 +462,18 @@ async function loadLogs(sfx) {
   sfx = sfx || '';
   try {
     const st = logState(sfx);
-    const d = await api(P.endpoints.logs(sfx, st.lines));
-    st.raw = d.log || (sfx === '2' ? '' : '暂无日志');
+    /* 日志正文两端形状不同：Linux 端接口直接给文本行（扁平 {log,total}）；
+       桌面端接口给的是 `{ok,data:{logs:[结构化条目]}}`，由该端的 hooks.fetchLogs
+       转成文本行。共用外壳只负责"哪个端提供了适配器就用哪个"。 */
+    const d = P.hooks.fetchLogs
+      ? await P.hooks.fetchLogs(sfx, st.lines)
+      : await api(P.endpoints.logs(sfx, st.lines));
+    const dd = (d && d.data && typeof d.data === 'object') ? d.data : (d || {});
+    st.raw = dd.log || (sfx === '2' ? '' : '暂无日志');
     renderLogViewer(sfx);
     if (sfx !== '2') {
       const total = $('logTotalInfo');
-      if (total && d.total !== undefined) total.textContent = '共 ' + (d.total || '-') + ' 行 · 显示 ' + st.lines + ' 行';
+      if (total && dd.total !== undefined) total.textContent = '共 ' + (dd.total || '-') + ' 行 · 显示 ' + st.lines + ' 行';
     }
   } catch (e) { }
 }
