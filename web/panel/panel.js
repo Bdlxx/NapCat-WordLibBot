@@ -701,6 +701,12 @@ const ACTIONS = {
   restart: { label: '重启', busy: '重启中…', done: '机器人已重启' },
   'napcat-restart': { label: '重启 NapCat', busy: '重启中…', done: 'NapCat 已重启',
           confirm: { title: '重启 NapCat？', message: '重启会短暂断开与 QQ 的连接。如果登录态已失效，重启后需要重新扫码登录。', confirmText: '重启 NapCat' } },
+  'gd-install': { label: '下载安装组件', busy: '开始下载…', done: '已开始后台下载，进度看「看日志」' },
+  'gd-config': { label: '写配置', busy: '写入中…', done: '配置已写入（端口与令牌已自动生成）' },
+  'gd-host': { label: '启动组件', busy: '启动中…', done: '组件已启动' },
+  'gd-stop': { label: '停止组件', busy: '停止中…', done: '组件已停止' },
+  'gd-log': { label: '读取日志', busy: '读取中…', done: '日志已更新' },
+  'gd-refresh': { label: '刷新状态', busy: '刷新中…', done: '状态已刷新' },
   'del-account': { label: '删除账号', confirm: { title: '删除账号？', message: '删除后该账号的配置与数据目录都会被移除，无法撤销。', confirmText: '删除账号' } }
 };
 P.act = async function (name, btn) {
