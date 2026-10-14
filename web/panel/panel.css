@@ -560,3 +560,9 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
   .header-btn{white-space:nowrap;flex-shrink:0}
 }
 
+/* ---- 允许选中文字（token/路径/日志要能复制）----
+   pywebview 默认 text_select=False 会加 body{user-select:none}；开了之后这里做细分：
+   正文可选中，但**顶栏（拖动区）保持不可选** —— 否则拖窗口时会变成选字。 */
+body,input,textarea,select,pre,code,.log-viewer,.cf-help,.info-table{-webkit-user-select:text;user-select:text}
+#desktopBar,#desktopBar *{-webkit-user-select:none;user-select:none}
+
