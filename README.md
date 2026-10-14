@@ -134,6 +134,26 @@ python web/api.py --bot-dir instances/123456 --bot-name Bot --bot-qq 123456789
 
 ## 🔌 插件开发 (SDK)
 
+### 两端通用 SDK（建议新插件用它写）
+
+新插件建议用 **AsterCore 仓库里的单文件 SDK** —— 同一份插件代码在 Linux 与 Windows 两端都能跑：
+
+- 位置：`AsterCore` 仓库 → `plugin-sdk/python/`
+- `nap_sdk.py`：契约与本文档一致（模块级 `handle(event)` + `utils.*`），额外提供三样糖 ——
+  规则匹配、**配置三段**（一次声明，Linux WebUI 与 Windows 面板都出表单）、离线自测与
+  **可移植性检查**（`sdk.check()` 会抓 `import astercore` / 类 ctx / 硬编码 data 路径）
+- 脚手架：`python plugin-sdk/python/new_plugin.py my_plugin --dir plugins`
+- 指南与示例：`plugin-sdk/python/README.md` · `plugin-sdk/python/example_plugin.py`
+
+本仓 `utils/` 的 **8 个子模块**（`api` / `config` / `log` / `ws` / `plugin_toggle` /
+`command_registry` / `command_table` / `http_client`）是这套 SDK 的**契约本体**；
+`tests/test_legacy_compat.py::UtilsSdkSurfaceTest` 把这 8 个名字**钉成守卫**（少一个 CI 就红），
+并会真跑一次本地 HTTP（GET 带参 / POST JSON / 连不上→`HttpError`）与命令表生成。
+
+> 易语言 SDK（`plugin-sdk/eyuyan/`）是 **Windows 专用**（编成 DLL 给原生插件加载器用），Linux 端不适用。
+
+
+
 框架采用**动态加载**插件架构：主程序启动时扫描 `plugins/` 目录，凡导出 `handle()` 函数的
 `.py` 文件都会自动加载（无需手动注册，Web 面板同样自动识别）。
 
