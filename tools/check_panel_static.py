@@ -35,7 +35,10 @@ WIN_SHARED = {
     "cfg_form.js": WIN / "cfg_form.js",
     "cfg_form.css": WIN / "cfg_form.css",
     "panel_pages.py": WIN.parent / "panel_pages.py",
-    "config_schema.py": WIN.parent / "core" / "config_schema.py",
+    # WIN 指向 .../src/astercore/web/static：
+    #   WIN.parent      = .../src/astercore/web
+    #   WIN.parents[1]  = .../src/astercore   ← config_schema.py 在 core/ 下
+    "config_schema.py": WIN.parents[1] / "core" / "config_schema.py",
 }
 
 _results: list[tuple[bool, str, str]] = []
@@ -63,7 +66,11 @@ def main(verbose: bool) -> int:
     if WIN.is_dir():
         for name, lp in SHARED.items():
             wp = WIN_SHARED.get(name)
+            # ⚠ 不允许静默跳过：本机有 Windows 仓时，每个共用文件都必须真比上
+            # （我上一版 config_schema.py 路径写错 → 被 continue 悄悄跳过，
+            #   看着"16/16 全绿"其实少查一项 —— 这种失败模式最危险）
             if wp is None or not wp.is_file():
+                check(f"{name} 能在本机找到 Windows 端文件", False, f"找的是 {wp}")
                 continue
             a, b = md5(lp), md5(wp)
             check(f"{name} 两端字节一致", a == b and a != "", f"linux={a[:8]} win={b[:8]}")
