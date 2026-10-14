@@ -27,10 +27,13 @@
 html,body{height:100%}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans SC',sans-serif;font-size:14px;color:var(--text-primary);background:var(--bg-page);-webkit-font-smoothing:antialiased}
 .app{display:flex;height:100vh;overflow:hidden}
-.sidebar{width:var(--sidebar-width);background:var(--bg-sidebar);border-right:1px solid var(--border-color);display:flex;flex-direction:column;flex-shrink:0;z-index:10}
-.sidebar-logo{padding:18px 16px;font-size:16px;font-weight:700;border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px}
+/* 侧栏要压住底部操作栏：齿轮弹出的卡片、左上角账号浮层都是**向右探出**侧栏的，
+   z-index 比 .action-bar(20) 低的话会被它盖住（用户报过"引导"那一条被吃掉）。
+   取 30：高于操作栏、低于桌面顶栏(60)/弹窗(10000)/提示(10050)。 */
+.sidebar{width:var(--sidebar-width);background:var(--bg-sidebar);display:flex;flex-direction:column;flex-shrink:0;z-index:30}
+.sidebar-logo{padding:18px 16px;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
 .sidebar-logo .logo-text{color:var(--color-primary)}
-.sidebar-nav{flex:1;overflow-y:auto;padding:8px 0}
+.sidebar-nav{flex:1;overflow-y:auto;padding:8px 0;display:flex;flex-direction:column}
 .sidebar-nav::-webkit-scrollbar{width:4px}
 .sidebar-nav::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:2px}
 .nav-group-title{padding:14px 16px 6px;font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;font-weight:600}
@@ -46,8 +49,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 .nav-sub-loading{padding:6px 12px;font-size:12px;color:var(--text-secondary)}
 .nav-item .icon{font-size:15px;width:28px;height:28px;border-radius:8px;background:var(--bg-input);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
 .nav-item:hover .icon{background:var(--bg-hover);transform:scale(1.05)}
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-.header{background:var(--bg-header);border-bottom:1px solid var(--border-color);padding:0 24px;height:56px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;background:var(--bg-header)}
+.header{background:var(--bg-header);padding:0 24px;height:56px;display:flex;align-items:center;gap:12px;flex-shrink:0}
 .header-breadcrumb{font-size:14px;color:var(--text-secondary)}
 .header-breadcrumb .current{color:var(--text-primary);font-weight:500}
 .header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
@@ -64,7 +67,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 .theme-btn:hover{border-color:var(--color-primary);color:var(--color-primary)}
 .header-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border-color);background:var(--bg-input);cursor:pointer;font-size:12px;color:var(--text-regular);transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
 .header-btn:hover{border-color:var(--color-primary);color:var(--color-primary)}
-.content{flex:1;overflow-y:auto;padding:20px}
+.content{flex:1;overflow-y:auto;padding:20px;background:var(--bg-page);border-top-left-radius:14px}
 .content::-webkit-scrollbar{width:6px}
 .content::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:3px}
 .card{background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);border:1px solid var(--border-light);margin-bottom:16px}
@@ -136,9 +139,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
   .sidebar-overlay.open{display:block}
   .content{padding:12px}
   .stat-grid{grid-template-columns:1fr 1fr}
-  .mobile-menu-btn{display:flex!important}
 }
-.mobile-menu-btn{display:none}
 
 /* ---------- 2. 设计系统 v2 + 交互修正层 ---------- */
 /* ==========================================================================
@@ -267,7 +268,6 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{
 .el-tag.muted{background:var(--bg-sunken);color:var(--text-secondary);border-color:var(--border-light);font-family:var(--font-mono)}
 .status-dot{width:8px;height:8px;box-shadow:0 0 0 3px var(--bg-card);flex-shrink:0}
 /* 导航 */
-.sidebar{box-shadow:1px 0 0 var(--border-color)}
 .sidebar-logo{font-size:var(--fs-md);font-weight:700;letter-spacing:-.01em;padding:var(--space-md) var(--space-md)}
 .nav-group-title{font-size:11px;letter-spacing:.06em;color:var(--text-secondary)}
 .nav-item{border-radius:var(--radius);margin:2px var(--space-sm);padding:9px 10px;font-size:var(--fs-sm);
@@ -412,7 +412,8 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 
 /* ---------- 4. 外壳骨架（由 panel.js 注入，两端一致） ---------- */
 .sidebar-logo{flex-direction:column;align-items:stretch;gap:var(--space-sm,8px)}
-.logo-identity{display:flex;align-items:center;gap:var(--space-sm,8px);min-width:0}
+/* 定高：收起态 .logo-meta 被隐藏，不定高的话账号卡会矮 1px，展开时下面的按钮整体上下跳 1px（用户要求零位移） */
+.logo-identity{display:flex;align-items:center;gap:var(--space-sm,8px);min-width:0;height:38px}
 .logo-identity img{width:36px;height:36px;border-radius:50%;background:var(--bg-input);flex-shrink:0;object-fit:cover}
 .logo-meta{min-width:0;flex:1}
 .logo-text{font-weight:700;font-size:var(--fs-md,14px);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -462,4 +463,100 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
   color:#cfd6e4;font-size:13px;line-height:1;cursor:pointer}
 #desktopBar .db-winbtn:hover{background:#2a2f3a}
 #desktopBar .db-winbtn.danger:hover{background:#b3261e;color:#fff}
+
+/* ---------- 5. 常驻侧边栏（竖条 ↔ 完整） + 左上角账号浮层 ---------- */
+/* 用户要求：侧边栏"常驻、点击可扩出来或者缩回去，在左侧竖条常驻"。
+   收起 = .rail：只留一列图标（56px）；展开 = 完整侧栏。☰ 来回切。 */
+.sidebar{position:relative}                     /* 账号浮层以它为定位基准 */
+.sidebar.rail{width:56px}
+.sidebar.rail .logo-meta,
+.sidebar.rail .nav-label,
+.sidebar.rail .nav-arrow,
+.sidebar.rail #shellIdentityExtra{display:none}
+/* 插件行前面的 @ 图标（用户指定）。行高写死 33px：展开态是「图标 + 名字」，
+   收起态只留图标，两态必须同高，否则收起/展开时下面的按钮会上下跳。 */
+.nav-sub-item.has-icon{display:flex;align-items:center;gap:8px;height:33px;padding-top:0;padding-bottom:0}
+.nav-sub-item.has-icon .icon{display:flex;align-items:center;justify-content:center;width:16px;flex-shrink:0;
+  font-size:13px;font-weight:600;line-height:1;color:var(--text-secondary)}
+.nav-sub-item.has-icon:hover .icon,.nav-sub-item.has-icon.active .icon{color:var(--color-primary)}
+.nav-sub-item.has-icon .nav-sub-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-sub-item.has-icon .el-tag,.nav-sub-item.has-icon .unsaved-dot{flex-shrink:0}
+/* 收起态的二级菜单：就地向下展开（用户要求），去掉左缩进、只留 @ 图标居中 */
+.sidebar.rail .nav-sub{padding:2px 0 8px}
+.sidebar.rail .nav-sub-item{justify-content:center;margin:1px 6px}
+.sidebar.rail .nav-sub-item.has-icon{gap:0;padding-left:0;padding-right:0}
+.sidebar.rail .nav-sub-item.has-icon .nav-sub-label,.sidebar.rail .nav-sub-item.has-icon .el-tag{display:none}
+/* 收起态不覆盖账号卡的内边距/对齐：两态完全同位，展开时头像不位移（用户要求） */
+.sidebar.rail .nav-item{justify-content:center;padding:9px 0;margin:2px var(--space-sm,8px);border-left:0}
+.sidebar.rail .nav-item .icon{margin:0}
+/* 导航图标：DeepSeek 网页那种"裸线条"风格 —— 图标不再坐在色块里，
+   悬停/选中由整行高亮 + 图标变色表达（用户指定）。 */
+.nav-item .icon{background:transparent;width:20px;height:20px}
+.nav-item .icon .ico{width:18px;height:18px}
+.nav-item:hover .icon{background:transparent;transform:none}
+.nav-item.active .icon{background:transparent;color:var(--color-primary);box-shadow:none}
+.nav-group{display:flex;flex-direction:column;min-width:0}
+/* 收起态的分组标题：保留原文字、只把颜色调浅，盒子高度保持不变 ——
+   这样展开/收起时下面的按钮不会上下跳（用户要求零上下位移）。 */
+.sidebar.rail .nav-group-title{color:var(--text-secondary);opacity:.6;padding-left:0;padding-right:0;
+  text-align:center;letter-spacing:0}
+/* 导航组一律从顶部往下排；只有左下角齿轮靠 .sidebar-foot 的 margin-top:auto 钉底 */
+/* 收起/展开按钮：钉在账号卡片右侧（用户指定位置）。
+   展开态显示 = 收起侧栏；收起后整个收掉，展开侧栏靠点左上角头像。 */
+.rail-toggle{display:flex;align-items:center;justify-content:center;gap:6px;
+  position:absolute;top:21px;right:10px;width:auto;padding:4px 6px;border-radius:8px;
+  border:0;background:transparent;color:var(--text-secondary);
+  font-size:12px;line-height:1;cursor:pointer;
+  transition:background-color .16s var(--ease,ease),color .16s var(--ease,ease)}
+.rail-toggle .ico{width:18px;height:18px}
+.rail-toggle:hover{background:var(--bg-hover);color:var(--text-primary)}
+.rail-toggle:focus-visible{outline:2px solid var(--color-primary);outline-offset:-2px}
+.sidebar:not(.rail) .logo-identity{padding-right:34px}   /* 给右侧按钮让位，长名字不压按钮 */
+.sidebar.rail .rail-toggle{display:none}
+.sidebar.rail .sidebar-logo{cursor:pointer}
+.sidebar-logo.clickable{cursor:pointer}
+.sidebar-logo.clickable:hover{background:var(--bg-hover)}
+.sidebar-logo.clickable:focus-visible{outline:2px solid var(--color-primary);outline-offset:-2px}
+/* 左下角：只留一个「设置」齿轮，点它向右弹出卡片（更新 / 设置 / 引导） */
+.sidebar-foot{position:relative;margin-top:auto;padding:8px 8px 12px}
+.app-menu-btn{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:0;
+  border-radius:var(--radius,8px);background:transparent;color:var(--text-regular);
+  font-family:inherit;font-size:13px;cursor:pointer;text-align:start;
+  transition:background-color .16s var(--ease,ease),color .16s var(--ease,ease)}
+.app-menu-btn:hover{background:var(--bg-hover);color:var(--text-primary)}
+.app-menu-btn:focus-visible{outline:2px solid var(--color-primary);outline-offset:-2px}
+.app-menu-btn .icon{display:flex;align-items:center;justify-content:center;width:20px;height:20px;flex-shrink:0}
+.app-menu-btn .icon .ico{width:18px;height:18px}
+.app-menu{position:absolute;left:calc(100% - 4px);bottom:6px;min-width:184px;padding:6px;z-index:200;
+  background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg,12px);
+  box-shadow:0 10px 28px rgba(15,23,42,.18)}
+.app-menu[hidden]{display:none}
+.app-menu-item{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:0;
+  border-radius:var(--radius,8px);background:transparent;color:var(--text-regular);
+  font-family:inherit;font-size:13px;cursor:pointer;text-align:start;
+  transition:background-color .16s var(--ease,ease),color .16s var(--ease,ease)}
+.app-menu-item:hover{background:var(--bg-hover);color:var(--text-primary)}
+.app-menu-item:focus-visible{outline:2px solid var(--color-primary);outline-offset:-2px}
+.app-menu-item .icon{display:flex;align-items:center;justify-content:center;width:20px;height:20px;
+  flex-shrink:0;color:var(--text-secondary)}
+.app-menu-item:hover .icon{color:var(--color-primary)}
+.app-menu-item .icon .ico{width:18px;height:18px}
+
+/* 账号浮层：贴着左上角账号卡向右弹出（只有多账号端会给它填内容） */
+.acct-pop{position:absolute;left:calc(100% + 6px);top:8px;min-width:212px;max-height:60vh;overflow:auto;
+  background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg,12px);
+  box-shadow:0 10px 28px rgba(15,23,42,.18);padding:8px;z-index:200}
+.acct-pop[hidden]{display:none}
+.acct-pop .acct-pop-title{font-size:12px;color:var(--text-secondary);padding:4px 8px 6px}
+.acct-pop .acct-pop-sep{height:1px;background:var(--border-color);margin:6px 4px}
+.acct-pop .acct-row{width:100%;box-sizing:border-box}
+@media(max-width:768px){
+  /* 窄屏同样"常驻竖条"（不再是滑出抽屉）：收起时占位 56px，展开时浮在内容之上 */
+  .sidebar{position:relative;left:auto;width:56px;transition:width .2s var(--ease,ease)}
+  .sidebar:not(.rail){position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-width);z-index:100;
+    box-shadow:0 0 26px rgba(15,23,42,.28)}
+  /* 竖条常驻后顶栏少了 56px：按钮不许被挤到换行，标题该省略就省略 */
+  .header-right{flex-shrink:0}
+  .header-btn{white-space:nowrap;flex-shrink:0}
+}
 

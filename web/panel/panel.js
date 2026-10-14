@@ -38,8 +38,8 @@ const P = {
 global.PANEL = P;
 
 /* 界面骨架与图标：由 panel.js 统一注入，保证两端结构逐字相同 */
-const ICON_SPRITE = "<svg xmlns=\"http://www.w3.org/2000/svg\" style=\"display:none\" aria-hidden=\"true\" focusable=\"false\">\n<symbol id=\"i-bot\" viewBox=\"0 0 24 24\"><path d=\"M12 8V4H8\"/><rect width=\"16\" height=\"12\" x=\"4\" y=\"8\" rx=\"2\"/><path d=\"M2 14h2\"/><path d=\"M20 14h2\"/><path d=\"M15 13v2\"/><path d=\"M9 13v2\"/></symbol>\n<symbol id=\"i-paw\" viewBox=\"0 0 24 24\"><circle cx=\"11\" cy=\"4\" r=\"2\"/><circle cx=\"18\" cy=\"8\" r=\"2\"/><circle cx=\"20\" cy=\"16\" r=\"2\"/><path d=\"M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.04Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z\"/></symbol>\n<symbol id=\"i-puzzle\" viewBox=\"0 0 24 24\"><path d=\"M19.4 7.9a1.1 1.1 0 0 0 .3.8l1.6 1.6a2.4 2.4 0 0 1 0 3.4l-1.6 1.6a1 1 0 0 1-.9.3c-.4-.1-.8-.5-.9-.9a2.5 2.5 0 1 0-3.2 3.2c.4.1.8.5.9.9a1 1 0 0 1-.3.9l-1.6 1.6a2.4 2.4 0 0 1-3.4 0l-1.6-1.6a1 1 0 0 0-.9-.3c-.5.1-.8.5-1 1a2.5 2.5 0 1 1-3.2-3.3c.4-.2.9-.5 1-1a1 1 0 0 0-.4-.9L2.7 13.7a2.4 2.4 0 0 1 0-3.4l1.5-1.5a1 1 0 0 1 .9-.3c.5.1.9.5 1 1a2.5 2.5 0 1 0 3.3-3.2c-.5-.2-.9-.6-1-1.1a1 1 0 0 1 .3-.9l1.5-1.5a2.4 2.4 0 0 1 3.4 0l1.6 1.6a1 1 0 0 0 .9.3c.5-.1.8-.5 1-1a2.5 2.5 0 1 1 3.3 3.2c-.5.2-.9.6-1 1.1Z\"/></symbol>\n<symbol id=\"i-users\" viewBox=\"0 0 24 24\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/></symbol>\n<symbol id=\"i-chart\" viewBox=\"0 0 24 24\"><path d=\"M3 3v16a2 2 0 0 0 2 2h16\"/><path d=\"M7 16v-4\"/><path d=\"M12 16V8\"/><path d=\"M17 16v-7\"/></symbol>\n<symbol id=\"i-search\" viewBox=\"0 0 24 24\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></symbol>\n<symbol id=\"i-qr\" viewBox=\"0 0 24 24\"><rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\"/><path d=\"M12 18h.01\"/></symbol>\n<symbol id=\"i-refresh\" viewBox=\"0 0 24 24\"><path d=\"M21 12a9 9 0 1 1-2.64-6.36\"/><path d=\"M21 3v6h-6\"/></symbol>\n<symbol id=\"i-play\" viewBox=\"0 0 24 24\"><path d=\"m6 3 14 9-14 9V3z\"/></symbol>\n<symbol id=\"i-stop\" viewBox=\"0 0 24 24\"><rect width=\"14\" height=\"14\" x=\"5\" y=\"5\" rx=\"2\"/></symbol>\n<symbol id=\"i-monitor\" viewBox=\"0 0 24 24\"><rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8\"/><path d=\"M12 17v4\"/></symbol>\n<symbol id=\"i-external\" viewBox=\"0 0 24 24\"><path d=\"M15 3h6v6\"/><path d=\"M10 14 21 3\"/><path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\"/></symbol>\n<symbol id=\"i-moon\" viewBox=\"0 0 24 24\"><path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"/></symbol>\n<symbol id=\"i-sun\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2\"/><path d=\"M12 20v2\"/><path d=\"m4.9 4.9 1.4 1.4\"/><path d=\"m17.7 17.7 1.4 1.4\"/><path d=\"M2 12h2\"/><path d=\"M20 12h2\"/><path d=\"m6.3 17.7-1.4 1.4\"/><path d=\"m19.1 4.9-1.4 1.4\"/></symbol>\n<symbol id=\"i-settings\" viewBox=\"0 0 24 24\"><path d=\"M4 21v-7\"/><path d=\"M4 10V3\"/><path d=\"M12 21v-9\"/><path d=\"M12 8V3\"/><path d=\"M20 21v-5\"/><path d=\"M20 12V3\"/><path d=\"M1 14h6\"/><path d=\"M9 8h6\"/><path d=\"M17 16h6\"/></symbol>\n<symbol id=\"i-folder\" viewBox=\"0 0 24 24\"><path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"/></symbol>\n<symbol id=\"i-file\" viewBox=\"0 0 24 24\"><path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/></symbol>\n<symbol id=\"i-flask\" viewBox=\"0 0 24 24\"><path d=\"M10 2v7.3\"/><path d=\"M14 9.3V2\"/><path d=\"M8.5 2h7\"/><path d=\"M14 9.3a6.5 6.5 0 1 1-4 0\"/></symbol>\n<symbol id=\"i-chat\" viewBox=\"0 0 24 24\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/></symbol>\n<symbol id=\"i-rocket\" viewBox=\"0 0 24 24\"><path d=\"M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9 0z\"/><path d=\"m12 15-3-3a22 22 0 0 1 2-3.9A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22 22 0 0 1-4 2z\"/><path d=\"M9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0\"/><path d=\"M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5\"/></symbol>\n<symbol id=\"i-warn\" viewBox=\"0 0 24 24\"><path d=\"m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/></symbol>\n<symbol id=\"i-check\" viewBox=\"0 0 24 24\"><path d=\"M20 6 9 17l-5-5\"/></symbol>\n<symbol id=\"i-x\" viewBox=\"0 0 24 24\"><path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/></symbol>\n<symbol id=\"i-lock\" viewBox=\"0 0 24 24\"><rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/></symbol>\n<symbol id=\"i-user\" viewBox=\"0 0 24 24\"><path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/></symbol>\n<symbol id=\"i-clock\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/></symbol>\n<symbol id=\"i-trend\" viewBox=\"0 0 24 24\"><path d=\"M16 7h6v6\"/><path d=\"m22 7-8.5 8.5-5-5L2 17\"/></symbol>\n<symbol id=\"i-clipboard\" viewBox=\"0 0 24 24\"><rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/></symbol>\n<symbol id=\"i-menu\" viewBox=\"0 0 24 24\"><path d=\"M4 6h16\"/><path d=\"M4 12h16\"/><path d=\"M4 18h16\"/></symbol>\n<symbol id=\"i-logout\" viewBox=\"0 0 24 24\"><path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/><path d=\"m16 17 5-5-5-5\"/><path d=\"M21 12H9\"/></symbol>\n<symbol id=\"i-shuffle\" viewBox=\"0 0 24 24\"><path d=\"M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.8-1.1 2-1.7 3.3-1.7H22\"/><path d=\"m18 2 4 4-4 4\"/><path d=\"M2 6h1.9c1.5 0 2.9.9 3.6 2.2\"/><path d=\"M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8\"/><path d=\"m18 14 4 4-4 4\"/></symbol>\n<symbol id=\"i-bulb\" viewBox=\"0 0 24 24\"><path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/></symbol>\n<symbol id=\"i-download\" viewBox=\"0 0 24 24\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><path d=\"m7 10 5 5 5-5\"/><path d=\"M12 15V3\"/></symbol>\n<symbol id=\"i-save\" viewBox=\"0 0 24 24\"><path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\"/><path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\"/><path d=\"M7 3v4a1 1 0 0 0 1 1h7\"/></symbol>\n<symbol id=\"i-mailOpen\" viewBox=\"0 0 24 24\"><path d=\"M21.2 8.4c.5.4.8 1 .8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0Z\"/><path d=\"m22 10-9 5.7a1.9 1.9 0 0 1-2 0L2 10\"/></symbol>\n<symbol id=\"i-wrench\" viewBox=\"0 0 24 24\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9l-3.8 3.8z\"/></symbol>\n</svg>";
-const SHELL_HTML = "<div class=\"sidebar-overlay\" id=\"sidebarOverlay\" onclick=\"PANEL.toggleSidebar()\"></div>\n<div class=\"app\">\n  <aside class=\"sidebar\" id=\"sidebar\">\n    <div class=\"sidebar-logo\">\n      <div class=\"logo-identity\">\n        <img id=\"botAvatar\" src=\"favicon.ico\" alt=\"\">\n        <div class=\"logo-meta\">\n          <div class=\"logo-text\" id=\"botName\">加载中...</div>\n          <div class=\"logo-sub\" id=\"botSub\"></div>\n        </div>\n      </div>\n      <div id=\"shellIdentityExtra\"></div>\n    </div>\n    <nav class=\"sidebar-nav\" id=\"sidebarNav\"></nav>\n  </aside>\n  <div class=\"main\">\n    <header class=\"header\">\n      <button class=\"header-btn mobile-menu-btn\" onclick=\"PANEL.toggleSidebar()\" aria-label=\"打开导航\">☰</button>\n      <div class=\"header-breadcrumb\" id=\"breadcrumb\"><span class=\"current\">概览</span></div>\n      <div class=\"header-right\">\n        <span id=\"headerExtraSlot\"></span>\n        <span class=\"el-tag\" id=\"statusTag\"><span class=\"status-dot yellow\"></span> 检测中</span>\n        <button class=\"theme-btn\" onclick=\"PANEL.toggleTheme()\" id=\"themeBtn\" aria-label=\"切换主题\">🌙</button>\n        <button class=\"header-btn\" onclick=\"PANEL.refreshCurrentPage()\" title=\"重新加载当前页数据\">🔄 刷新</button>\n        <a class=\"header-btn\" href=\"#\" onclick=\"PANEL.logout();return false;\" id=\"logoutBtn\">🚪 退出</a>\n      </div>\n    </header>\n    <div class=\"content\" id=\"pageContent\"></div>\n    <div class=\"action-bar\" id=\"actionBar\" style=\"display:none\">\n      <span class=\"action-bar-title\" id=\"actionBarTitle\" style=\"font-size:13px;color:var(--text-secondary)\"></span>\n      <span class=\"el-tag warning\" id=\"actionBarDirty\" style=\"display:none\" title=\"有未保存的修改\">未保存</span>\n      <div class=\"bar-actions\">\n        <button class=\"btn btn-success\" id=\"actionSaveRestartBtn\" style=\"display:none\">💾 保存并重启</button>\n        <button class=\"btn btn-primary\" id=\"actionSaveBtn\">💾 保存</button>\n      </div>\n    </div>\n  </div>\n</div>\n<div class=\"toast\" id=\"toast\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" onclick=\"PANEL.dismissToast()\"></div>\n<div class=\"ui-modal\" id=\"uiModal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"uiModalTitle\" hidden>\n  <div class=\"ui-modal-backdrop\" data-ui-cancel></div>\n  <div class=\"ui-modal-box\">\n    <h2 class=\"ui-modal-title\" id=\"uiModalTitle\">确认操作</h2>\n    <div class=\"ui-modal-msg\" id=\"uiModalMsg\"></div>\n    <div class=\"ui-modal-actions\">\n      <button class=\"btn btn-default\" id=\"uiModalCancel\" data-ui-cancel>取消</button>\n      <button class=\"btn btn-primary\" id=\"uiModalOk\">确认</button>\n    </div>\n  </div>\n</div>";
+const ICON_SPRITE = "<svg xmlns=\"http://www.w3.org/2000/svg\" style=\"display:none\" aria-hidden=\"true\" focusable=\"false\">\n<symbol id=\"i-bot\" viewBox=\"0 0 24 24\"><path d=\"M12 8V4H8\"/><rect width=\"16\" height=\"12\" x=\"4\" y=\"8\" rx=\"2\"/><path d=\"M2 14h2\"/><path d=\"M20 14h2\"/><path d=\"M15 13v2\"/><path d=\"M9 13v2\"/></symbol>\n<symbol id=\"i-paw\" viewBox=\"0 0 24 24\"><circle cx=\"11\" cy=\"4\" r=\"2\"/><circle cx=\"18\" cy=\"8\" r=\"2\"/><circle cx=\"20\" cy=\"16\" r=\"2\"/><path d=\"M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.04Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z\"/></symbol>\n<symbol id=\"i-puzzle\" viewBox=\"0 0 24 24\"><path d=\"M19.4 7.9a1.1 1.1 0 0 0 .3.8l1.6 1.6a2.4 2.4 0 0 1 0 3.4l-1.6 1.6a1 1 0 0 1-.9.3c-.4-.1-.8-.5-.9-.9a2.5 2.5 0 1 0-3.2 3.2c.4.1.8.5.9.9a1 1 0 0 1-.3.9l-1.6 1.6a2.4 2.4 0 0 1-3.4 0l-1.6-1.6a1 1 0 0 0-.9-.3c-.5.1-.8.5-1 1a2.5 2.5 0 1 1-3.2-3.3c.4-.2.9-.5 1-1a1 1 0 0 0-.4-.9L2.7 13.7a2.4 2.4 0 0 1 0-3.4l1.5-1.5a1 1 0 0 1 .9-.3c.5.1.9.5 1 1a2.5 2.5 0 1 0 3.3-3.2c-.5-.2-.9-.6-1-1.1a1 1 0 0 1 .3-.9l1.5-1.5a2.4 2.4 0 0 1 3.4 0l1.6 1.6a1 1 0 0 0 .9.3c.5-.1.8-.5 1-1a2.5 2.5 0 1 1 3.3 3.2c-.5.2-.9.6-1 1.1Z\"/></symbol>\n<symbol id=\"i-users\" viewBox=\"0 0 24 24\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/></symbol>\n<symbol id=\"i-chart\" viewBox=\"0 0 24 24\"><path d=\"M3 3v16a2 2 0 0 0 2 2h16\"/><path d=\"M7 16v-4\"/><path d=\"M12 16V8\"/><path d=\"M17 16v-7\"/></symbol>\n<symbol id=\"i-search\" viewBox=\"0 0 24 24\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></symbol>\n<symbol id=\"i-qr\" viewBox=\"0 0 24 24\"><rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\"/><path d=\"M12 18h.01\"/></symbol>\n<symbol id=\"i-refresh\" viewBox=\"0 0 24 24\"><path d=\"M21 12a9 9 0 1 1-2.64-6.36\"/><path d=\"M21 3v6h-6\"/></symbol>\n<symbol id=\"i-play\" viewBox=\"0 0 24 24\"><path d=\"m6 3 14 9-14 9V3z\"/></symbol>\n<symbol id=\"i-stop\" viewBox=\"0 0 24 24\"><rect width=\"14\" height=\"14\" x=\"5\" y=\"5\" rx=\"2\"/></symbol>\n<symbol id=\"i-monitor\" viewBox=\"0 0 24 24\"><rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"/><path d=\"M8 21h8\"/><path d=\"M12 17v4\"/></symbol>\n<symbol id=\"i-external\" viewBox=\"0 0 24 24\"><path d=\"M15 3h6v6\"/><path d=\"M10 14 21 3\"/><path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\"/></symbol>\n<symbol id=\"i-moon\" viewBox=\"0 0 24 24\"><path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"/></symbol>\n<symbol id=\"i-sun\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2\"/><path d=\"M12 20v2\"/><path d=\"m4.9 4.9 1.4 1.4\"/><path d=\"m17.7 17.7 1.4 1.4\"/><path d=\"M2 12h2\"/><path d=\"M20 12h2\"/><path d=\"m6.3 17.7-1.4 1.4\"/><path d=\"m19.1 4.9-1.4 1.4\"/></symbol>\n<symbol id=\"i-settings\" viewBox=\"0 0 24 24\"><path d=\"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></symbol>\n<symbol id=\"i-folder\" viewBox=\"0 0 24 24\"><path d=\"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"/></symbol>\n<symbol id=\"i-file\" viewBox=\"0 0 24 24\"><path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/></symbol>\n<symbol id=\"i-flask\" viewBox=\"0 0 24 24\"><path d=\"M10 2v7.3\"/><path d=\"M14 9.3V2\"/><path d=\"M8.5 2h7\"/><path d=\"M14 9.3a6.5 6.5 0 1 1-4 0\"/></symbol>\n<symbol id=\"i-chat\" viewBox=\"0 0 24 24\"><path d=\"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z\"/></symbol>\n<symbol id=\"i-rocket\" viewBox=\"0 0 24 24\"><path d=\"M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9 0z\"/><path d=\"m12 15-3-3a22 22 0 0 1 2-3.9A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22 22 0 0 1-4 2z\"/><path d=\"M9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0\"/><path d=\"M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5\"/></symbol>\n<symbol id=\"i-warn\" viewBox=\"0 0 24 24\"><path d=\"m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z\"/><path d=\"M12 9v4\"/><path d=\"M12 17h.01\"/></symbol>\n<symbol id=\"i-check\" viewBox=\"0 0 24 24\"><path d=\"M20 6 9 17l-5-5\"/></symbol>\n<symbol id=\"i-x\" viewBox=\"0 0 24 24\"><path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/></symbol>\n<symbol id=\"i-lock\" viewBox=\"0 0 24 24\"><rect width=\"18\" height=\"11\" x=\"3\" y=\"11\" rx=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4\"/></symbol>\n<symbol id=\"i-user\" viewBox=\"0 0 24 24\"><path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/></symbol>\n<symbol id=\"i-clock\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/></symbol>\n<symbol id=\"i-trend\" viewBox=\"0 0 24 24\"><path d=\"M16 7h6v6\"/><path d=\"m22 7-8.5 8.5-5-5L2 17\"/></symbol>\n<symbol id=\"i-clipboard\" viewBox=\"0 0 24 24\"><rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/></symbol>\n<symbol id=\"i-menu\" viewBox=\"0 0 24 24\"><path d=\"M4 6h16\"/><path d=\"M4 12h16\"/><path d=\"M4 18h16\"/></symbol>\n<symbol id=\"i-logout\" viewBox=\"0 0 24 24\"><path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4\"/><path d=\"m16 17 5-5-5-5\"/><path d=\"M21 12H9\"/></symbol>\n<symbol id=\"i-shuffle\" viewBox=\"0 0 24 24\"><path d=\"M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.8-1.1 2-1.7 3.3-1.7H22\"/><path d=\"m18 2 4 4-4 4\"/><path d=\"M2 6h1.9c1.5 0 2.9.9 3.6 2.2\"/><path d=\"M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8\"/><path d=\"m18 14 4 4-4 4\"/></symbol>\n<symbol id=\"i-bulb\" viewBox=\"0 0 24 24\"><path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\"/><path d=\"M9 18h6\"/><path d=\"M10 22h4\"/></symbol>\n<symbol id=\"i-download\" viewBox=\"0 0 24 24\"><path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><path d=\"m7 10 5 5 5-5\"/><path d=\"M12 15V3\"/></symbol>\n<symbol id=\"i-save\" viewBox=\"0 0 24 24\"><path d=\"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z\"/><path d=\"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7\"/><path d=\"M7 3v4a1 1 0 0 0 1 1h7\"/></symbol>\n<symbol id=\"i-mailOpen\" viewBox=\"0 0 24 24\"><path d=\"M21.2 8.4c.5.4.8 1 .8 1.6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V10a2 2 0 0 1 .8-1.6l8-6a2 2 0 0 1 2.4 0Z\"/><path d=\"m22 10-9 5.7a1.9 1.9 0 0 1-2 0L2 10\"/></symbol>\n<symbol id=\"i-wrench\" viewBox=\"0 0 24 24\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9l-3.8 3.8z\"/></symbol>\n<symbol id=\"i-panel\" viewBox=\"0 0 24 24\"><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\"/><path d=\"M9 3v18\"/></symbol><symbol id=\"i-dashboard\" viewBox=\"0 0 24 24\"><rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\"/><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\"/></symbol><symbol id=\"i-filetext\" viewBox=\"0 0 24 24\"><path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M10 9H8\"/><path d=\"M16 13H8\"/><path d=\"M16 17H8\"/></symbol><symbol id=\"i-plugin\" viewBox=\"0 0 24 24\"><rect x=\"3\" y=\"3\" width=\"8\" height=\"8\" rx=\"2\"/><rect x=\"3\" y=\"13\" width=\"8\" height=\"8\" rx=\"2\"/><rect x=\"13\" y=\"13\" width=\"8\" height=\"8\" rx=\"2\"/><rect x=\"14.2\" y=\"3.2\" width=\"6.6\" height=\"6.6\" rx=\"1.6\" transform=\"rotate(45 17.5 6.5)\"/></symbol>\n</svg>";
+const SHELL_HTML = "<div class=\"sidebar-overlay\" id=\"sidebarOverlay\" onclick=\"PANEL.toggleSidebar()\"></div>\n<div class=\"app\">\n  <aside class=\"sidebar\" id=\"sidebar\">\n    <div class=\"sidebar-logo\" id=\"shellIdentity\">\n      <div class=\"logo-identity\">\n        <img id=\"botAvatar\" src=\"favicon.ico\" alt=\"\">\n        <div class=\"logo-meta\">\n          <div class=\"logo-text\" id=\"botName\">加载中...</div>\n          <div class=\"logo-sub\" id=\"botSub\"></div>\n        </div>\n      </div>\n      <div id=\"shellIdentityExtra\"></div>\n      <div class=\"acct-pop\" id=\"acctPop\" hidden></div>\n    </div>\n    <button class=\"rail-toggle\" id=\"railToggle\" type=\"button\" onclick=\"PANEL.toggleSidebar()\" aria-label=\"收起侧边栏\" title=\"收起侧边栏\"><svg class=\"ico\" aria-hidden=\"true\" focusable=\"false\"><use href=\"#i-panel\"></use></svg></button>\n    <nav class=\"sidebar-nav\" id=\"sidebarNav\"></nav>\n    <div class=\"sidebar-foot\">\n      <button class=\"app-menu-btn\" id=\"appMenuBtn\" type=\"button\" onclick=\"PANEL.toggleAppMenu()\" aria-haspopup=\"true\" aria-expanded=\"false\" title=\"设置\"><span class=\"icon\"><svg class=\"ico\" aria-hidden=\"true\" focusable=\"false\"><use href=\"#i-settings\"></use></svg></span><span class=\"nav-label\">设置</span></button>\n      <div class=\"app-menu\" id=\"appMenu\" hidden></div>\n    </div>\n  </aside>\n  <div class=\"main\">\n    <header class=\"header\">\n      <div class=\"header-breadcrumb\" id=\"breadcrumb\"><span class=\"current\">概览</span></div>\n      <div class=\"header-right\">\n        <span id=\"headerExtraSlot\"></span>\n        <span class=\"el-tag\" id=\"statusTag\"><span class=\"status-dot yellow\"></span> 检测中</span>\n        <button class=\"theme-btn\" onclick=\"PANEL.toggleTheme()\" id=\"themeBtn\" aria-label=\"切换主题\">🌙</button>\n        <button class=\"header-btn\" onclick=\"PANEL.refreshCurrentPage()\" title=\"重新加载当前页数据\">🔄 刷新</button>\n        <a class=\"header-btn\" href=\"#\" onclick=\"PANEL.logout();return false;\" id=\"logoutBtn\">🚪 退出</a>\n      </div>\n    </header>\n    <div class=\"content\" id=\"pageContent\"></div>\n    <div class=\"action-bar\" id=\"actionBar\" style=\"display:none\">\n      <span class=\"action-bar-title\" id=\"actionBarTitle\" style=\"font-size:13px;color:var(--text-secondary)\"></span>\n      <span class=\"el-tag warning\" id=\"actionBarDirty\" style=\"display:none\" title=\"有未保存的修改\">未保存</span>\n      <div class=\"bar-actions\">\n        <button class=\"btn btn-success\" id=\"actionSaveRestartBtn\" style=\"display:none\">💾 保存并重启</button>\n        <button class=\"btn btn-primary\" id=\"actionSaveBtn\">💾 保存</button>\n      </div>\n    </div>\n  </div>\n</div>\n<div class=\"toast\" id=\"toast\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" onclick=\"PANEL.dismissToast()\"></div>\n<div class=\"ui-modal\" id=\"uiModal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"uiModalTitle\" hidden>\n  <div class=\"ui-modal-backdrop\" data-ui-cancel></div>\n  <div class=\"ui-modal-box\">\n    <h2 class=\"ui-modal-title\" id=\"uiModalTitle\">确认操作</h2>\n    <div class=\"ui-modal-msg\" id=\"uiModalMsg\"></div>\n    <div class=\"ui-modal-actions\">\n      <button class=\"btn btn-default\" id=\"uiModalCancel\" data-ui-cancel>取消</button>\n      <button class=\"btn btn-primary\" id=\"uiModalOk\">确认</button>\n    </div>\n  </div>\n</div>";
 function ensureShell() {
   if (document.getElementById("appReady")) return;
   const holder = document.createElement("div");
@@ -176,6 +176,7 @@ function renderSidebar() {
   P.nav.forEach(function (it) { if (it.hidden) return; (groups[it.group || ''] = groups[it.group || ''] || []).push(it); });
   let html = '';
   Object.keys(groups).forEach(function (g) {
+    html += '<div class="nav-group">';           /* 分组包一层：最后一组（设置）好钉在左下角 */
     if (g) html += '<div class="nav-group-title">' + esc(g) + '</div>';
     groups[g].forEach(function (it) {
       const active = P.page === it.id || (it.ids || []).indexOf(P.page) >= 0;
@@ -184,16 +185,20 @@ function renderSidebar() {
         const open = !!P.subOpen[it.id];
         html += '<div class="nav-item ' + (active ? 'active' : '') + '"' + a11y + ' data-page="' + it.id + '"'
           + ' aria-expanded="' + (open ? 'true' : 'false') + '" aria-controls="sub_' + it.id + '"'
+          + ' title="' + esc(it.label) + '"'
           + ' onclick="PANEL.toggleSubMenu(\'' + it.id + '\')">'
-          + '<span class="icon">' + (it.icon || '') + '</span> ' + esc(it.label)
+          + '<span class="icon">' + (it.icon || '') + '</span>'
+          + '<span class="nav-label">' + esc(it.label) + '</span>'
           + '<span class="nav-arrow" id="arrow_' + it.id + '">' + (open ? '▴' : '▾') + '</span></div>';
         html += '<div class="nav-sub" id="sub_' + it.id + '"></div>';
       } else {
         html += '<div class="nav-item ' + (active ? 'active' : '') + '"' + a11y + ' data-page="' + it.id + '"'
+          + ' title="' + esc(it.label) + '"'
           + ' onclick="PANEL.navigate(\'' + it.id + '\')"><span class="icon">' + (it.icon || '') + '</span> '
-          + esc(it.label) + '</div>';
+          + '<span class="nav-label">' + esc(it.label) + '</span></div>';
       }
     });
+    html += '</div>';
   });
   nav.innerHTML = html;
   restoreSubMenus();
@@ -211,6 +216,8 @@ function restoreSubMenus() {
     if (open) renderSubMenu(it.id);
   });
 }
+/* 竖条态点父项：就地向下展开/收起子菜单，**不**展开侧栏（用户要求）。
+   侧栏宽度不变，所以子项文字按 56px 宽省略显示。 */
 function toggleSubMenu(id) {
   P.subOpen[id] = !P.subOpen[id];
   restoreSubMenus();
@@ -230,7 +237,35 @@ function subMenuLoading(id, text) {
 }
 
 /* ---------------------------------------------------------------- 导航 */
-function closeSidebar() { $('sidebar').classList.remove('open'); $('sidebarOverlay').classList.remove('open'); }
+/* 侧边栏是"常驻竖条"：收起=只剩图标（.rail），展开=完整侧栏；☰ 来回切。
+   窄屏默认收起（竖条常驻左侧，不再是滑出抽屉），展开时浮在内容之上；
+   宽屏默认展开。用户要求："侧边栏应改为常驻，点击可扩出来或者缩回去"。 */
+function isNarrow() {
+  try { return window.matchMedia('(max-width: 768px)').matches; } catch (e) { return false; }
+}
+function setRail(collapsed) {
+  const sb = $('sidebar');
+  if (!sb) return;
+  sb.classList.toggle('rail', !!collapsed);
+  sb.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  /* 收起/展开按钮就一个，钉在账号卡片右侧（用户指定）：展开态显示 = 收起侧栏，
+     收起后整个收掉，展开侧栏靠点左上角头像。 */
+  const btn = $('railToggle');
+  if (btn) {
+    btn.setAttribute('aria-label', '收起侧边栏');
+    btn.setAttribute('title', '收起侧边栏');
+  }
+  const logo = $('shellIdentity');
+  if (logo && P.hooks.accountPop) {
+    const tip = collapsed ? '展开侧边栏' : '切换账号';
+    logo.setAttribute('title', tip);
+    logo.setAttribute('aria-label', tip);
+  }
+  const ov = $('sidebarOverlay');
+  if (ov) ov.classList.toggle('open', !collapsed && isNarrow());
+  if (collapsed) { toggleAccountPop(false); toggleAppMenu(false); }   /* 收起时把浮层一起收掉 */
+}
+function closeSidebar() { if (isNarrow()) setRail(true); }   /* 窄屏：导航后收回竖条 */
 function goPage(page, key) {
   P.page = page;
   if (key !== undefined) P.key = key;
@@ -336,7 +371,7 @@ async function refreshStatusParts() {
 }
 
 /* ---------------------------------------------------------------- 图标水合 */
-const ICON_MAP = { '\u{1F916}': 'bot', '\u{1F431}': 'paw', '\u{1F9E9}': 'puzzle', '\u{1F465}': 'users', '\u{1F4CA}': 'chart', '\u{1F50D}': 'search', '\u{1F4F1}': 'qr', '\u{1F504}': 'refresh', '\u25B6': 'play', '\u23F9': 'stop', '\u{1F5A5}': 'monitor', '\u{1F319}': 'moon', '\u2600': 'sun', '\u2699': 'settings', '\u{1F6E0}': 'wrench', '\u{1F4C4}': 'file', '\u{1F5C2}': 'folder', '\u{1F9EA}': 'flask', '\u{1F4AC}': 'chat', '\u{1F680}': 'rocket', '\u26A0': 'warn', '\u2705': 'check', '\u2713': 'check', '\u274C': 'x', '\u2717': 'x', '\u{1F512}': 'lock', '\u{1F464}': 'user', '\u{1F552}': 'clock', '\u231B': 'clock', '\u{1F4C8}': 'trend', '\u{1F4CB}': 'clipboard', '\u2630': 'menu', '\u{1F6AA}': 'logout', '\u{1F500}': 'shuffle', '\u{1F4A1}': 'bulb', '\u2B07': 'download', '\u{1F4BE}': 'save', '\u{1F4ED}': 'mailOpen', '\u{1F4C1}': 'folder', '\u2795': 'plus', '\u{1F527}': 'wrench', '\u{1F517}': 'lock', '\u{1F4E6}': 'puzzle' };
+const ICON_MAP = { '\u{1F916}': 'bot', '\u{1F431}': 'paw', '\u{1F9E9}': 'plugin', '\u{1F465}': 'users', '\u{1F4CA}': 'dashboard', '\u{1F50D}': 'search', '\u{1F4F1}': 'qr', '\u{1F504}': 'refresh', '\u25B6': 'play', '\u23F9': 'stop', '\u{1F5A5}': 'monitor', '\u{1F319}': 'moon', '\u2600': 'sun', '\u2699': 'settings', '\u{1F6E0}': 'wrench', '\u{1F4C4}': 'file', '\u{1F5C2}': 'folder', '\u{1F9EA}': 'flask', '\u{1F4AC}': 'chat', '\u{1F680}': 'rocket', '\u26A0': 'warn', '\u2705': 'check', '\u2713': 'check', '\u274C': 'x', '\u2717': 'x', '\u{1F512}': 'lock', '\u{1F464}': 'user', '\u{1F552}': 'clock', '\u231B': 'clock', '\u{1F4C8}': 'trend', '\u{1F4CB}': 'filetext', '\u2630': 'menu', '\u{1F6AA}': 'logout', '\u{1F500}': 'shuffle', '\u{1F4A1}': 'bulb', '\u2B07': 'download', '\u{1F4BE}': 'save', '\u{1F4ED}': 'mailOpen', '\u{1F4C1}': 'folder', '\u2795': 'plus', '\u{1F527}': 'wrench', '\u{1F517}': 'lock', '\u{1F4E6}': 'puzzle' };
 const ICON_SKIP = { INPUT: 1, TEXTAREA: 1, SELECT: 1, PRE: 1, CODE: 1, SCRIPT: 1, STYLE: 1, SVG: 1 };
 function iconSvg(id) { return '<svg class="ico" aria-hidden="true" focusable="false"><use href="#i-' + id + '"></use></svg>'; }
 function _skip(node) {
@@ -394,7 +429,90 @@ function restoreTheme() {
   try { saved = localStorage.getItem('theme'); } catch (e) { }
   if (saved === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); const b = $('themeBtn'); if (b) b.textContent = '☀️'; }
 }
-function toggleSidebar() { $('sidebar').classList.toggle('open'); $('sidebarOverlay').classList.toggle('open'); }
+function toggleSidebar() { const sb = $('sidebar'); if (sb) setRail(!sb.classList.contains('rail')); }
+
+/* ---------------------------------------------------------------- 左下角齿轮卡片 */
+/* 用户要求：左下角只留一个「设置」齿轮，点它向右弹出卡片，卡片里放 更新 / 设置 / 引导。
+   具体有哪几项由各端的 PANEL.appMenu 决定（Linux 端没有这些页就不给这个 hook）。 */
+function renderAppMenu() {
+  const m = $('appMenu');
+  if (!m) return;
+  const items = P.appMenu || [];
+  m.innerHTML = items.map(function (it) {
+    return '<button class="app-menu-item" type="button" role="menuitem"'
+      + ' onclick="PANEL.menuGo(\'' + it.id + '\')">'
+      + '<span class="icon">' + (it.icon || '') + '</span>'
+      + '<span class="app-menu-label">' + esc(it.label) + '</span></button>';
+  }).join('');
+}
+function toggleAppMenu(force) {
+  const m = $('appMenu'), b = $('appMenuBtn');
+  if (!m) return;
+  const want = (force === undefined) ? m.hasAttribute('hidden') : !!force;
+  if (want) renderAppMenu();
+  m.hidden = !want;
+  if (b) b.setAttribute('aria-expanded', want ? 'true' : 'false');
+}
+function menuGo(id) { toggleAppMenu(false); navigate(id); }
+function bindAppMenu() {
+  const btn = $('appMenuBtn'), menu = $('appMenu');
+  if (!btn || !menu) return;
+  document.addEventListener('click', function (e) {
+    if (menu.hasAttribute('hidden')) return;
+    if (e.target.closest && (e.target.closest('#appMenuBtn') || e.target.closest('#appMenu'))) return;
+    toggleAppMenu(false);
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') toggleAppMenu(false); });
+}
+
+/* ---------------------------------------------------------------- 账号浮层（左上角账号卡） */
+/* 点左上角账号卡 → 向右弹出账号卡片列表（哪端提供列表由 hooks.accountPop 决定：
+   桌面端有多账号；Linux 端没有这个 hook，账号卡就不可点）。 */
+async function toggleAccountPop(force) {
+  const pop = $('acctPop');
+  if (!pop) return;
+  const want = (force === undefined) ? pop.hasAttribute('hidden') : !!force;
+  const logo = $('shellIdentity');
+  if (!want) {
+    pop.setAttribute('hidden', '');
+    if (logo) logo.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  /* 先让 hook 把内容填好再显示：列表是异步拉的，先显示会闪一下空白 */
+  if (P.hooks.accountPop) { try { await P.hooks.accountPop(pop); } catch (e) { pop.innerHTML = ''; } }
+  else pop.innerHTML = '';
+  pop.removeAttribute('hidden');
+  if (logo) logo.setAttribute('aria-expanded', 'true');
+}
+function bindAccountPop() {
+  const logo = $('shellIdentity');
+  if (!logo) return;
+  const hasPop = !!P.hooks.accountPop;           /* 没有多账号能力（Linux 端）就只有"点它展开侧栏" */
+  logo.classList.add('clickable');
+  logo.setAttribute('role', 'button');
+  logo.setAttribute('tabindex', '0');
+  if (hasPop) {
+    logo.setAttribute('aria-haspopup', 'true');
+    logo.setAttribute('aria-expanded', 'false');
+  }
+  const onLogo = function () {
+    const sb = $('sidebar');
+    /* 竖条状态点头像 = 展开侧边栏（用户要求）；展开状态才是切账号 */
+    if (sb && sb.classList.contains('rail')) { setRail(false); return; }
+    if (hasPop) toggleAccountPop();
+  };
+  logo.addEventListener('click', onLogo);
+  logo.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onLogo(); }
+  });
+  if (!hasPop) return;
+  document.addEventListener('click', function (e) {
+    const pop = $('acctPop');
+    if (pop && !pop.hasAttribute('hidden') && !e.target.closest('#shellIdentity')) {
+      toggleAccountPop(false);
+    }
+  });
+}
 
 /* ---------------------------------------------------------------- 日志查看 */
 /* 日志 DOM 上限：行数上限是 2000，全塞进 DOM 会让页面随日志增长越来越卡
@@ -817,7 +935,11 @@ function bindDelegates() {
     el = t.closest('[data-nav]');
     if (el) { navigate(el.getAttribute('data-nav')); return; }
     el = t.closest('[data-acct-pick]');
-    if (el) { P.hooks.pickAccount && P.hooks.pickAccount(el.getAttribute('data-acct-pick')); return; }
+    if (el) {
+      if (P.hooks.pickAccount) P.hooks.pickAccount(el.getAttribute('data-acct-pick'));
+      toggleAccountPop(false);          /* 选完就收起账号浮层 */
+      return;
+    }
     el = t.closest('[data-cfg-tab]');
     if (el) { cfgTab(el.getAttribute('data-cfg-tab')); return; }
     el = t.closest('[data-log-act]');
@@ -863,8 +985,11 @@ P.start = async function () {
     CFGCTL.onGroupRefresh = function () { P.hooks.loadGroups && P.hooks.loadGroups(true); };
   }
   bindDelegates();
+  bindAccountPop();
+  bindAppMenu();
   bindVisibility();
   renderSidebar();
+  setRail(isNarrow());                  /* 窄屏默认只留左侧竖条 */
   hydrateIcons(document.body);
   new MutationObserver(scheduleHydrate).observe(document.body, { childList: true, subtree: true });
   scheduleHydrate();
@@ -872,7 +997,9 @@ P.start = async function () {
   refreshHeaderStatus();
   if (P.hooks.startPage) P.page = P.hooks.startPage();
   renderPage();
-  if (P.hooks.subMenus && P.hooks.subMenus.config) { P.subOpen.config = true; renderSidebar(); }
+  /* 二级菜单默认不展开（只有真正停在插件配置页才展开）：收起/展开侧栏时
+     内容高度必须一致，否则下面的按钮会上下跳（用户要求零上下位移）。 */
+  if (P.hooks.subMenus && P.hooks.subMenus.config && P.page === 'config') { P.subOpen.config = true; renderSidebar(); }
 };
 
 /* 供各端与页面胶水使用 */
@@ -883,6 +1010,8 @@ P.renderPage = renderPage; P.refreshCurrentPage = refreshCurrentPage;
 P.renderSidebar = renderSidebar; P.toggleSubMenu = toggleSubMenu; P.renderSubMenu = renderSubMenu;
 P.subMenuLoading = subMenuLoading; P.restoreSubMenus = restoreSubMenus;
 P.toggleSidebar = toggleSidebar; P.toggleTheme = toggleTheme; P.hydrateIcons = hydrateIcons;
+P.toggleAccountPop = toggleAccountPop; P.setRail = setRail;
+P.toggleAppMenu = toggleAppMenu; P.renderAppMenu = renderAppMenu; P.menuGo = menuGo;
 P.startPoll = startPoll; P.stopPoll = stopPoll; P.showActionBar = showActionBar; P.hideActionBar = hideActionBar;
 P.refreshStatusParts = refreshStatusParts; P.refreshHeaderStatus = refreshHeaderStatus;
 P.renderConfigForm = renderConfigForm; P.cfgTab = cfgTab; P.cfgMsg = cfgMsg;
