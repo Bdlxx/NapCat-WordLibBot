@@ -85,8 +85,10 @@ def main(verbose: bool) -> int:
     # 4) 共用样式里的关键规则（两端都受影响）
     check("透明确认到：拖动区规则存在（Windows 无边框窗口用）",
           ("-webkit-app-region:drag" in css) or True)          # Linux 端不需要，仅提示
-    check("文字可选中规则存在且不误伤",
-          ("-webkit-user-select:text" in css) and ("#desktopBar,#desktopBar *{-webkit-user-select:none" in css))
+    # 死容器已删除（用户 ②）：拖动区改用 codex 的 pywebview-drag-region 机制，
+    # 因此这里只查"正文可选中"，并断言旧容器的样式已彻底消失
+    check("文字可选中规则存在", "-webkit-user-select:text" in css)
+    check("死容器样式已清除", "#desktopBar" not in css and ".db-" not in css)
     check("提示层级高于弹窗",
           (lambda t, m: t > m > 0)(
               int((re.search(r"\.toast\{[^}]*z-index:(\d+)", css) or re.match(r"", "0")).group(1) or 0)

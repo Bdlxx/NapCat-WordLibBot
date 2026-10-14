@@ -421,48 +421,10 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 #headerExtraSlot,#shellIdentityExtra{display:inline-flex;align-items:center;gap:var(--space-sm,8px)}
 #shellIdentityExtra:empty{display:none}
 /* 账号/机器人切换（桌面端多账号用；Linux 该区域为空） */
-.acct-row{display:flex;align-items:center;gap:var(--space-sm,8px);padding:6px 8px;border-radius:var(--radius,8px);
-  cursor:pointer;border:1px solid transparent}
-.acct-row:hover{background:var(--bg-hover)}
-.acct-row.active{background:var(--bg-active);border-color:var(--color-primary-soft,var(--border-light))}
-.acct-row .a-name{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.acct-row .a-sub{font-size:11px;color:var(--text-secondary)}
 
 /* ---- 桌面端顶栏 + 账号浮层（Linux 端不会渲染，见 panel.js 的能力探测） ---- */
-#desktopBar{position:fixed;top:0;left:0;right:0;height:52px;z-index:60;display:flex;align-items:center;
-  gap:10px;padding:0 12px;background:#171a21;color:#e6e6e6;border-bottom:1px solid #262b36}
-#desktopBar .db-avatar{width:34px;height:34px;border-radius:50%;border:0;background:#2b6cff;color:#fff;
-  font-size:15px;cursor:pointer}
-#desktopBar .db-info{flex:1;min-width:0}
-#desktopBar .db-nick{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#desktopBar .db-state{font-size:12px;color:#9aa4b2}
-#desktopBar .db-btn{background:#2b6cff;color:#fff;border:0;border-radius:8px;padding:7px 12px;
-  font-size:13px;cursor:pointer}
-#desktopBar .db-btn.ghost{background:#2a2f3a}
-#desktopBar .db-btn:disabled{opacity:.5;cursor:not-allowed}
-#acctOverlay{position:fixed;inset:0;z-index:70;background:rgba(15,17,21,.45);display:flex;
-  align-items:flex-start;justify-content:flex-start}
-#acctOverlay .acct-panel{margin:64px 0 0 12px;background:#fff;border-radius:12px;padding:12px;
-  min-width:260px;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
-#acctOverlay .acct-title{font-size:13px;color:#6b7280;margin-bottom:8px}
-#acctOverlay .acct-card{display:flex;gap:10px;align-items:center;padding:8px;border-radius:10px;cursor:pointer}
-#acctOverlay .acct-card:hover{background:#f3f6ff}
-#acctOverlay .acct-card.current{background:#eaf0ff}
-#acctOverlay .acct-avatar{width:34px;height:34px;border-radius:50%;background:#2b6cff;color:#fff;
-  display:flex;align-items:center;justify-content:center;font-size:14px}
-#acctOverlay .acct-name{font-size:14px;color:#1e2230}
-#acctOverlay .acct-qq{font-size:12px;color:#6b7280}
-#acctOverlay .acct-empty{color:#6b7280;font-size:13px;padding:8px}
-/* 顶栏显示时由 panel.js 动态加 body 顶距（Linux 端不显示顶栏 → 不留白）*/
 
-/* ---- 无边框窗口：顶栏即拖动区 + 自绘三按钮（左最小化 / 中收起托盘 / 右退出程序） ---- */
-#desktopBar{-webkit-app-region:drag}
-#desktopBar button,#desktopBar input{-webkit-app-region:no-drag}
-#desktopBar .db-sep{width:1px;height:22px;background:#2a2f3a;margin:0 4px}
-#desktopBar .db-winbtn{width:34px;height:30px;border:0;border-radius:6px;background:transparent;
-  color:#cfd6e4;font-size:13px;line-height:1;cursor:pointer}
-#desktopBar .db-winbtn:hover{background:#2a2f3a}
-#desktopBar .db-winbtn.danger:hover{background:#b3261e;color:#fff}
+/* 顶栏显示时由 panel.js 动态加 body 顶距（Linux 端不显示顶栏 → 不留白）*/
 
 /* ---------- 5. 常驻侧边栏（竖条 ↔ 完整） + 左上角账号浮层 ---------- */
 /* 用户要求：侧边栏"常驻、点击可扩出来或者缩回去，在左侧竖条常驻"。
@@ -543,13 +505,7 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 .app-menu-item .icon .ico{width:18px;height:18px}
 
 /* 账号浮层：贴着左上角账号卡向右弹出（只有多账号端会给它填内容） */
-.acct-pop{position:absolute;left:calc(100% + 6px);top:8px;min-width:212px;max-height:60vh;overflow:auto;
-  background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-lg,12px);
-  box-shadow:0 10px 28px rgba(15,23,42,.18);padding:8px;z-index:200}
-.acct-pop[hidden]{display:none}
-.acct-pop .acct-pop-title{font-size:12px;color:var(--text-secondary);padding:4px 8px 6px}
-.acct-pop .acct-pop-sep{height:1px;background:var(--border-color);margin:6px 4px}
-.acct-pop .acct-row{width:100%;box-sizing:border-box}
+
 @media(max-width:768px){
   /* 窄屏同样"常驻竖条"（不再是滑出抽屉）：收起时占位 56px，展开时浮在内容之上 */
   .sidebar{position:relative;left:auto;width:56px;transition:width .2s var(--ease,ease)}
@@ -564,5 +520,4 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
    pywebview 默认 text_select=False 会加 body{user-select:none}；开了之后这里做细分：
    正文可选中，但**顶栏（拖动区）保持不可选** —— 否则拖窗口时会变成选字。 */
 body,input,textarea,select,pre,code,.log-viewer,.cf-help,.info-table{-webkit-user-select:text;user-select:text}
-#desktopBar,#desktopBar *{-webkit-user-select:none;user-select:none}
 
