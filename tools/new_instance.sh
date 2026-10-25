@@ -44,6 +44,7 @@ NAP_DIR=""
 HTTP_PORT=""
 WS_PORT=""
 WEBUI_PORT=""
+WEBUI_TOKEN=""
 NAP_DOMAIN=""
 PANEL_DOMAIN=""
 PANEL_PATH=""
@@ -78,6 +79,7 @@ usage() {
     echo "  --panel-domain <域名>    面板域名（与 NapCat 同域名时改用 --panel-path）"
     echo "  --panel-path <路径>      面板挂在 NapCat 域名的子路径下（如 /panel）"
     echo "  --http-port/--ws-port/--webui-port   覆盖 NapCat 端口（默认自动挑空闲）"
+    echo "  --webui-token <字符串>   NapCat WebUI 登录密码（默认沿用源实例的 token）"
     echo "  --napcat-dir <目录>      NapCat 数据目录（默认 /root/napcat<N>）"
     echo "  --container <名字>       容器名（默认 napcat<N>）"
     echo "  --skip-napcat|--skip-nginx|--skip-systemd|--skip-plugins|--skip-panel"
@@ -97,6 +99,7 @@ while [ $# -gt 0 ]; do
         --http-port) HTTP_PORT="${2:-}"; shift 2 ;;
         --ws-port) WS_PORT="${2:-}"; shift 2 ;;
         --webui-port) WEBUI_PORT="${2:-}"; shift 2 ;;
+        --webui-token) WEBUI_TOKEN="${2:-}"; shift 2 ;;
         --napcat-dir) NAP_DIR="${2:-}"; shift 2 ;;
         --container) NAP_CONTAINER="${2:-}"; shift 2 ;;
         --screen) SCREEN_NAME="${2:-}"; shift 2 ;;
@@ -412,9 +415,9 @@ else
     [ -n "$src_proto" ] && cp "$src_proto" "$TMP_CFG/napcat_protocol_$QQ.json"
     echo '{}' > "$TMP_CFG/passkey.json"
     # webui.json：沿用源实例的 token（用户已知），只改账号
-    python3 - "$SRC_NAP/config/webui.json" "$TMP_CFG/webui.json" "$QQ" "$WEBUI_PORT" <<'PY'
+    python3 - "$SRC_NAP/config/webui.json" "$TMP_CFG/webui.json" "$QQ" "$WEBUI_PORT" "$WEBUI_TOKEN" <<'PY'
 import json, sys
-src, dst, qq, port = sys.argv[1:5]
+src, dst, qq, port, forced_token = sys.argv[1:6]
 try:
     d = json.load(open(src, encoding='utf-8'))
 except Exception:
@@ -422,6 +425,8 @@ except Exception:
 d['host'] = '0.0.0.0'
 d['port'] = 6099                       # 容器内部端口固定，宿主侧用映射
 d.setdefault('token', '')
+if forced_token:
+    d['token'] = forced_token        # 指定了就用指定的（如"密码=QQ号"）
 d['autoLoginAccount'] = qq
 json.dump(d, open(dst, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 PY
