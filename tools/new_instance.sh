@@ -279,8 +279,12 @@ with open(os.path.join(dst, 'config.json'), 'w', encoding='utf-8') as f:
     f.write('\n')
 
 # 只搬"配置类"，不搬运行时数据（签到/婚姻/昵称/缓存）
+# ⚠️ plugin_toggle.json **不能搬**：它的键是**群号**，属于源账号自己所在的群。
+#    搬过去会让新实例的面板列出另一个账号的群（2026-10-25 线上就踩了：
+#    凛紫的群组开关页显示依星的 22 个群，且在面板点保存会把这 22 个群写进本实例的
+#    开关文件）。新实例从空表开始，登录后群列表由 NapCat 提供、默认全关。
 CONFIGS = ['wordlib_config.json', 'marry_config.json', 'persona_config.json',
-           'jm_downloader_config.json', 'video_parser_config.json', 'plugin_toggle.json']
+           'jm_downloader_config.json', 'video_parser_config.json']
 src_name = src_cfg.get('BOT_NAME', '')
 for fn in CONFIGS:
     s = os.path.join(src, 'data', fn)

@@ -204,9 +204,15 @@ def _groups(ctx):
         m = meta.get(p) or {}
         return m.get('name_cn') or p
 
+    # 开关文件里记着、但本账号当前不在的群（另一个账号的群/已退出的群）——单独标出来，
+    # 否则"开关绑了一堆自己不认识的群"会被当成绑定错误（2026-10-25 线上就踩了这次）
+    missing = [g for g in groups if group_info and g not in group_info] if group_info else []
     head = ['<div class="card"><div class="card-header"><h3>👥 分群插件开关</h3>',
             f'<span class="badge" style="font-size:11px;padding:2px 10px;border-radius:10px;'
-            f'background:var(--bg-active);color:var(--color-primary)">{len(groups)} 个群</span></div>',
+            f'background:var(--bg-active);color:var(--color-primary)">{len(groups)} 个群</span>',
+            (f'<span class="el-tag warning" style="margin-left:8px" title="开关存着，但该账号当前不在这些群里，'
+             f'开关不会生效">{len(missing)} 个群本账号未加入</span>') if missing else '',
+            '</div>',
             '<div class="card-body"><div class="table-wrapper"><table class="el-table" style="min-width:600px">',
             '<thead><tr><th class="sticky-col">群号</th>']
     for p in plugins:
@@ -238,7 +244,11 @@ def _groups(ctx):
                         f'this.parentElement.textContent=\'👥\'">')
         else:
             head.append('👥')
-        head.append(f'</div><div class="g-info"><div class="g-name">{esc(gname)}</div>'
+        name_html = esc(gname)
+        if g in missing:
+            name_html += (' <span class="el-tag warning" style="font-size:10px;padding:1px 6px" '
+                          'title="该账号当前不在此群：开关存着但不会生效">未加入</span>')
+        head.append(f'</div><div class="g-info"><div class="g-name">{name_html}</div>'
                     f'<div class="g-id">{esc(g)}</div></div></div></td>')
         for p in plugins:
             on = bool((toggles.get(g) or {}).get(p))

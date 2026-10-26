@@ -445,18 +445,43 @@ function renderAppMenu() {
       + '<span class="app-menu-label">' + esc(it.label) + '</span></button>';
   }).join('');
 }
+/* 没有菜单项就别把齿轮留着：点开是个 184×14 的空长条，看着像"坏了"。
+   （2026-10-25 线上反馈：Linux 端没定义 PANEL.appMenu → 点设置只弹一条空框）
+   哪端没给 appMenu，就把按钮直接隐藏，而不是弹空白。 */
+function syncAppMenuBtn() {
+  const b = $('appMenuBtn'), m = $('appMenu');
+  const has = !!(P.appMenu && P.appMenu.length);
+  if (b) b.style.display = has ? '' : 'none';
+  if (!has && m) { m.hidden = true; m.innerHTML = ''; }
+  return has;
+}
 function toggleAppMenu(force) {
   const m = $('appMenu'), b = $('appMenuBtn');
   if (!m) return;
   const want = (force === undefined) ? m.hasAttribute('hidden') : !!force;
+  if (want && !syncAppMenuBtn()) return;      /* 无菜单项：不弹空白条 */
   if (want) renderAppMenu();
   m.hidden = !want;
   if (b) b.setAttribute('aria-expanded', want ? 'true' : 'false');
 }
-function menuGo(id) { toggleAppMenu(false); navigate(id); }
+/* 菜单项两种用法（同一份外壳两端共用）：
+   · 只给 id  → 当成页面 id 跳过去（Windows 端：更新 / 设置 / 引导）
+   · 给了 run() → 直接执行动作（Linux 端没有这些页，用动作型菜单：切换机器人 / 打开 NapCat / 退出登录） */
+function menuGo(id) {
+  toggleAppMenu(false);
+  const items = P.appMenu || [];
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].id === id && typeof items[i].run === 'function') {
+      try { items[i].run(); } catch (e) { }
+      return;
+    }
+  }
+  navigate(id);
+}
 function bindAppMenu() {
   const btn = $('appMenuBtn'), menu = $('appMenu');
   if (!btn || !menu) return;
+  syncAppMenuBtn();                 /* 启动时就决定齿轮要不要出现 */
   document.addEventListener('click', function (e) {
     if (menu.hasAttribute('hidden')) return;
     if (e.target.closest && (e.target.closest('#appMenuBtn') || e.target.closest('#appMenu'))) return;
@@ -1012,6 +1037,7 @@ P.subMenuLoading = subMenuLoading; P.restoreSubMenus = restoreSubMenus;
 P.toggleSidebar = toggleSidebar; P.toggleTheme = toggleTheme; P.hydrateIcons = hydrateIcons;
 P.toggleAccountPop = toggleAccountPop; P.setRail = setRail;
 P.toggleAppMenu = toggleAppMenu; P.renderAppMenu = renderAppMenu; P.menuGo = menuGo;
+P.syncAppMenuBtn = syncAppMenuBtn;
 P.startPoll = startPoll; P.stopPoll = stopPoll; P.showActionBar = showActionBar; P.hideActionBar = hideActionBar;
 P.refreshStatusParts = refreshStatusParts; P.refreshHeaderStatus = refreshHeaderStatus;
 P.renderConfigForm = renderConfigForm; P.cfgTab = cfgTab; P.cfgMsg = cfgMsg;

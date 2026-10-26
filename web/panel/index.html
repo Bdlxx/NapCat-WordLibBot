@@ -11,7 +11,7 @@
 </head>
 <body>
 <script src="cfg_form.js?v=9c545ed8"></script>
-<script src="panel.js?v=0a7d00a2"></script>
+<script src="panel.js?v=71966d73"></script>
 <script>
 /* ==========================================================================
    Linux 机器人面板：这里**只声明"接口在哪"和"显示哪些页"**。
@@ -60,6 +60,20 @@ PANEL.nav = [
   { id: 'config', icon: '⚙️', label: '插件配置', group: '管理', sub: true },
   { id: 'groups', icon: '👥', label: '群组开关', group: '管理' },
   { id: 'logs', icon: '📋', label: '运行日志', group: '管理', sub: true, ids: ['napcat_logs'] }
+];
+
+/* 左下角「设置」齿轮里放什么（Windows 端放的是"更新/设置/引导"三个页面；
+   Linux 没有那几页，这里用**动作型**菜单：给 id + run()，共用外壳会直接执行） */
+PANEL.appMenu = [
+  { id: 'switch-bot', icon: '🔀', label: '切换机器人', run: function () { location.href = '/'; } },
+  { id: 'open-napcat', icon: '🖥️', label: '打开 NapCat 面板', run: function () {
+      PANEL.api('/api/bot/' + botNum + '/napcat-status').then(function (d) {
+        const url = (d && (d.webui || (d.data && d.data.webui))) || '';
+        if (url) window.open(url, '_blank', 'noopener');
+        else PANEL.toast('该实例没有配置 NapCat 面板地址（注册文件的 INST_NAPCAT_WEBUI）', 'error');
+      }).catch(function (e) { PANEL.toast('打开失败：' + (e && e.message || e), 'error'); });
+  } },
+  { id: 'logout', icon: '🚪', label: '退出登录', run: function () { PANEL.hooks.logout(); } }
 ];
 
 /* 群列表（给 cfg_form.js 的群号选择器用）：从群组页片段里取，拿不到就退化成手填 */

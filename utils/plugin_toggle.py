@@ -265,7 +265,8 @@ def set_group_toggles(group_id: str, toggles: dict):
     """批量设置某个群的所有插件开关"""
     data = _load()
     gid = str(group_id)
-    data[gid] = {p: toggles.get(p, False) for p in set(list(PLUGINS) + list(toggles.keys()))}
+    order = list(PLUGINS) + [p for p in toggles if p not in PLUGINS]   # 固定键顺序（与 set_batch_toggles 一致）
+    data[gid] = {p: toggles.get(p, False) for p in order}
     _save(data)
 
 
@@ -278,7 +279,10 @@ def set_batch_toggles(toggles_data: dict, data_dir=None):
     for gid, toggles in toggles_data.items():
         if gid == "_note":
             continue
-        data[gid] = {p: toggles.get(p, False) for p in set(list(PLUGINS) + list(toggles.keys()))}
+        # 键顺序固定为 PLUGINS 的声明顺序（原来用 set()，顺序随进程哈希变化：
+        # 面板重启后"原样保存一次"也会整份重排，看着像被改过）
+        order = list(PLUGINS) + [p for p in toggles if p not in PLUGINS]
+        data[gid] = {p: toggles.get(p, False) for p in order}
     _save(data, data_dir)
 
 
