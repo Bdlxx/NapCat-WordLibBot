@@ -90,6 +90,27 @@ PANEL.hooks = {
     if (icon) icon.href = 'https://q1.qlogo.cn/g?b=qq&nk=' + d.qq + '&s=640';
   },
   logout: function () { post('/api/logout').then(function () { location.href = '/'; }); },
+  /* 左上角账号卡（侧栏展开时点头像）→ 向右弹出实例列表，点哪个切哪个。
+     桌面端靠这个浮层切账号，Linux 端原来没给 hook → 点头像没反应（只会"展开侧栏"）。 */
+  accountPop: async function (pop) {
+    let bots = [];
+    try { const d = await PANEL.api('/api/bots'); bots = (d && d.bots) || []; } catch (e) { bots = []; }
+    if (!bots.length) {
+      pop.innerHTML = '<div class="acct-pop-title">切换机器人</div>'
+        + '<div class="nav-sub-loading">没有可用的实例</div>';
+      return;
+    }
+    pop.innerHTML = '<div class="acct-pop-title">切换机器人</div>' + bots.map(function (b) {
+      const qq = String(b.qq || b.num);
+      const active = Number(qq) === botNum;
+      return '<div class="acct-row ' + (active ? 'active' : '') + '" role="button" tabindex="0"'
+        + ' data-acct-pick="' + PANEL.esc(qq) + '">'
+        + '<span class="status-dot ' + (b.running ? 'green' : 'red') + '"></span>'
+        + '<span style="min-width:0;flex:1"><span class="a-name">' + PANEL.esc(b.name || ('Bot_' + qq)) + '</span>'
+        + '<div class="a-sub">QQ ' + PANEL.esc(qq) + (active ? ' · 当前' : '') + '</div></span></div>';
+    }).join('');
+  },
+  pickAccount: function (key) { location.href = '/panel/?bot=' + encodeURIComponent(key); },
   subMenus: {
     config: function (sub) { renderPluginList(sub); },
     logs: function (sub) {
