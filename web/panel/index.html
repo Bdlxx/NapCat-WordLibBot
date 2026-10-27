@@ -11,7 +11,7 @@
 </head>
 <body>
 <script src="cfg_form.js?v=9c545ed8"></script>
-<script src="panel.js?v=71966d73"></script>
+<script src="panel.js?v=c20808fa"></script>
 <script>
 /* ==========================================================================
    Linux 机器人面板：这里**只声明"接口在哪"和"显示哪些页"**。
@@ -63,8 +63,9 @@ PANEL.nav = [
 ];
 
 /* 左下角「设置」齿轮里放什么（Windows 端放的是"更新/设置/引导"三个页面；
-   Linux 没有那几页，这里用**动作型**菜单：给 id + run()，共用外壳会直接执行） */
+   Linux 这边：设置页 + 三个动作型菜单项，共用外壳会按 id 找页面、或直接执行 run()） */
 PANEL.appMenu = [
+  { id: 'settings', icon: '⚙️', label: '设置' },
   { id: 'switch-bot', icon: '🔀', label: '切换机器人', run: function () { location.href = '/'; } },
   { id: 'open-napcat', icon: '🖥️', label: '打开 NapCat 面板', run: function () {
       PANEL.api('/api/bot/' + botNum + '/napcat-status').then(function (d) {
@@ -136,9 +137,14 @@ PANEL.hooks = {
       PANEL.loadLogs('2');
       if (PANEL.logState('2').auto) PANEL.startPoll(function () { PANEL.loadLogs('2'); }, 5000);
     },
-    config: function () { PANEL.renderConfigForm(PANEL.key); }
+    config: function () { PANEL.renderConfigForm(PANEL.key); },
+    settings: function () { bindSettingsInputs(); }
   },
-  save: { config: function (btn) { PANEL.saveConfig(btn, false); }, groups: function (btn) { PANEL.tgSave(btn); } },
+  save: {
+    config: function (btn) { PANEL.saveConfig(btn, false); },
+    groups: function (btn) { PANEL.tgSave(btn); },
+    settings: function (btn) { PANEL.saveSettings(btn); }
+  },
   saveRestart: function (btn) { PANEL.saveConfig(btn, true); },
   restart: function () { return post(BASE + '/restart'); },
   actions: {
@@ -190,6 +196,63 @@ function loadPlugins() {
     if (sub) sub.innerHTML = '<div class="nav-sub-item" style="color:var(--color-danger)">加载失败，展开菜单可重试</div>';
   });
 }
+
+/* ---------------- 设置页（主人 QQ / 管理员 QQ） ---------------- */
+/* 输入框 → 脏值标记（切页/刷新前会拦一下，与插件配置/群组开关同一套保护） */
+function bindSettingsInputs() {
+  ['setMasterQQ', 'setAdmins'].forEach(function (id) {
+    const el = PANEL.$(id);
+    if (!el || el._bound) return;
+    el._bound = true;
+    el.addEventListener('input', function () { if (PANEL.markSettingsDirty) PANEL.markSettingsDirty(); });
+  });
+}
+
+/* 一行一个 / 逗号 / 空格 / 顿号 都能拆；前端先粗筛，服务端还会再校验一次 */
+function splitQQList(text) {
+  const parts = String(text || '').replace(/[，、;；\n\r\t]/g, ',').split(/[,\s]+/);
+  const out = [];
+  parts.forEach(function (p) {
+    const v = p.trim();
+    if (v && out.indexOf(v) < 0) out.push(v);
+  });
+  return out;
+}
+
+PANEL.saveSettings = async function (btn) {
+  const masterEl = PANEL.$('setMasterQQ');
+  const adminsEl = PANEL.$('setAdmins');
+  if (!masterEl) return;
+  const master = splitQQList(masterEl.value);
+  const admins = splitQQList(adminsEl ? adminsEl.value : '');
+  if (!master.length) { PANEL.toast('主人 QQ 至少填一个', 'error'); masterEl.focus(); return; }
+  const bad = master.concat(admins).filter(function (q) { return !/^\d{5,12}$/.test(q); });
+  if (bad.length) {
+    PANEL.toast('不是合法 QQ 号：' + bad.slice(0, 3).join('、') + (bad.length > 3 ? '…' : ''), 'error');
+    return;
+  }
+  const old = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '保存中…'; }
+  try {
+    const d = await PANEL.api(BASE + '/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ master: master, admins: admins })
+    });
+    if (!d || !d.ok) {
+      const fe = (d && d.field_errors) || {};
+      const first = Object.keys(fe)[0];
+      throw new Error((first ? fe[first] : '') || (d && d.error) || '保存失败');
+    }
+    PANEL.clearDirty();
+    PANEL.toast(d.msg || '设置已保存', 'success');
+    PANEL.goPage('settings');          /* 重新拉一次片段：确认落盘后的值 */
+  } catch (e) {
+    PANEL.toast('保存失败：' + ((e && e.message) || e), 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = old; }
+  }
+};
 
 PANEL.start();
 </script>

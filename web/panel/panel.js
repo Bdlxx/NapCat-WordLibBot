@@ -126,6 +126,7 @@ function isDirty(k) { return !!P.dirty[k]; }
 function hasUnsaved() {
   if (P.page === 'config') return !!(P.key && P.dirty[P.key]);
   if (P.page === 'groups') return P.dirtyGroups;
+  if (P.page === 'settings') return !!P.dirtySettings;   /* Linux 设置页（主人/管理员 QQ） */
   return false;
 }
 function syncDirtyUI() {
@@ -141,7 +142,7 @@ function syncDirtyUI() {
     if (nav) nav.insertAdjacentHTML('beforeend', '<span class="unsaved-dot" title="有未保存的修改"></span>');
   }
 }
-function clearDirty() { if (P.key) P.dirty[P.key] = false; P.dirtyGroups = false; syncDirtyUI(); }
+function clearDirty() { if (P.key) P.dirty[P.key] = false; P.dirtyGroups = false; P.dirtySettings = false; syncDirtyUI(); }
 function guardUnsaved(label) {
   if (!hasUnsaved()) return Promise.resolve(true);
   return uiDialog({
@@ -668,6 +669,8 @@ function renderLogViewer(sfx) {
 
 /* ---------------------------------------------------------------- 群组矩阵 */
 function markGroupsDirty() { if (!P.dirtyGroups) P.dirtyGroups = true; syncDirtyUI(); }
+/* 设置页（主人/管理员 QQ）脏值：输入即标记，保存/切页时清除 */
+function markSettingsDirty() { if (!P.dirtySettings) { P.dirtySettings = true; syncDirtyUI(); } }
 function tgState() { return global._tgState || (global._tgState = {}); }
 function tgToggle(gid, plugin, checked) {
   const st = tgState();
@@ -1043,6 +1046,7 @@ P.refreshStatusParts = refreshStatusParts; P.refreshHeaderStatus = refreshHeader
 P.renderConfigForm = renderConfigForm; P.cfgTab = cfgTab; P.cfgMsg = cfgMsg;
 P.saveConfig = saveConfig; P.markCfgDirty = markCfgDirty;
 P.tgSave = tgSave; P.readGroupsState = readGroupsState; P.markGroupsDirty = markGroupsDirty;
+P.markSettingsDirty = markSettingsDirty;
 P.loadLogs = loadLogs; P.setLogLines = setLogLines; P.moreLogs = moreLogs;
 P.renderLogViewer = renderLogViewer; P.LOG_MAX_ROWS = LOG_MAX_ROWS;
 P.setLogAutoRefresh = setLogAutoRefresh; P.applyLogFilter = applyLogFilter;

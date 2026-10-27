@@ -722,7 +722,18 @@ def is_master(user_id: int) -> bool:
     return user_id in MASTER_QQ
 
 def is_admin(user_id: int, data: dict) -> bool:
-    return is_master(user_id) or user_id in data.get("admins", [])
+    """主人或管理员。
+
+    admins 配置里存的是**字符串**、user_id 是 int —— 直接 `user_id in admins`
+    永远不成立（管理员形同虚设），这里统一转成字符串再比（2026-10-27 修）。
+    """
+    if is_master(user_id):
+        return True
+    admins = (data or {}).get("admins") or []
+    try:
+        return str(user_id) in {str(a) for a in admins}
+    except TypeError:
+        return False
 
 # ========== 图片缓存 ==========
 CACHE_DIR = os.path.expanduser("~/napcat/cache/images")

@@ -277,6 +277,62 @@ def _unused_removed():
     pass
 
 
+def _settings(ctx):
+    """设置页：主人 QQ（实例 config.json）+ 管理员 QQ（词库插件 admins）
+
+    值来自 `_page_ctx` 注入的 master_qq / admins / settings_meta；
+    保存走 `POST /api/bot/<n>/settings`（见 api.py），按钮在底部操作栏。
+    """
+    master = ctx.get('master_qq') or []
+    admins = ctx.get('admins') or []
+    meta = ctx.get('settings_meta') or {}
+    has_wl = bool(meta.get('has_wordlib_plugin'))
+    has_wl_cfg = bool(meta.get('has_wordlib_config'))
+    bot = f"{esc(meta.get('bot_name') or '')}（{esc(meta.get('bot_qq') or '-')}）"
+    if not has_wl:
+        admin_hint = ('当前实例没装词库插件（<code>plugins/wordlib.py</code> 不存在），'
+                      '这一栏保存时会被跳过。')
+        admin_disabled = ' disabled'
+    elif not has_wl_cfg:
+        admin_hint = ('管理员可增删/查询词条；主人始终拥有全部权限。'
+                      '该实例还没有 <code>wordlib_config.json</code>，保存时会新建。')
+        admin_disabled = ''
+    else:
+        admin_hint = '管理员可增删/查询词条；主人始终拥有全部权限。'
+        admin_disabled = ''
+
+    style = ('width:100%;box-sizing:border-box;min-height:96px;resize:vertical;'
+             'font-family:var(--font-mono,Consolas,monospace)')
+    return f"""
+      <div class="card"><div class="card-header"><h3>👑 主人 QQ</h3>
+        <span style="font-size:12px;color:var(--text-secondary)">所有插件都认，权限最高</span></div>
+        <div class="card-body">
+          <textarea id="setMasterQQ" rows="4" spellcheck="false" placeholder="一行一个 QQ 号"
+            style="{style}">{esc(chr(10).join(master))}</textarea>
+          <p class="cf-help" style="margin:10px 0 0">一行一个（也可用逗号分隔），<b>至少填一个</b>。
+            写入实例 <code>config.json</code> 的 <code>MASTER_QQ</code>；保存后立即生效
+            （各插件每次判断都重新读取，不用重启）。</p>
+        </div></div>
+      <div class="card" style="margin-top:16px"><div class="card-header"><h3>🛡️ 管理员 QQ（词库插件）</h3></div>
+        <div class="card-body">
+          <p class="cf-help" style="margin:0 0 10px">{admin_hint}</p>
+          <textarea id="setAdmins" rows="4" spellcheck="false" placeholder="一行一个 QQ 号"{admin_disabled}
+            style="{style}">{esc(chr(10).join(admins))}</textarea>
+          <p class="cf-help" style="margin:10px 0 0">写入 <code>data/wordlib_config.json</code> 的
+            <code>admins</code>（字符串列表）；保存后会通知 bot 立即重载配置。</p>
+        </div></div>
+      <div class="card" style="margin-top:16px"><div class="card-header"><h3>ℹ️ 当前生效</h3></div>
+        <div class="card-body">
+          <table class="el-table"><tr><th width="140">项目</th><th>值</th></tr>
+            <tr><td>机器人</td><td>{bot}</td></tr>
+            <tr><td>主人 QQ</td><td>{esc('、'.join(master) or '（未设置）')}</td></tr>
+            <tr><td>管理员 QQ</td><td>{esc('、'.join(admins) or '（未设置）')}</td></tr>
+            <tr><td>词库插件</td><td>{'已安装' if has_wl else '未安装'}</td></tr>
+          </table>
+        </div></div>
+"""
+
+
 PAGES = {
     'dashboard': (_dashboard, '仪表盘', []),
     'manage': (_manage, '运行管理', []),
@@ -284,12 +340,15 @@ PAGES = {
     'config': (pp.config_page, '插件配置', ['save', 'save_restart']),
     'logs': (lambda ctx: pp.logs_page(ctx, '运行日志', 'runtime.log'), '运行日志', []),
     'napcat_logs': (lambda ctx: pp.logs_page(ctx, 'NapCat 容器日志', '', napcat=True), 'NapCat 日志', []),
+    'settings': (_settings, '设置', ['save']),
 }
 
 ACTION_TITLES = {
     'groups': lambda ctx: f'群组开关（{len((ctx.get("toggles") or {}).get("groups") or [])} 个群 × '
                           f'{len((ctx.get("toggles") or {}).get("plugins") or [])} 个插件）',
     'config': lambda ctx: f'正在配置：{ctx.get("plugin_name") or ctx.get("plugin_key") or ""}',
+    'settings': lambda ctx: f'设置：{ctx.get("bot", {}).get("name") or ""}'
+                            f'（QQ {ctx.get("bot", {}).get("qq") or "-"}）',
 }
 
 

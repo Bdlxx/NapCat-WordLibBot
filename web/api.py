@@ -423,6 +423,43 @@ def write_json(path, data):
         json.dump(data, f, ensure_ascii=False, indent=2)
     os.replace(tmp, path)
 
+# ====== 实例级设置（主人 / 管理员 QQ）======
+def qq_list(value):
+    """把「列表 / 逗号或空白分隔的字符串」规整成去重且保序的字符串列表"""
+    if isinstance(value, str):
+        items = value.replace('，', ',').replace('、', ',').replace('\n', ',')
+        items = [x for part in items.split(',') for x in part.split()]
+    elif isinstance(value, (list, tuple, set)):
+        items = list(value)
+    else:
+        items = []
+    out = []
+    for item in items:
+        text = str(item).strip()
+        if text and text not in out:
+            out.append(text)
+    return out
+
+
+def is_qq(text):
+    """QQ 号：5~12 位纯数字（机器人/用户都够用，且能挡住随手填的文字）"""
+    return isinstance(text, str) and text.isdigit() and 5 <= len(text) <= 12
+
+
+def instance_settings(b):
+    """读取实例级设置：主人 QQ（config.json）+ 管理员 QQ（词库 admins）"""
+    cfg = read_json(os.path.join(b['dir'], 'config.json'))
+    wl_path = os.path.join(b['dir'], 'data', 'wordlib_config.json')
+    wl = read_json(wl_path)
+    return {
+        'master': qq_list(cfg.get('MASTER_QQ')),
+        'admins': qq_list(wl.get('admins')),
+        'bot_qq': str(b.get('qq') or ''),
+        'bot_name': b.get('name') or '',
+        'has_wordlib_config': os.path.exists(wl_path),
+        'has_wordlib_plugin': os.path.exists(os.path.join(b['dir'], 'plugins', 'wordlib.py')),
+    }
+
 # ====== 插件配置声明（schema）======
 # 面板不再靠"猜"配置 JSON 的形状：可配置项**由插件自己声明**（模块级 __config_schema__），
 # 面板只实现「字段类型 → 控件」这套映射，所以加插件不用改面板。
@@ -618,6 +655,59 @@ def bot_info(n):
                     'status': 'running' if running else 'stopped',
                     'napcat_port': b['napcat_port'], 'pid': pid, 'uptime': uptime,
                     'container': _container_for(n)})
+
+@app.route('/api/bot/<int:num>/settings', methods=['GET', 'POST'])
+@login_required
+def bot_settings(num):
+    """实例级设置：主人 QQ（config.json）+ 管理员 QQ（词库插件 admins）
+
+    GET  读当前值（设置页本身走服务端渲染，这个接口给脚本/排障用）
+    POST 保存：校验 QQ 号 → 原子写 → 主人列表立即生效；管理员列表写完后通知 bot 重载
+    """
+    if num not in BOTS: return jsonify({'ok': False, 'error': '无效编号'}), 404
+    b = BOTS[num]
+    if request.method == 'GET':
+        return jsonify({'ok': True, 'data': instance_settings(b)})
+
+    data = request.get_json(silent=True) or {}
+    master = qq_list(data.get('master'))
+    admins = qq_list(data.get('admins'))
+    errors = {}
+    if not master:
+        errors['master'] = '至少填一个主人 QQ'
+    for field, values in (('master', master), ('admins', admins)):
+        bad = [v for v in values if not is_qq(v)]
+        if bad:
+            errors[field] = '不是合法 QQ 号：' + '、'.join(bad[:3]) + ('…' if len(bad) > 3 else '')
+    if errors:
+        # 精确到字段的错误：前端可直接标红，且**一个字节都不写**
+        return jsonify({'ok': False, 'error': '校验未通过', 'field_errors': errors}), 400
+
+    cfg_path = os.path.join(b['dir'], 'config.json')
+    cfg = read_json(cfg_path)
+    if not cfg:
+        return jsonify({'ok': False, 'error': f'实例缺少 config.json：{cfg_path}'}), 400
+    try:
+        # 与现网一致存整数：wordlib.is_master 是 `user_id in MASTER_QQ`（int 比 int）
+        cfg['MASTER_QQ'] = [int(x) for x in master]
+        write_json(cfg_path, cfg)
+        b['master'] = '、'.join(master)       # 面板 /info、仪表盘立即显示新值
+
+        note = '设置已保存'
+        wl_path = os.path.join(b['dir'], 'data', 'wordlib_config.json')
+        wl_exists = os.path.exists(wl_path)
+        if wl_exists or os.path.exists(os.path.join(b['dir'], 'plugins', 'wordlib.py')):
+            wl = read_json(wl_path)
+            wl['admins'] = admins
+            write_json(wl_path, wl)
+            _notify_bot_reload(str(b['qq']))
+            note += '；管理员列表已写入并通知 bot 重载'
+        else:
+            note += '；未安装词库插件，管理员列表已跳过'
+    except Exception as e:
+        return jsonify({'ok': False, 'error': f'写入失败：{e}'}), 500
+    return jsonify({'ok': True, 'msg': note, 'data': instance_settings(b)})
+
 
 @app.route('/api/bot/<int:n>/log')
 @login_required
@@ -967,6 +1057,11 @@ def _page_ctx(b, num, page):
         meta = _pt.get_plugin_meta(pkey, pd) if pkey else None
         ctx['plugin_key'] = pkey
         ctx['plugin_name'] = (meta or {}).get('name_cn') or pkey
+    if page == 'settings':
+        st = instance_settings(b)
+        ctx['master_qq'] = st['master']
+        ctx['admins'] = st['admins']
+        ctx['settings_meta'] = st
     return ctx
 
 
