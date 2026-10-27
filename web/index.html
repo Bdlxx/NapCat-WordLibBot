@@ -132,7 +132,16 @@ body {
   transition: all .18s; display: flex; align-items: center; justify-content: space-between;
 }
 .instance-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(74,113,199,.16); border-color: var(--color-primary); }
-.instance-card .ic-name { font-size: 15px; font-weight: 600; }
+.instance-card .ic-main { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 auto; margin-right: 12px; }
+/* 账号头像：用机器人 QQ 的 qlogo 头像；加载失败/没有 QQ 时退回机器人图标 */
+.instance-card .ic-avatar {
+  flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%; overflow: hidden;
+  background: var(--bg-input); border: 1px solid var(--border-color);
+  display: flex; align-items: center; justify-content: center; font-size: 20px; line-height: 1;
+}
+.instance-card .ic-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.instance-card .ic-text { min-width: 0; }
+.instance-card .ic-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .instance-card .ic-qq { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 .instance-card .ic-status { font-size: 13px; padding: 4px 12px; border-radius: 20px; white-space: nowrap; }
 .ic-status.on { background: rgba(103,194,58,.15); color: #67c23a; }
@@ -205,6 +214,18 @@ function botPath(name) {
   return '/panel/';
 }
 
+/* 账号头像：机器人 QQ 的 qlogo 地址（s=140 够 44px 圆头像，别拉 640 的原图） */
+function botAvatarUrl(qq) {
+  qq = String(qq == null ? '' : qq).trim();
+  return /^\d{5,12}$/.test(qq) ? 'https://q1.qlogo.cn/g?b=qq&nk=' + qq + '&s=140' : '';
+}
+
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
 async function showBots(redirect) {
   try {
     const r = await fetch('/api/bots');
@@ -220,13 +241,27 @@ async function showBots(redirect) {
     const list = document.getElementById('botsList');
     list.innerHTML = '';
     for (const b of bots) {
+      const qq = String(b.qq || b.num || '');
+      const name = b.name || ('Bot_' + qq);
+      const face = botAvatarUrl(qq);
       const card = document.createElement('div');
       card.className = 'instance-card';
-      card.onclick = () => { window.location.href = botPath(b.name) + '?bot=' + b.num; };
+      card.onclick = () => { window.location.href = botPath(name) + '?bot=' + b.num; };
       card.innerHTML =
-        '<div><div class="ic-name">🤖 ' + b.name + '</div>' +
-        '<div class="ic-qq">QQ: ' + (b.qq || '-') + '</div></div>' +
-        '<div class="ic-status ' + (b.running ? 'on' : 'off') + '">' + (b.running ? '● 运行中' : '○ 未运行') + '</div>';
+        '<div class="ic-main">' +
+          '<div class="ic-avatar">' +
+            (face
+              ? '<img src="' + face + '" alt="" loading="lazy" ' +
+                'onerror="this.parentNode.textContent=\'🤖\'">'
+              : '🤖') +
+          '</div>' +
+          '<div class="ic-text">' +
+            '<div class="ic-name" title="' + escHtml(name) + '">' + escHtml(name) + '</div>' +
+            '<div class="ic-qq">QQ: ' + escHtml(qq || '-') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ic-status ' + (b.running ? 'on' : 'off') + '">' +
+          (b.running ? '● 运行中' : '○ 未运行') + '</div>';
       list.appendChild(card);
     }
   } catch(e) { if (redirect) { window.location.href = redirect; } }
