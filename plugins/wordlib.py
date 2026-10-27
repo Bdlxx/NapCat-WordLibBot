@@ -142,9 +142,9 @@ __config_schema__ = {
 
     # ---------------- 管理员 ----------------
     "admins": {
-        "type": "list", "item_type": "text", "label": "管理员 QQ", "group": "管理员",
+        "type": "list", "item_type": "text", "label": "管理员 QQ（旧版入口）", "group": "管理员",
         "path": "admins",
-        "help": "管理员可在群内增删/查询词条（主人始终拥有全部权限）；一项一个 QQ 号，按现有配置存为字符串",
+        "help": "已并入面板「设置 → 管理员 QQ（全插件通用）」；这里保留兼容旧配置，面板设置页保存时会同步同一份列表",
         "default": ["245524106"],
     },
 
@@ -379,7 +379,7 @@ __config_schema__ = {
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils.api import send_message
-from utils.config import get_master_qq, get_bot_qq, get_bot_name
+from utils.config import get_config, get_master_qq, get_bot_qq, get_bot_name
 from utils.plugin_toggle import is_enabled as _pt_enabled, set_enabled as _pt_set
 from utils.command_registry import CommandRegistry
 
@@ -719,20 +719,50 @@ def save_data(data: dict):
     save_admins(data.get("admins", []))
 
 def is_master(user_id: int) -> bool:
-    return user_id in MASTER_QQ
+    """主人（**每次实时读** config.json，面板改完不用重启）"""
+    try:
+        masters = get_master_qq() or []
+    except Exception:
+        masters = []
+    if not isinstance(masters, (list, tuple, set)):
+        masters = [masters]
+    return str(user_id) in {str(m).strip() for m in masters}
+
+
+def _global_admin_qqs() -> set:
+    """全插件通用的管理员（面板「设置」→ 管理员 QQ → 实例 config.json 的 ADMIN_QQ）"""
+    try:
+        raw = get_config("ADMIN_QQ", []) or []
+    except Exception:
+        raw = []
+    if not isinstance(raw, (list, tuple, set)):
+        raw = [raw]
+    return {str(x).strip() for x in raw if str(x).strip()}
+
 
 def is_admin(user_id: int, data: dict) -> bool:
-    """主人或管理员。
+    """主人或管理员（全局 ADMIN_QQ ∪ 旧版词库 admins）。
 
-    admins 配置里存的是**字符串**、user_id 是 int —— 直接 `user_id in admins`
-    永远不成立（管理员形同虚设），这里统一转成字符串再比（2026-10-27 修）。
+    admins 存的是字符串、user_id 是 int —— 统一转字符串再比（2026-10-27 修）。
     """
     if is_master(user_id):
+        return True
+    if str(user_id) in _global_admin_qqs():
         return True
     admins = (data or {}).get("admins") or []
     try:
         return str(user_id) in {str(a) for a in admins}
     except TypeError:
+        return False
+
+
+def is_privileged(user_id: int) -> bool:
+    """主人或管理员（不查 data 的快捷版，给每条消息的指令分发用）"""
+    if is_master(user_id) or str(user_id) in _global_admin_qqs():
+        return True
+    try:
+        return str(user_id) in {str(a) for a in load_admins()}
+    except Exception:
         return False
 
 # ========== 图片缓存 ==========
@@ -1391,8 +1421,8 @@ def handle(event: dict) -> bool:
         group_id = event.get("group_id")
         is_group = event.get("message_type") == "group"
 
-        # 主人开关命令（注册表统一分发）
-        if registry.dispatch(event, raw_msg, is_master(user_id), master_cmds_only=True):
+        # 开关命令（主人 + 管理员，注册表统一分发）
+        if registry.dispatch(event, raw_msg, is_privileged(user_id), master_cmds_only=True):
             return True
 
         # 全局禁用检查

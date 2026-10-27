@@ -447,13 +447,22 @@ def is_qq(text):
 
 
 def instance_settings(b):
-    """读取实例级设置：主人 QQ（config.json）+ 管理员 QQ（词库 admins）"""
+    """读取实例级设置：主人 QQ（config.json 的 MASTER_QQ）+ 管理员 QQ（ADMIN_QQ）
+
+    管理员是**全插件通用**的（各插件都按 config.json 的 ADMIN_QQ 判权）；
+    老实例只在词库 admins 里配过管理员 → 没写 ADMIN_QQ 时先展示旧值（保存时统一迁过去）。
+    """
     cfg = read_json(os.path.join(b['dir'], 'config.json'))
     wl_path = os.path.join(b['dir'], 'data', 'wordlib_config.json')
     wl = read_json(wl_path)
+    admins = qq_list(cfg.get('ADMIN_QQ'))
+    legacy_admins = qq_list(wl.get('admins'))
+    if not admins and legacy_admins:
+        admins = legacy_admins
     return {
         'master': qq_list(cfg.get('MASTER_QQ')),
-        'admins': qq_list(wl.get('admins')),
+        'admins': admins,
+        'admins_legacy': bool(legacy_admins and not cfg.get('ADMIN_QQ')),
         'bot_qq': str(b.get('qq') or ''),
         'bot_name': b.get('name') or '',
         'has_wordlib_config': os.path.exists(wl_path),
@@ -688,22 +697,22 @@ def bot_settings(num):
     if not cfg:
         return jsonify({'ok': False, 'error': f'实例缺少 config.json：{cfg_path}'}), 400
     try:
-        # 与现网一致存整数：wordlib.is_master 是 `user_id in MASTER_QQ`（int 比 int）
+        # 存整数：与 MASTER_QQ 一致（各插件判权时统一 str() 比较，两种都吃）
         cfg['MASTER_QQ'] = [int(x) for x in master]
+        cfg['ADMIN_QQ'] = [int(x) for x in admins]     # 管理员 = 全插件通用，写在实例 config.json
         write_json(cfg_path, cfg)
         b['master'] = '、'.join(master)       # 面板 /info、仪表盘立即显示新值
 
         note = '设置已保存'
         wl_path = os.path.join(b['dir'], 'data', 'wordlib_config.json')
-        wl_exists = os.path.exists(wl_path)
-        if wl_exists or os.path.exists(os.path.join(b['dir'], 'plugins', 'wordlib.py')):
+        if os.path.exists(wl_path) or os.path.exists(os.path.join(b['dir'], 'plugins', 'wordlib.py')):
+            # 旧版词库还读自己的 admins：镜像一份，避免"面板删了但旧通道还认"
             wl = read_json(wl_path)
-            wl['admins'] = admins
-            write_json(wl_path, wl)
-            _notify_bot_reload(str(b['qq']))
-            note += '；管理员列表已写入并通知 bot 重载'
-        else:
-            note += '；未安装词库插件，管理员列表已跳过'
+            if wl.get('admins') != admins:
+                wl['admins'] = admins
+                write_json(wl_path, wl)
+        _notify_bot_reload(str(b['qq']))
+        note += '；已通知 bot 重载配置'
     except Exception as e:
         return jsonify({'ok': False, 'error': f'写入失败：{e}'}), 500
     return jsonify({'ok': True, 'msg': note, 'data': instance_settings(b)})

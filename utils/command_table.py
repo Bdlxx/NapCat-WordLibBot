@@ -61,8 +61,8 @@ def build_command_table(bot_name="羽笙"):
             "marry_ft": "嫁给指定的群友（@对方）",
             "divorce": "和今天的对象离婚",
             "my_object": "查看今天的对象",
-            "set_prob": "设置结婚成功率（主人）",
-            "set_cd": "设置离婚CD（主人）",
+            "set_prob": "设置结婚成功率（主人/管理员）",
+            "set_cd": "设置离婚CD（主人/管理员）",
             "enable": "本群开启结婚",
             "disable": "本群关闭结婚",
         }
@@ -158,10 +158,10 @@ def build_command_table(bot_name="羽笙"):
             "perm_on": "本群仅管理员可用指令（群主/主人）",
             "perm_off": "本群所有人可用指令（群主/主人）",
             "help": "查看 B站推送 指令说明",
-            "status": "查看轮询/数据源状态（仅主人）",
+            "status": "查看轮询/数据源状态（主人/管理员）",
             "test": "往当前会话发一条测试推送",
-            "enable": "开启本群/全局推送（仅主人；群内=本群）",
-            "disable": "关闭本群/全局推送（仅主人；群内=本群）",
+            "enable": "开启本群/全局推送（主人/管理员；群内=本群）",
+            "disable": "关闭本群/全局推送（主人/管理员；群内=本群）",
         }
         for key, cmd_text in h_commands.items():
             desc = h_descs.get(key, "")

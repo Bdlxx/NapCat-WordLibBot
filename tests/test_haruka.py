@@ -29,7 +29,8 @@ import utils.config as ucfg                                    # noqa: E402
 
 ucfg.CONFIG_FILE = os.path.join(_TMP, "config.json")
 with open(ucfg.CONFIG_FILE, "w", encoding="utf-8") as _fh:
-    json.dump({"MASTER_QQ": [10001], "BOT_QQ": 10002, "BOT_NAME": "测试bot"}, _fh)
+    json.dump({"MASTER_QQ": [10001], "ADMIN_QQ": [10003], "BOT_QQ": 10002,
+               "BOT_NAME": "测试bot"}, _fh)
 
 import plugins.haruka as hb                                    # noqa: E402
 import config_schema as cs                                     # noqa: E402
@@ -547,6 +548,37 @@ class EventTest(unittest.TestCase):
         hb.handle({"post_type": "message", "message_type": "group", "group_id": 123,
                    "user_id": 999, "raw_message": hb.cfgv("commands.help", "B站帮助")})
         self.assertIn("B站推送", self.sent[-1][1])
+
+
+class PrivilegeTest(unittest.TestCase):
+    """管理员 = 全插件通用（config.json 的 ADMIN_QQ）；主人仍最高"""
+
+    def test_admin_is_privileged(self):
+        self.assertTrue(hb._is_master("10001"))
+        self.assertFalse(hb._is_master("10003"))
+        self.assertTrue(hb._is_admin("10003"))
+        self.assertTrue(hb._is_privileged("10003"))
+        self.assertFalse(hb._is_admin("999"))
+        self.assertFalse(hb._is_privileged("999"))
+
+    def test_admin_can_run_plugin_commands(self):
+        store = hb._Store(os.path.join(tempfile.mkdtemp(prefix="haruka-admin-"), "d.json"))
+        old_store, hb._store = hb._store, store
+        sent = []
+        old_send, old_admin = hb.send_message, hb._is_group_admin
+        hb.send_message = lambda event, message: sent.append((event, message))
+        hb._is_group_admin = lambda gid, uid: False       # 不是群管理员，只是"全局管理员"
+        hb._CFG = hb._deep_merge(hb._DEFAULTS, {})
+        try:
+            handled = hb.handle({"post_type": "message", "message_type": "group",
+                                 "group_id": 123, "user_id": 10003,
+                                 "raw_message": "关注列表"})
+            self.assertTrue(handled)
+            self.assertEqual(sent[-1][1], hb._DEFAULTS["replies"]["list_empty"])
+        finally:
+            hb._store = old_store
+            hb.send_message = old_send
+            hb._is_group_admin = old_admin
 
 
 class ConfigTest(unittest.TestCase):

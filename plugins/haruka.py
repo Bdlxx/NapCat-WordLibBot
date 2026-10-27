@@ -53,7 +53,7 @@ import requests
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils.api import http_get, send_message
 from utils.command_registry import CommandRegistry
-from utils.config import get_bot_name, get_bot_qq, get_master_qq
+from utils.config import get_bot_name, get_bot_qq, get_config, get_master_qq
 from utils.plugin_toggle import is_enabled as _pt_enabled, set_enabled as _pt_set
 
 # ============================================================================
@@ -348,6 +348,30 @@ def _is_master(user_id):
     if not isinstance(masters, (list, tuple, set)):
         masters = [masters]
     return str(user_id) in {str(m) for m in masters}
+
+
+def _admin_qqs():
+    """全局管理员（面板「设置」→ 管理员 QQ → 实例 config.json 的 ADMIN_QQ）
+
+    管理员在所有插件里与主人同权，只有「特别重要」的指令仍为主人专属
+    （目前是 jmcomic 更新、B站扫码登录）。
+    """
+    try:
+        raw = get_config("ADMIN_QQ", []) or []
+    except Exception:
+        raw = []
+    if not isinstance(raw, (list, tuple, set)):
+        raw = [raw]
+    return {str(x).strip() for x in raw if str(x).strip()}
+
+
+def _is_admin(user_id):
+    return str(user_id) in _admin_qqs()
+
+
+def _is_privileged(user_id):
+    """主人或管理员"""
+    return _is_master(user_id) or _is_admin(user_id)
 
 
 # ============================================================================
@@ -1560,7 +1584,7 @@ def _is_group_admin(gid, user_id):
 def _check_perm(event):
     """群内指令权限：主人永远可用；群权限关=所有人可用；否则要管理员/群主"""
     user_id = event.get("user_id")
-    if _is_master(user_id):
+    if _is_privileged(user_id):
         return True
     if event.get("message_type") == "private":
         return True
@@ -1756,7 +1780,7 @@ def _set_perm(event, enabled):
         return True
     gid = event.get("group_id")
     user_id = event.get("user_id")
-    if not (_is_master(user_id) or _is_group_admin(gid, user_id)):
+    if not (_is_privileged(user_id) or _is_group_admin(gid, user_id)):
         return _deny(event)
     _store.set_group_perm(gid, enabled)
     send_message(event, "已开启权限：只有管理员和主人可以使用指令" if enabled
@@ -1781,8 +1805,8 @@ def _cmd_help(event, raw, keyword):
 
 
 def _cmd_status(event, raw, keyword):
-    if not _is_master(event.get("user_id")):
-        send_message(event, "只有主人才能查看运行状态")
+    if not _is_privileged(event.get("user_id")):
+        send_message(event, "只有主人或管理员才能查看运行状态")
         return True
     now = time.time()
 
@@ -1838,8 +1862,8 @@ def _cmd_disable(event, raw, keyword):
 
 
 def _set_plugin_enabled(event, enabled):
-    if not _is_master(event.get("user_id")):
-        send_message(event, "只有主人才能开关 B站推送")
+    if not _is_privileged(event.get("user_id")):
+        send_message(event, "只有主人或管理员才能开关 B站推送")
         return True
     if event.get("message_type") == "group":
         _pt_set(event.get("group_id"), __plugin_name_en__, enabled)
@@ -1950,7 +1974,7 @@ def handle(event):
     if not raw:
         return False
 
-    master = _is_master(event.get("user_id"))
+    master = _is_privileged(event.get("user_id"))
     if (message_type == "group" and not master
             and bool(cfgv("require_at", False)) and not is_addressed(event)):
         # 配置要求 @机器人：没 @ 的消息不归本插件管，原样交给其它插件

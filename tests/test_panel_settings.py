@@ -33,12 +33,18 @@ def _read_bytes(path):
         return f.read()
 
 
-def _make_instance(wordlib=True, wordlib_cfg=True, master=(2840771765,), admins=("245524106",)):
-    """造一个最小实例目录：config.json + data/wordlib_config.json + plugins/wordlib.py"""
+def _make_instance(wordlib=True, wordlib_cfg=True, master=(2840771765,), admins=("245524106",),
+                   global_admins=None):
+    """造一个最小实例目录：config.json + data/wordlib_config.json + plugins/wordlib.py
+
+    global_admins 不传 = 老实例（管理员只在词库 admins 里，读的时候要能回退）。
+    """
     d = tempfile.mkdtemp(prefix="panel-settings-")
+    cfg = {"BOT_NAME": "测试bot", "BOT_QQ": 740979632, "MASTER_QQ": list(master)}
+    if global_admins is not None:
+        cfg["ADMIN_QQ"] = list(global_admins)
     with open(os.path.join(d, "config.json"), "w", encoding="utf-8") as f:
-        json.dump({"BOT_NAME": "测试bot", "BOT_QQ": 740979632,
-                   "MASTER_QQ": list(master)}, f, ensure_ascii=False, indent=2)
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
     os.makedirs(os.path.join(d, "data"), exist_ok=True)
     os.makedirs(os.path.join(d, "plugins"), exist_ok=True)
     if wordlib:
@@ -93,8 +99,18 @@ class SettingsApiTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         data = r.get_json()["data"]
         self.assertEqual(data["master"], ["2840771765"])
+        # 老实例没有 ADMIN_QQ：回退展示词库 admins，并标注 legacy
         self.assertEqual(data["admins"], ["245524106"])
+        self.assertTrue(data["admins_legacy"])
         self.assertTrue(data["has_wordlib_plugin"])
+
+    def test_global_admin_takes_precedence_over_legacy(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+        self.dir = _make_instance(global_admins=(11111,), admins=("245524106",))
+        panel_api.BOTS[self.num]["dir"] = self.dir
+        data = self.client.get(f"/api/bot/{self.num}/settings").get_json()["data"]
+        self.assertEqual(data["admins"], ["11111"])
+        self.assertFalse(data["admins_legacy"])
 
     # ---------- 写 ----------
     def test_save_writes_master_and_admins(self):
@@ -106,8 +122,9 @@ class SettingsApiTest(unittest.TestCase):
 
         cfg = _read_json(os.path.join(self.dir, "config.json"))
         self.assertEqual(cfg["MASTER_QQ"], [2840771765, 10001])       # 与现网一致存整数
+        self.assertEqual(cfg["ADMIN_QQ"], [245524106, 10002])         # 管理员写全局 ADMIN_QQ
         wl = _read_json(os.path.join(self.dir, "data", "wordlib_config.json"))
-        self.assertEqual(wl["admins"], ["245524106", "10002"])       # admins 存字符串
+        self.assertEqual(wl["admins"], ["245524106", "10002"])       # 旧版词库镜像一份
         self.assertEqual(wl["commands"], {"sign1": "签到"})           # 其它配置一字节不动
         self.assertEqual(self.bot["master"], "2840771765、10001")     # 面板显示同步更新
 
@@ -135,14 +152,16 @@ class SettingsApiTest(unittest.TestCase):
         self.assertEqual(_read_bytes(os.path.join(self.dir, "config.json")), before_cfg)
         self.assertEqual(_read_bytes(os.path.join(self.dir, "data", "wordlib_config.json")), before_wl)
 
-    def test_without_wordlib_plugin_admins_skipped(self):
+    def test_without_wordlib_plugin_admins_still_global(self):
         shutil.rmtree(os.path.join(self.dir, "plugins"))
         os.makedirs(os.path.join(self.dir, "plugins"))
         os.remove(os.path.join(self.dir, "data", "wordlib_config.json"))
         r = self.client.post(f"/api/bot/{self.num}/settings",
                              json={"master": ["2840771765"], "admins": ["10002"]}, headers=CSRF)
         self.assertEqual(r.status_code, 200)
-        self.assertIn("跳过", r.get_json()["msg"])
+        # 管理员是全插件通用的：没装词库也要写进 config.json
+        cfg = _read_json(os.path.join(self.dir, "config.json"))
+        self.assertEqual(cfg["ADMIN_QQ"], [10002])
         self.assertFalse(os.path.exists(os.path.join(self.dir, "data", "wordlib_config.json")))
 
     def test_unknown_bot_404(self):

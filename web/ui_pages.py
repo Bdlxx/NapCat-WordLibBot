@@ -278,7 +278,7 @@ def _unused_removed():
 
 
 def _settings(ctx):
-    """设置页：主人 QQ（实例 config.json）+ 管理员 QQ（词库插件 admins）
+    """设置页：主人 QQ + 管理员 QQ（都在实例 config.json，管理员全插件通用）
 
     值来自 `_page_ctx` 注入的 master_qq / admins / settings_meta；
     保存走 `POST /api/bot/<n>/settings`（见 api.py），按钮在底部操作栏。
@@ -287,19 +287,14 @@ def _settings(ctx):
     admins = ctx.get('admins') or []
     meta = ctx.get('settings_meta') or {}
     has_wl = bool(meta.get('has_wordlib_plugin'))
-    has_wl_cfg = bool(meta.get('has_wordlib_config'))
+    legacy = bool(meta.get('admins_legacy'))
     bot = f"{esc(meta.get('bot_name') or '')}（{esc(meta.get('bot_qq') or '-')}）"
-    if not has_wl:
-        admin_hint = ('当前实例没装词库插件（<code>plugins/wordlib.py</code> 不存在），'
-                      '这一栏保存时会被跳过。')
-        admin_disabled = ' disabled'
-    elif not has_wl_cfg:
-        admin_hint = ('管理员可增删/查询词条；主人始终拥有全部权限。'
-                      '该实例还没有 <code>wordlib_config.json</code>，保存时会新建。')
-        admin_disabled = ''
-    else:
-        admin_hint = '管理员可增删/查询词条；主人始终拥有全部权限。'
-        admin_disabled = ''
+    admin_hint = ('<b>全插件通用</b>：除下面两条「特别重要」的指令外，管理员与主人同权'
+                  '（各插件的开启/关闭、参数设置、词条管理、模型切换等都可以用）。<br>'
+                  '🔒 仍为主人专属：<code>jm更新</code>（会安装依赖包）、'
+                  '<code>B站登录</code>（会替换机器人账号的登录凭证）。')
+    if legacy:
+        admin_hint += '<br>⚠️ 这个实例以前只在词库插件里配过管理员，保存后会统一迁到全局 ADMIN_QQ。'
 
     style = ('width:100%;box-sizing:border-box;min-height:96px;resize:vertical;'
              'font-family:var(--font-mono,Consolas,monospace)')
@@ -313,13 +308,14 @@ def _settings(ctx):
             写入实例 <code>config.json</code> 的 <code>MASTER_QQ</code>；保存后立即生效
             （各插件每次判断都重新读取，不用重启）。</p>
         </div></div>
-      <div class="card" style="margin-top:16px"><div class="card-header"><h3>🛡️ 管理员 QQ（词库插件）</h3></div>
+      <div class="card" style="margin-top:16px"><div class="card-header"><h3>🛡️ 管理员 QQ（全插件通用）</h3>
+        <span style="font-size:12px;color:var(--text-secondary)">除主人专属指令外与主人同权</span></div>
         <div class="card-body">
           <p class="cf-help" style="margin:0 0 10px">{admin_hint}</p>
-          <textarea id="setAdmins" rows="4" spellcheck="false" placeholder="一行一个 QQ 号"{admin_disabled}
+          <textarea id="setAdmins" rows="4" spellcheck="false" placeholder="一行一个 QQ 号"
             style="{style}">{esc(chr(10).join(admins))}</textarea>
-          <p class="cf-help" style="margin:10px 0 0">写入 <code>data/wordlib_config.json</code> 的
-            <code>admins</code>（字符串列表）；保存后会通知 bot 立即重载配置。</p>
+          <p class="cf-help" style="margin:10px 0 0">写入实例 <code>config.json</code> 的
+            <code>ADMIN_QQ</code>（并同步旧版词库 <code>admins</code>）；保存后通知 bot 立即重载配置。</p>
         </div></div>
       <div class="card" style="margin-top:16px"><div class="card-header"><h3>ℹ️ 当前生效</h3></div>
         <div class="card-body">
