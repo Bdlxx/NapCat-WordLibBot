@@ -50,3 +50,4 @@ ops/napcat-upgrade-*/
 
 # 各仓库 deploy key 私钥（只留本机，公钥贴到对应仓库的 Deploy keys）
 .ssh-keys/
+.scratch/
