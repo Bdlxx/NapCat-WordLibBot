@@ -2,11 +2,11 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>机器人管理面板</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path fill=%22%231E40AF%22 d=%22M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z%22/></svg>">
 <!-- 两端共用的面板样式与外壳（与 Windows 端同一份字节，见 tests/test_dual_end_assets.py） -->
-<link rel="stylesheet" href="panel.css?v=aa009abf">
+<link rel="stylesheet" href="panel.css?v=1e80e8b8">
 <link rel="stylesheet" href="cfg_form.css?v=64b4e908">
 </head>
 <body>
@@ -54,10 +54,24 @@ PANEL.endpoints = {
 };
 
 /* 与 Windows 端同一套导航结构（那边多一个「账号」页，此处确实用不到） */
+
+/* 「插件配置」的图标：数据库 + 右下角压一个小齿轮（齿轮用外壳里 i-settings 的矢量，
+   外面套一个与侧栏同色的实心圆，盖住下面的数据库线条，做出"徽标盖上去"的效果） */
+const NAV_ICON_PLUGINS =
+  '<svg class="ico nav-ico-db" viewBox="0 0 24 24" aria-hidden="true" focusable="false"'
+  + ' fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'
+  +   '<ellipse cx="10.2" cy="5.6" rx="6.2" ry="2.6"/>'
+  +   '<path d="M4 5.6v11.4c0 1.44 2.78 2.6 6.2 2.6 1.28 0 2.47-.17 3.44-.46"/>'
+  +   '<path d="M4 11.4c0 1.44 2.78 2.6 6.2 2.6 1.05 0 2.04-.11 2.9-.31"/>'
+  +   '<path d="M16.4 5.9v5.2"/>'
+  +   '<circle cx="17.6" cy="17.6" r="5.6" fill="var(--bg-sidebar)" stroke="none"/>'
+  +   '<use href="#i-settings" x="13" y="13" width="9.2" height="9.2" stroke-width="3.4"/>'
+  + '</svg>';
+
 PANEL.nav = [
   { id: 'dashboard', icon: '📊', label: '仪表盘', group: '概览' },
   { id: 'manage', icon: '🛠️', label: '运行管理', group: '管理' },
-  { id: 'config', icon: '⚙️', label: '插件配置', group: '管理', sub: true },
+  { id: 'config', icon: NAV_ICON_PLUGINS, label: '插件配置', group: '管理', sub: true },
   { id: 'groups', icon: '👥', label: '群组开关', group: '管理' },
   { id: 'logs', icon: '📋', label: '运行日志', group: '管理', sub: true, ids: ['napcat_logs'] }
 ];
@@ -137,7 +151,19 @@ PANEL.hooks = {
       PANEL.loadLogs('2');
       if (PANEL.logState('2').auto) PANEL.startPoll(function () { PANEL.loadLogs('2'); }, 5000);
     },
-    config: function () { PANEL.renderConfigForm(PANEL.key); },
+    config: function () {
+      /* 直接点导航「插件配置」（不带 key）时自动选第一个插件：
+         否则会停在"没有可配置的插件"，看着像坏了 */
+      if (!PANEL.key) PANEL.key = Object.keys(configPlugins)[0] || null;
+      PANEL.renderConfigForm(PANEL.key);
+      if (!Object.keys(configPlugins).length) {
+        loadPlugins().then(function () {
+          if (PANEL.page !== 'config' || PANEL.key) return;
+          PANEL.key = Object.keys(configPlugins)[0] || null;
+          if (PANEL.key) PANEL.renderConfigForm(PANEL.key);
+        });
+      }
+    },
     settings: function () { bindSettingsInputs(); }
   },
   save: {
@@ -179,9 +205,12 @@ function renderPluginList(sub) {
   if (!keys.length) { sub.innerHTML = '<div class="nav-sub-loading">加载中...</div>'; return loadPlugins(); }
   sub.innerHTML = keys.map(function (k) {
     const p = configPlugins[k], active = PANEL.key === k && PANEL.page === 'config';
-    return '<div class="nav-sub-item ' + (active ? 'active' : '') + '" role="button" tabindex="0"'
+    /* 展开后的每个插件统一用「@」图标（has-icon 是外壳里现成的行样式） */
+    return '<div class="nav-sub-item has-icon ' + (active ? 'active' : '') + '" role="button" tabindex="0"'
       + (active ? ' aria-current="page"' : '') + ' onclick="PANEL.openPage(\'config\',\'' + k + '\')">'
-      + PANEL.esc(p.name_cn || k) + (PANEL.dirty[k] ? '<span class="unsaved-dot" title="有未保存的修改"></span>' : '') + '</div>';
+      + '<span class="icon at-ico" aria-hidden="true" style="font-size:13px;font-weight:700;line-height:1">@</span>'
+      + '<span class="nav-sub-label">' + PANEL.esc(p.name_cn || k) + '</span>'
+      + (PANEL.dirty[k] ? '<span class="unsaved-dot" title="有未保存的修改"></span>' : '') + '</div>';
   }).join('');
 }
 function loadPlugins() {

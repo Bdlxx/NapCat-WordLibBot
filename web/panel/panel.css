@@ -26,7 +26,10 @@
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans SC',sans-serif;font-size:14px;color:var(--text-primary);background:var(--bg-page);-webkit-font-smoothing:antialiased}
-.app{display:flex;height:100vh;overflow:hidden}
+/* 100dvh = 手机浏览器"工具栏展开时"的可见高度；只写 100vh 的话底部（左下角齿轮、
+   底部保存栏）会被地址栏/工具栏盖住，用户得先上滑收起工具栏才点得到（2026-10-27 反馈）。
+   桌面端 dvh 与 vh 等价，不影响。 */
+.app{display:flex;height:100vh;height:100dvh;overflow:hidden}
 /* 侧栏要压住底部操作栏：齿轮弹出的卡片、左上角账号浮层都是**向右探出**侧栏的，
    z-index 比 .action-bar(20) 低的话会被它盖住（用户报过"引导"那一条被吃掉）。
    取 30：高于操作栏、低于桌面顶栏(60)/弹窗(10000)/提示(10050)。 */
@@ -372,8 +375,10 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 
 /* --- 8. 移动端 --- */
 @media (max-width:768px){
-  /* 顶部栏：5 个控件在窄屏会挤爆，压缩留白并允许标题省略 */
-  .header{height:auto;min-height:52px;padding:6px var(--space-md);gap:8px}
+  /* 顶部栏：5 个控件在窄屏会挤爆，压缩留白并允许标题省略；
+     再给刘海/状态栏留安全区（viewport-fit=cover 时 inset>0，普通浏览为 0） */
+  .header{height:auto;min-height:52px;padding:6px var(--space-md);
+    padding-top:calc(6px + env(safe-area-inset-top,0px));gap:8px}
   .header-breadcrumb{font-size:13px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .header-right{gap:6px}
   .header-btn{padding:6px 10px}
@@ -391,6 +396,7 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
   .action-bar{padding:10px var(--space-md);padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));
     gap:var(--space-sm);flex-wrap:wrap}
   .action-bar-title{width:100%}
+  .app-menu-btn{min-height:44px}
   .bar-actions{width:100%;margin-left:0}
   .bar-actions .btn{flex:1;justify-content:center;min-height:44px}
   .ui-modal-actions .btn{flex:1;min-width:0;min-height:44px}
@@ -494,7 +500,10 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 .sidebar-logo.clickable:hover{background:var(--bg-hover)}
 .sidebar-logo.clickable:focus-visible{outline:2px solid var(--color-primary);outline-offset:-2px}
 /* 左下角：只留一个「设置」齿轮，点它向右弹出卡片（更新 / 设置 / 引导） */
-.sidebar-foot{position:relative;margin-top:auto;padding:8px 8px 12px}
+/* 左下角「设置」：底部额外留出手机安全区（iPhone 手势条 / 全面屏），
+   否则齿轮贴着屏幕最底边，手指点不准、也容易被浏览器工具栏盖住 */
+.sidebar-foot{position:relative;margin-top:auto;
+  padding:8px 8px calc(16px + env(safe-area-inset-bottom,0px))}
 .app-menu-btn{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:0;
   border-radius:var(--radius,8px);background:transparent;color:var(--text-regular);
   font-family:inherit;font-size:13px;cursor:pointer;text-align:start;
@@ -522,8 +531,13 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
 
 @media(max-width:768px){
   /* 窄屏同样"常驻竖条"（不再是滑出抽屉）：收起时占位 56px，展开时浮在内容之上 */
-  .sidebar{position:relative;left:auto;width:56px;transition:width .2s var(--ease,ease)}
-  .sidebar:not(.rail){position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-width);z-index:100;
+  .sidebar{position:relative;left:auto;width:56px;transition:width .2s var(--ease,ease);
+    padding-top:env(safe-area-inset-top,0px)}
+  /* 展开的抽屉用 100dvh + 上下安全区：手机地址栏/工具栏展开时，
+     用 bottom:0 会把左下角「设置」齿轮压到可视区外（用户 2026-10-27 反馈：得先上滑才点得到） */
+  .sidebar:not(.rail){position:fixed;left:0;top:0;bottom:auto;height:100vh;height:100dvh;
+    width:var(--sidebar-width);z-index:100;
+    padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
     box-shadow:0 0 26px rgba(15,23,42,.28)}
   /* 竖条常驻后顶栏少了 56px：按钮不许被挤到换行，标题该省略就省略 */
   .header-right{flex-shrink:0}
