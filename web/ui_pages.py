@@ -268,7 +268,7 @@ def _groups(ctx):
                     f'<label class="el-switch" title="{"开启 = 伪人模式（会主动接话）；关闭 = 普通模式（只认 @ 与唤醒词）" if pseudo_on else "先开启本群的「AI 对话」才能切模式"}">'
                     f'<input type="checkbox" class="tg-mode" data-tgg="{esc(g)}" '
                     f'{"checked" if cm_mode == "pseudo" else ""} {"disabled" if not pseudo_on else ""} '
-                    f'aria-label="{esc(gname)} 的 AI 对话模式"></label>'
+                    f'aria-label="{esc(gname)} 的 AI 对话模式"><span class="track"></span></label>'
                     f'<div class="tg-mode-txt" data-tgg="{esc(g)}" style="font-size:10px;'
                     f'color:var(--text-secondary);margin-top:2px">'
                     f'{"伪人" if cm_mode == "pseudo" else "普通"}{"" if cm_explicit else "（默认）"}</div></td>')
