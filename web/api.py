@@ -1189,12 +1189,23 @@ def save_group_toggles(num):
     # 「AI 对话模式」按群保存：写到 persona_config.json 的 group_chat_modes，
     # 然后 SIGUSR1 让伪人插件 reload_config()，不用重启（面板保存配置同一条通道）
     if modes:
+        # 只接受「该群 AI 对话已开启」的模式写入：前端虽然已经灰锁，后端再兜一层，
+        # 免得插件关着也被改成伪人（用户 2026-11-02 报的问题）
+        import utils.plugin_toggle as _ptx
+        matrix = _ptx.get_toggles_matrix(os.path.join(b['dir'], 'data'), ['pseudo'])
+        pseudo_state = dict((matrix.get('toggles') or {}))
+        for gid, on in (toggles or {}).items():
+            if isinstance(on, dict) and 'pseudo' in on:
+                pseudo_state[str(gid)] = dict(pseudo_state.get(str(gid)) or {}, pseudo=on['pseudo'])
         pc_path = os.path.join(b['dir'], 'data', 'persona_config.json')
         pc = read_json(pc_path) or {}
         gm = dict(pc.get('group_chat_modes') or {})
         for gid, mode in modes.items():
             m = str(mode or '').strip().lower()
             if m not in ('normal', 'pseudo'):
+                continue
+            if not (pseudo_state.get(str(gid)) or {}).get('pseudo'):
+                print(f'[API] 忽略模式写入：群 {gid} 的「AI 对话」未开启')
                 continue
             gm[str(gid)] = m
         pc['group_chat_modes'] = gm
