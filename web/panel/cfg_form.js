@@ -191,15 +191,28 @@ function renderForm(box, payload, opts) {
       + '需要的话可以在插件里声明 <code>__config_schema__</code>，或切到 JSON 页签直接编辑。</div>');
     return;
   }
-  var html = '', lastGroup = null, advOpen = false;
+  /* 普通字段照常铺开；高级字段**全部收集到最后**再折叠成一块。
+     老实现是"遇到第一个 advanced 就开 details 并一直撑到结尾"，
+     结果第一个高级字段之后的所有常规字段都被藏进去了（AI 对话当时默认只剩 1 项可见）。 */
+  var html = '', lastGroup = null, adv = [];
   for (var i = 0; i < fields.length; i++) {
     var f = fields[i];
-    if (f.advanced && !advOpen) { html += '<details class="cf-advanced"><summary>高级选项</summary>'; advOpen = true; }
+    if (f.advanced) { adv.push(f); continue; }
     var g = f.group || '';
-    if (!f.advanced && g && g !== lastGroup) { html += '<div class="cf-group">' + esc(g) + '</div>'; lastGroup = g; }
+    if (g && g !== lastGroup) { html += '<div class="cf-group">' + esc(g) + '</div>'; lastGroup = g; }
     html += fieldHtml(f);
   }
-  if (advOpen) html += '</details>';
+  if (adv.length) {
+    html += '<details class="cf-advanced"><summary>高级选项（' + adv.length + ' 项）</summary>';
+    var lastAdvGroup = null;
+    for (var j = 0; j < adv.length; j++) {
+      var af = adv[j];
+      var ag = af.group || '';
+      if (ag && ag !== lastAdvGroup) { html += '<div class="cf-group">' + esc(ag) + '</div>'; lastAdvGroup = ag; }
+      html += fieldHtml(af);
+    }
+    html += '</details>';
+  }
   box.innerHTML = html;
   bindLive(box);
 }
