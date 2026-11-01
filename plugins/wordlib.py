@@ -111,6 +111,24 @@ __config_schema__ = {
         "help": "当天重复签到时随机扣除的好感度上限（下限固定为 0）",
         "default": 2,
     },
+    "setting_favor_chat_daily": {
+        "type": "number", "label": "聊天每天最多加多少分", "group": "好感度",
+        "path": "settings.favor_chat_daily", "min": 0, "max": 50, "step": 1, "unit": "分",
+        "help": "AI 聊天时自己判断要不要给好感度；这是每人每天的上限（0=关闭聊天加分）。",
+        "default": 3,
+    },
+    "setting_favor_chat_times": {
+        "type": "number", "label": "聊天每天最多加成几次", "group": "好感度",
+        "path": "settings.favor_chat_times", "min": 0, "max": 50, "step": 1, "unit": "次",
+        "help": "每人每天最多被加几次（每次可 1~单次上限分），到达后 AI 会被告知今天不能再加。",
+        "default": 3,
+    },
+    "setting_favor_chat_per_max": {
+        "type": "number", "label": "单次最多加几分", "group": "好感度",
+        "path": "settings.favor_chat_per_max", "min": 1, "max": 20, "step": 1, "unit": "分",
+        "help": "AI 一次回复里最多能加的分（它申请更多也会被削到这个值）。",
+        "default": 2,
+    },
     "setting_nickname_need_favor": {
         "type": "number", "label": "设置昵称所需好感度", "group": "参数",
         "path": "settings.nickname_need_favor", "min": 0, "max": 100000, "step": 1,
@@ -1166,6 +1184,74 @@ def _cmd_status(event, raw, kw):
     lines.append("🤖 AI 对话模式：" + _ai_mode_desc(gid))
     send_message(event, "\n".join(lines))
     return True
+
+
+# ========== 好感度：聊天配额（加分与否交给 AI 判断，这里只管上限与落盘）==========
+def _favor_today_iso():
+    return beijing_now().date().isoformat()
+
+
+def favor_limits():
+    """(每日最多加分, 每日最多加成几次, 单次最多加几分)"""
+    try:
+        daily = int(setting("favor_chat_daily", 3) or 0)
+        times = int(setting("favor_chat_times", 3) or 0)
+        per_max = int(setting("favor_chat_per_max", 2) or 0)
+    except Exception:
+        daily, times, per_max = 3, 3, 2
+    return max(0, daily), max(0, times), max(1, per_max)
+
+
+def favor_quota(user_id):
+    """今天还能给这个人加多少分 / 几次 / 单次最多几分（给 AI 看的就是这几个数）"""
+    daily, times, per_max = favor_limits()
+    today = _favor_today_iso()
+    used_pts, used_times = 0, 0
+    try:
+        rec = (load_user_data().get(str(user_id)) or {}).get("favor_day") or {}
+        if str(rec.get("date") or "") == today:
+            used_pts = int(rec.get("points") or 0)
+            used_times = int(rec.get("times") or 0)
+    except Exception:
+        pass
+    return {"date": today,
+            "points_left": max(0, daily - used_pts), "times_left": max(0, times - used_times),
+            "per_max": per_max, "used_points": used_pts, "used_times": used_times,
+            "daily": daily, "times": times}
+
+
+def award_favor(user_id, delta, reason="AI判断"):
+    """给好感度加分。delta 是 AI 申请的分数，这里按「单次上限 / 每日分数 / 每日次数」削平。返回实际加分。"""
+    try:
+        d = int(delta)
+    except Exception:
+        return 0
+    if d <= 0:
+        return 0
+    q = favor_quota(user_id)
+    if q["points_left"] <= 0 or q["times_left"] <= 0:
+        return 0
+    add = min(d, q["per_max"], q["points_left"])
+    if add <= 0:
+        return 0
+    key = str(user_id)
+    try:
+        ud = load_user_data()
+        rec = ud.setdefault(key, {})
+        rec["favor"] = int(rec.get("favor", 0) or 0) + add
+        fd = rec.get("favor_day") or {}
+        if str(fd.get("date") or "") != q["date"]:
+            fd = {"date": q["date"], "points": 0, "times": 0}
+        fd["points"] = int(fd.get("points") or 0) + add
+        fd["times"] = int(fd.get("times") or 0) + 1
+        rec["favor_day"] = fd
+        save_user_data(ud)
+        print(f"[词库] 好感度 +{add}（{reason}）：{key} → {rec['favor']}，"
+              f"今日 {fd['points']}/{q['daily']} 分、{fd['times']}/{q['times']} 次")
+    except Exception as e:
+        print(f"[词库] 好感度加分失败: {e}")
+        return 0
+    return add
 
 
 def _cmd_encode(event, raw, kw):
