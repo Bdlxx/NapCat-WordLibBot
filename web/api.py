@@ -378,6 +378,18 @@ def _toggles_payload(b, plugin_keys):
     tg['groupInfo'] = group_info
     tg['_pluginMeta'] = {k: {'name_cn': v['name_cn'], 'name_en': v['name_en']}
                          for k, v in _pt.get_plugin_meta(None, os.path.join(b['dir'], 'plugins')).items()}
+    # AI 对话模式（按群）：群里有单独设置就用它，否则回落全局 chat_mode
+    pc = read_json(os.path.join(b['dir'], 'data', 'persona_config.json')) or {}
+    gmodes = pc.get('group_chat_modes') or {}
+    default_mode = (str(pc.get('chat_mode') or 'normal').strip().lower() or 'normal')
+    if default_mode not in ('normal', 'pseudo'):
+        default_mode = 'normal'
+    tg['chatModeDefault'] = default_mode
+    tg['chatModes'] = {}
+    for gid in all_groups:
+        v = str(gmodes.get(gid) or '').strip().lower()
+        tg['chatModes'][gid] = {'mode': v if v in ('normal', 'pseudo') else default_mode,
+                                'explicit': v in ('normal', 'pseudo')}
     return tg
 
 
@@ -1165,14 +1177,36 @@ def save_config(num):
 def save_group_toggles(num):
     """批量保存群组开关"""
     if num not in BOTS: return jsonify({'error': '无效编号'}), 404
-    data = request.get_json()
+    data = request.get_json() or {}
     toggles = data.get('toggles', {})
-    if not toggles:
+    modes = data.get('modes') or {}
+    if not toggles and not modes:
         return jsonify({'error': '参数无效'}), 400
     b = BOTS[num]
     import utils.plugin_toggle as _pt
-    _pt.set_batch_toggles(toggles, os.path.join(b['dir'], 'data'))
-    return jsonify({'ok': True, 'msg': '群组开关已保存'})
+    if toggles:
+        _pt.set_batch_toggles(toggles, os.path.join(b['dir'], 'data'))
+    # 「AI 对话模式」按群保存：写到 persona_config.json 的 group_chat_modes，
+    # 然后 SIGUSR1 让伪人插件 reload_config()，不用重启（面板保存配置同一条通道）
+    if modes:
+        pc_path = os.path.join(b['dir'], 'data', 'persona_config.json')
+        pc = read_json(pc_path) or {}
+        gm = dict(pc.get('group_chat_modes') or {})
+        for gid, mode in modes.items():
+            m = str(mode or '').strip().lower()
+            if m not in ('normal', 'pseudo'):
+                continue
+            gm[str(gid)] = m
+        pc['group_chat_modes'] = gm
+        tmp = pc_path + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(pc, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, pc_path)
+        _notify_bot_reload(str(b['qq']))
+    msg = '群组开关已保存' if toggles else 'AI 对话模式已保存'
+    if toggles and modes:
+        msg = '群组开关与 AI 对话模式已保存'
+    return jsonify({'ok': True, 'msg': msg})
 
 @app.route('/api/bot/<int:num>/restart', methods=['POST'])
 @login_required

@@ -275,6 +275,7 @@ function goPage(page, key) {
 }
 function navigate(page) {
   if (page === P.page) { closeSidebar(); return; }
+  if (P.page === 'groups' && P.groupAutoSave && P.dirtyGroups) { flushGroupSave(); }
   guardUnsaved('切换页面').then(function (ok) { if (!ok) return; clearDirty(); goPage(page); });
 }
 function openPage(page, key) {
@@ -669,6 +670,19 @@ function renderLogViewer(sfx) {
 
 /* ---------------------------------------------------------------- 群组矩阵 */
 function markGroupsDirty() { if (!P.dirtyGroups) P.dirtyGroups = true; syncDirtyUI(); }
+/* 群聊开关页：改一下就自动保存（用户 2026-11-01 要求，不用再点「保存」）。
+   防抖 500ms 合并连点；只在 P.groupAutoSave 为真时启用，桌面端不受影响。 */
+let _tgSaveTimer = 0;
+function scheduleGroupSave() {
+  if (!P.groupAutoSave) return;
+  if (_tgSaveTimer) clearTimeout(_tgSaveTimer);
+  _tgSaveTimer = setTimeout(function () { _tgSaveTimer = 0; tgSave(null, { silent: true }); }, 500);
+}
+function flushGroupSave() {
+  if (!P.groupAutoSave || !P.dirtyGroups) return Promise.resolve();
+  if (_tgSaveTimer) { clearTimeout(_tgSaveTimer); _tgSaveTimer = 0; }
+  return tgSave(null, { silent: true });
+}
 /* 设置页（主人/管理员 QQ）脏值：输入即标记，保存/切页时清除 */
 function markSettingsDirty() { if (!P.dirtySettings) { P.dirtySettings = true; syncDirtyUI(); } }
 function tgState() { return global._tgState || (global._tgState = {}); }
@@ -681,6 +695,8 @@ function tgToggle(gid, plugin, checked) {
   if (rowChk) rowChk.checked = Object.keys(st[gid]).every(function (p) { return st[gid][p]; });
   const colChk = document.querySelector('.tg-ac[data-tgp="' + plugin + '"]');
   if (colChk) colChk.checked = Object.keys(st).every(function (g) { return st[g] && st[g][plugin]; });
+  if (plugin === 'pseudo') syncModeCell(gid);
+  scheduleGroupSave();
 }
 function tgToggleGroup(gid, checked) {
   const st = tgState();
@@ -694,6 +710,8 @@ function tgToggleGroup(gid, checked) {
     const pk = c.getAttribute('data-tgp');
     c.checked = Object.keys(st).every(function (g) { return st[g] && st[g][pk]; });
   });
+  if ((global._tgState[gid] || {}).pseudo !== undefined) syncModeCell(gid);
+  scheduleGroupSave();
 }
 function tgToggleAllPlugin(plugin, checked) {
   const st = tgState();
@@ -706,30 +724,71 @@ function tgToggleAllPlugin(plugin, checked) {
     const gid = r.getAttribute('data-tgg');
     r.checked = Object.keys(st[gid] || {}).every(function (p) { return st[gid][p]; });
   });
+  Object.keys(st).forEach(syncModeCell);
+  scheduleGroupSave();
 }
 function tgToggleAll(checked) {
   const st = tgState();
   Object.keys(st).forEach(function (g) { Object.keys(st[g]).forEach(function (p) { st[g][p] = checked; }); });
   markGroupsDirty();
   document.querySelectorAll('.tg-c, .tg-r, .tg-ac').forEach(function (c) { c.checked = checked; });
+  Object.keys(st).forEach(syncModeCell);
+  scheduleGroupSave();
 }
-async function tgSave(btn) {
+async function tgSave(btn, opts) {
+  opts = opts || {};
   const st = global._tgState;
   if (!st || !Object.keys(st).length) return;
-  btn = btn || $('actionSaveBtn');
   const snapshot = JSON.parse(JSON.stringify(st));
-  await runBusy(btn, '保存中…', async function () {
-    const d = await P.endpoints.saveToggles(snapshot);
-    if (!d.ok) { toast('群组开关保存失败：' + err(d), 'error'); return; }
-    P.dirtyGroups = false; syncDirtyUI();
-    toast('群组开关已保存（' + Object.keys(snapshot).length + ' 个群）', 'success');
+  const modes = {};
+  Object.keys(global._tgModes || {}).forEach(function (g) {
+    if ((global._tgModes || {})[g] !== (global._tgModes0 || {})[g]) modes[g] = global._tgModes[g];
   });
+  const doSave = async function () {
+    const d = await P.endpoints.saveToggles(snapshot, modes);
+    if (!d || !d.ok) { toast('群组开关保存失败：' + err(d), 'error'); return; }
+    global._tgModes0 = JSON.parse(JSON.stringify(global._tgModes || {}));
+    Object.keys(global._tgState || {}).forEach(syncModeCell);
+    P.dirtyGroups = false; syncDirtyUI();
+    if (!opts.silent) {
+      toast('群组开关已保存（' + Object.keys(snapshot).length + ' 个群' +
+            (Object.keys(modes).length ? '，AI 模式 ' + Object.keys(modes).length + ' 处' : '') + '）', 'success');
+    }
+  };
+  if (opts.silent) { await doSave(); return; }
+  btn = btn || $('actionSaveBtn');
+  await runBusy(btn, '保存中…', doSave);
 }
 /* 群组状态由后端片段带过来（innerHTML 插入的 <script> 不执行，所以用 JSON 数据块） */
 function readGroupsState(id) {
   const el = $(id || 'groupsState');
   try { global._tgState = el ? JSON.parse(el.textContent) : {}; } catch (e) { global._tgState = {}; }
+  /* AI 对话模式（按群）：单独一个数据块，跟插件开关矩阵分开放 */
+  const mel = $('groupsModes');
+  try { global._tgModes = mel ? JSON.parse(mel.textContent) : {}; } catch (e) { global._tgModes = {}; }
+  global._tgModes0 = JSON.parse(JSON.stringify(global._tgModes || {}));
+  Object.keys(global._tgState || {}).forEach(syncModeCell);
   P.dirtyGroups = false; syncDirtyUI();
+}
+
+/* AI 对话模式开关：只在「AI 对话」插件开着时可用；关=普通、开=伪人 */
+function tgModes() { return global._tgModes || (global._tgModes = {}); }
+function syncModeCell(gid) {
+  const chk = document.querySelector('.tg-mode[data-tgg="' + gid + '"]');
+  const txt = document.querySelector('.tg-mode-txt[data-tgg="' + gid + '"]');
+  const pseudoOn = !!((global._tgState || {})[gid] || {}).pseudo;
+  const wantPseudo = tgModes()[gid] === 'pseudo';
+  if (chk) { chk.checked = wantPseudo; chk.disabled = !pseudoOn; }
+  if (txt) {
+    const changed = tgModes()[gid] !== (global._tgModes0 || {})[gid];
+    txt.textContent = (wantPseudo ? '伪人' : '普通') + (changed ? '' : '（默认）');
+  }
+}
+function tgToggleMode(gid, checked) {
+  tgModes()[gid] = checked ? 'pseudo' : 'normal';
+  markGroupsDirty();
+  syncModeCell(gid);
+  scheduleGroupSave();
 }
 
 /* ---------------------------------------------------------------- 插件配置（schema 驱动） */
@@ -950,6 +1009,8 @@ function bindDelegates() {
     if (el) { tgToggleGroup(el.getAttribute('data-tgg'), el.checked); return; }
     el = t.closest('.tg-c');
     if (el) { tgToggle(el.getAttribute('data-tgg'), el.getAttribute('data-tgp'), el.checked); return; }
+    el = t.closest('.tg-mode');
+    if (el) { tgToggleMode(el.getAttribute('data-tgg'), el.checked); return; }
   });
   document.addEventListener('click', function (e) {
     const t = e.target;
@@ -975,6 +1036,10 @@ function bindDelegates() {
     el = t.closest('[data-refresh]');
     if (el) { refreshCurrentPage(); return; }
     el = t.closest('[data-page]');
+    /* 带子菜单的父项（带 aria-expanded）= 展开器，不是页面入口：
+       只让内联 onclick 展开/收起，这里**不许**再 navigate 一次
+       （2026-11-01 用户反馈：点「插件配置」会连带跳到插件页；跳转只该发生在点子项时） */
+    if (el && el.getAttribute('aria-expanded') !== null) return;
     if (el) { navigate(el.getAttribute('data-page')); return; }
     el = t.closest('.tg-ac');
     if (el) { tgToggleAllPlugin(el.getAttribute('data-tgp'), el.checked); return; }

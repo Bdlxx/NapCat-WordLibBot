@@ -220,6 +220,9 @@ def _groups(ctx):
         head.append(f'<th style="text-align:center;min-width:90px">{esc(m.get("name_cn") or p)}<br>'
                     f'<span style="font-weight:400;font-size:11px;color:var(--text-secondary)">'
                     f'{esc(m.get("name_en") or p)}</span></th>')
+    head.append('<th style="text-align:center;min-width:96px;background:var(--bg-active)">AI 对话模式<br>'
+                '<span style="font-weight:400;font-size:11px;color:var(--text-secondary)">'
+                '开=伪人 / 关=普通</span></th>')
     head.append('<th style="text-align:center;min-width:70px">全选</th></tr></thead><tbody>')
 
     # 全选行（每列 = 该插件在所有群的状态）
@@ -229,6 +232,7 @@ def _groups(ctx):
         head.append(f'<td style="text-align:center"><label class="el-switch">'
                     f'<input type="checkbox" {"checked" if all_on else ""} class="tg-ac" data-tgp="{esc(p)}" '
                     f'aria-label="在所有群开启「{esc(pname(p))}」"><span class="track"></span></label></td>')
+    head.append('<td style="text-align:center;color:var(--text-secondary)">—</td>')
     head.append('<td style="text-align:center"><label class="el-switch">'
                 '<input type="checkbox" data-tg-all="1" aria-label="全部群全部插件全选">'
                 '<span class="track"></span></label></td></tr>')
@@ -256,6 +260,18 @@ def _groups(ctx):
                         f'<input type="checkbox" {"checked" if on else ""} class="tg-c" data-tgg="{esc(g)}" '
                         f'data-tgp="{esc(p)}" aria-label="{esc(gname)} 的「{esc(pname(p))}」">'
                         f'<span class="track"></span></label></td>')
+        cm = (tg.get('chatModes') or {}).get(g) or {}
+        cm_mode = cm.get('mode') or 'normal'
+        cm_explicit = bool(cm.get('explicit'))
+        pseudo_on = bool((toggles.get(g) or {}).get('pseudo'))
+        head.append('<td style="text-align:center">'
+                    f'<label class="el-switch" title="{"开启 = 伪人模式（会主动接话）；关闭 = 普通模式（只认 @ 与唤醒词）" if pseudo_on else "先开启本群的「AI 对话」才能切模式"}">'
+                    f'<input type="checkbox" class="tg-mode" data-tgg="{esc(g)}" '
+                    f'{"checked" if cm_mode == "pseudo" else ""} {"disabled" if not pseudo_on else ""} '
+                    f'aria-label="{esc(gname)} 的 AI 对话模式"></label>'
+                    f'<div class="tg-mode-txt" data-tgg="{esc(g)}" style="font-size:10px;'
+                    f'color:var(--text-secondary);margin-top:2px">'
+                    f'{"伪人" if cm_mode == "pseudo" else "普通"}{"" if cm_explicit else "（默认）"}</div></td>')
         head.append(f'<td style="text-align:center"><label class="el-switch">'
                     f'<input type="checkbox" {"checked" if row_all else ""} class="tg-r" data-tgg="{esc(g)}" '
                     f'aria-label="在 {esc(gname)} 开启所有插件"><span class="track"></span></label></td></tr>')
@@ -265,11 +281,17 @@ def _groups(ctx):
                 '<div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.8">'
                 '所有插件在每个群默认关闭。<br>在群内发送对应命令开启：<code>开启词库</code> / <code>关闭词库</code><br>'
                 '私聊发送 = 全局控制。横向「全选」列控制单个插件在所有群的状态，'
-                '纵向「全选」行控制单个群的所有插件。</div></div>')
+                '纵向「全选」行控制单个群的所有插件。<br>'
+                '<b>AI 对话模式</b>按群设置：必须先在本群开启「AI 对话」，开关才可用；'
+                '关 = 普通模式（只认 @ 与唤醒词），开 = 伪人模式（额外会主动接话）。'
+                '标「（默认）」表示跟随全局默认，改全局默认它会跟着变。</div></div>')
     # 群组状态交给前端做交互（innerHTML 插入的 <script> 不会执行，所以用 JSON 数据块）
     state = {g: {p: bool((toggles.get(g) or {}).get(p)) for p in plugins} for g in groups}
     head.append('<script type="application/json" id="groupsState">'
                 + json.dumps(state, ensure_ascii=False).replace('</', '<\\/') + '</script>')
+    modes = {g: ((tg.get('chatModes') or {}).get(g) or {}).get('mode') or 'normal' for g in groups}
+    head.append('<script type="application/json" id="groupsModes">'
+                + json.dumps(modes, ensure_ascii=False).replace('</', '<\\/') + '</script>')
     return ''.join(head)
 
 

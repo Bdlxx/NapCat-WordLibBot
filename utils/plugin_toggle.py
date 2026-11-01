@@ -34,10 +34,10 @@ PLUGIN_META = {
         "description": "群内每日结婚/离婚系统",
     },
     "pseudo": {
-        "name_cn": "伪人插件",
-        "name_en": "pseudo_persona",
+        "name_cn": "AI 对话",
+        "name_en": "pseudo_persona",   # 仍是模块名/文件名，别改：分群键 pseudo 与它绑定
         "config_file": "persona_config.json",
-        "description": "AI 对话回复、角色扮演，支持 GLM 和 Gemini 双模型",
+        "description": "AI 对话：普通/伪人两种模式（伪人=装群友混聊+随机接话）、表情包/语音",
     },
     "video_parser": {
         "name_cn": "视频解析",

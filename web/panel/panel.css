@@ -100,6 +100,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
 .el-switch .track::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.25)}
 .el-switch input:checked + .track{background:var(--color-primary)}
 .el-switch input:checked + .track::after{left:22px}
+/* 禁用（锁定）态：看得见但不给点 —— 群聊矩阵里「AI 对话模式」就靠这个表达"父开关没开" */
+.el-switch input:disabled + .track{opacity:.4;cursor:not-allowed}
+.el-switch:has(input:disabled){cursor:not-allowed}
+.el-switch:has(input:disabled) .track::after{box-shadow:none}
 .el-table{width:100%;border-collapse:collapse;font-size:13px}
 .el-table th{padding:12px 16px;text-align:left;font-weight:600;background:var(--bg-input);color:var(--text-regular);border-bottom:1px solid var(--border-color)}
 .el-table td{padding:12px 16px;border-bottom:1px solid var(--border-light)}
@@ -177,7 +181,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans S
   /* 间距刻度 4/8 节奏 */
   --space-xs:4px; --space-sm:8px; --space-md:16px; --space-lg:24px; --space-xl:32px; --space-2xl:48px;
   /* 字体与字阶 */
-  --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",sans-serif;
+  /* 鸿蒙黑体（HarmonyOS Sans SC）：字体文件由 index.html 的 fonts/harmonyos.css 提供
+     （官方 HarmonyOS-Sans.zip 切片自托管）；没加载到就按后面的系统字体回落 */
+  --font-sans:"HarmonyOS Sans SC",system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",sans-serif;
   --font-mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
   --fs-xs:12px; --fs-sm:13px; --fs-base:14px; --fs-md:15px; --fs-lg:17px; --fs-xl:20px; --fs-2xl:24px;
   --lh-tight:1.25; --lh-base:1.55;
@@ -526,6 +532,44 @@ input:focus,select:focus,textarea:focus{background:var(--bg-card);border-color:v
   flex-shrink:0;color:var(--text-secondary)}
 .app-menu-item:hover .icon{color:var(--color-primary)}
 .app-menu-item .icon .ico{width:18px;height:18px}
+
+/* ---------- 侧栏统一规格（2026-11-01 收口） ----------
+   上面十几处规则互相覆盖（字号 11/13/15、图标盒 28/20/16、图文间距 10/8、左侧内缩 16/18/30 混用），
+   这里一次定稿，改动只需动这一块：
+     · 左右留白统一 8px(--space-sm)，行内容起点 = 8 + 10 = 18px（组标题文本也对齐到 18px）
+     · 字号走字阶：组标题 12 / 一级 14→15 / 二级 13，层级单向下行
+     · 图标 14px(--icon-sm) 略小于 15px 标签；图文间距统一 8px(--space-sm)
+     · 行高 ≥40px（触屏 ≥44px）保证点击区；圆角与面板控件同值 --radius(10px)
+     · 组内间距 2px、组间靠标题上留白 24px 拉开（组间 ≥ 组内 3 倍） */
+.sidebar-nav{padding:var(--space-sm) 0 var(--space-md)}
+.nav-group-title{font-size:var(--fs-xs);line-height:1.4;letter-spacing:.04em;font-weight:600;
+  color:var(--text-secondary);
+  padding:0 var(--space-md) var(--space-xs) calc(var(--space-sm) + 10px)}
+.nav-group + .nav-group .nav-group-title{padding-top:var(--space-lg)}
+.nav-item{min-height:40px;margin:1px var(--space-sm);padding:9px 10px;gap:var(--space-sm);
+  font-size:var(--fs-md);line-height:1.35;border-radius:var(--radius);border-left:none;
+  transition:background-color .16s var(--ease),color .16s var(--ease)}
+.nav-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-item .icon{width:22px;height:22px;border-radius:var(--radius-sm);font-size:var(--fs-sm);
+  transition:background-color .16s var(--ease),color .16s var(--ease)}
+.nav-item .icon .ico{width:var(--icon-sm);height:var(--icon-sm)}
+.nav-arrow{font-size:var(--fs-xs);line-height:1;margin-inline-start:auto}
+/* 二级菜单：文字左缘与一级标题文字**同一条竖线**（18 → 图标 24 → 文字 48），
+   行高 36px（比一级 40px 略收，但不是"挤"），has-icon 行强制同高，
+   否则展开/收起两态行高不一致会让下面的按钮上下跳（2026-10-27 踩过）。 */
+.nav-sub{padding:var(--space-xs) 0 var(--space-sm) calc(var(--space-sm) + 6px)}
+.nav-sub-item{min-height:36px;margin:1px var(--space-sm) 1px 0;padding:8px 10px;gap:var(--space-sm);
+  font-size:var(--fs-sm);line-height:1.3;border-radius:var(--radius)}
+.nav-sub-item.has-icon{height:auto;min-height:36px}
+.nav-sub-item.has-icon .icon{line-height:16px}
+.nav-sub-loading{padding:var(--space-xs) 10px;font-size:var(--fs-sm);color:var(--text-secondary)}
+/* 收起成竖条（56px）时只剩图标：横向居中，点击区仍 ≥40px */
+.sidebar.rail .nav-item{margin:1px;padding:9px 0}
+.sidebar.rail .nav-item .icon{margin:0 auto}
+@media (max-width:768px){
+  .nav-item{min-height:44px}
+  .nav-sub-item{min-height:40px}
+}
 
 /* 账号浮层：贴着左上角账号卡向右弹出（只有多账号端会给它填内容） */
 
