@@ -121,9 +121,12 @@ def normalize_field(name: str, raw: Any) -> dict[str, Any]:
                 "min_items", "max_items"):
         if key in TYPE_EXTRA[ftype] and raw.get(key) is not None:
             try:
-                field[key] = int(float(raw[key]))
+                v = float(raw[key])
             except (TypeError, ValueError):
                 raise SchemaError(f"字段 {name!r} 的 {key} 必须是数字")
+            # 整数就存整数（rows/maxlength 这类），小数必须保住：
+            # 老代码一律 int() 会把 min=0.001 / max=0.5 截成 0，再让默认值被钳成 0
+            field[key] = int(v) if v.is_integer() else v
 
     # 数值字段的默认值必须落在 min/max 内：声明了 min=5 而默认是 0，
     # 会让用户"什么都不改直接保存"就吃到一条越界错误。

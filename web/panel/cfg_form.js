@@ -44,9 +44,13 @@ function setPath(obj, path, value) {
   cur[parts[parts.length - 1]] = value;
 }
 function fieldPath(f) { return f && (f.path || f.name); }
-function optHtml(options) {
+function optHtml(options, cur) {
+  var hasCur = (cur !== undefined && cur !== null && cur !== '');
   return (options || []).map(function (o) {
-    return '<option value="' + esc(o.value) + '">' + esc(o.label) + '</option>';
+    /* 必须按当前值标 selected：不标的话 <select> 永远停在第一项，
+       一保存就把配置写错（chat_mode 就这样被写成了空字符串） */
+    var sel = (hasCur && String(o.value) === String(cur)) ? ' selected' : '';
+    return '<option value="' + esc(o.value) + '"' + sel + '>' + esc(o.label) + '</option>';
   }).join('');
 }
 
@@ -54,25 +58,29 @@ function optHtml(options) {
 /* f = 字段声明，value = 当前值，path = 提交用的键（字段名） */
 function control(f, value, path) {
   var k = 'data-k="' + esc(path) + '"';
+  /* 只读字段（声明了 readonly）：照常显示当前值，但不允许改、也不随保存写回配置 */
+  var ro = f.readonly ? ' disabled' : '';
   var ph = f.placeholder ? ' placeholder="' + esc(f.placeholder) + '"' : '';
   switch (f.type) {
     case 'textarea':
-      return '<textarea ' + k + ' rows="' + (f.rows || 4) + '"' + ph + '>' + esc(value) + '</textarea>';
+      return '<textarea ' + k + ro + ' rows="' + (f.rows || 4) + '"' + ph + '>' + esc(value) + '</textarea>';
     case 'json':
       return '<textarea ' + k + ' rows="' + (f.rows || 5) + '" spellcheck="false">'
         + esc(typeof value === 'string' ? value : JSON.stringify(value == null ? {} : value, null, 2))
         + '</textarea><div class="cf-help">JSON 格式，保存时校验</div>';
     case 'number':
-      return '<div class="cf-inline"><input type="number" ' + k + ' value="' + esc(value) + '"'
+      return '<div class="cf-inline"><input type="number" ' + k + ro + ' value="' + esc(value) + '"'
         + (f.min != null ? ' min="' + f.min + '"' : '')
         + (f.max != null ? ' max="' + f.max + '"' : '')
         + (f.step != null ? ' step="' + f.step + '"' : '') + '>'
         + (f.unit ? '<span class="cf-unit">' + esc(f.unit) + '</span>' : '') + '</div>';
     case 'bool':
-      return '<label class="cf-check"><input type="checkbox" ' + k + (value ? ' checked' : '') + '>'
+      return '<label class="cf-check"><input type="checkbox" ' + k + ro + (value ? ' checked' : '') + '>'
         + '<span>' + (value ? '已开启' : '已关闭') + '</span></label>';
     case 'select':
-      return '<select ' + k + '><option value="">（未设置）</option>' + optHtml(f.options) + '</select>';
+      return '<select ' + k + ro + '><option value=""'
+        + (value === '' || value === undefined || value === null ? ' selected' : '') + '>（未设置）</option>'
+        + optHtml(f.options, value) + '</select>';
     case 'multiselect':
       var vals = Array.isArray(value) ? value.map(String) : [];
       return '<div class="cf-rows">' + (f.options || []).map(function (o) {
@@ -158,7 +166,10 @@ function fieldHtml(f) {
   var unset = f.unset
     ? '<div class="cf-help">配置里当前没有这一项（插件内置默认值生效中）；保持默认值保存不会写入它。</div>'
     : '';
-  return '<div class="cf-field" data-field="' + esc(f.name) + '">'
+  var ro = f.readonly
+    ? '<div class="cf-help">🔒 该值由代码/默认值决定，面板只读显示，不会保存到配置文件。</div>'
+    : '';
+  return '<div class="cf-field" data-field="' + esc(f.name) + '"' + (f.readonly ? ' data-readonly="1"' : '') + '>'
     + '<label class="cf-label">' + esc(f.label || f.name)
     + (f.required ? ' <span style="color:var(--cf-danger,#dc2626)">*</span>' : '')
     /* 类型徽标用 cf-type：`.cf-help` 要留给字段自身的说明（面板与测试都按"第一个
@@ -166,6 +177,7 @@ function fieldHtml(f) {
     + '<span class="cf-type"> · ' + esc(f.type) + '</span></label>'
     + control(f, f.value, f.name)
     + (f.help ? '<div class="cf-help">' + esc(f.help) + '</div>' : '')
+    + (f.readonly ? ro : '')
     + unset
     + '<div class="cf-err" hidden></div></div>';
 }
@@ -237,8 +249,10 @@ function readOne(el) {
 }
 /* 收集表单 → 提交对象（键 = 字段名；未被控件接管的配置按**扁平路径**原样带回）*/
 function collect(root, payload) {
+  /* 只读字段不收集：面板不保存它们，值由代码默认值决定 */
   var out = {}, handled = {};
   root.querySelectorAll('[data-k]').forEach(function (el) {
+    if (el.closest('[data-readonly]')) return;   /* 只读字段不提交 */
     out[el.dataset.k] = readOne(el); handled[el.dataset.k] = 1;
   });
   root.querySelectorAll('[data-multi]').forEach(function (el) {
