@@ -142,7 +142,7 @@ def try_handle(event):
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     rows = _plugin_rows(gid)
-    title = f"群状态 · {gname or '本群'}"
+    title = gname or f"群 {gid}"      # 标题只放群名（不写"群状态"字样）
     subtitle = f"群号 {gid} · {now}"
     try:
         path = _card.render_status(title, subtitle, rows, avatar=_group_avatar(gid),
