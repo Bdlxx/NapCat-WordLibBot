@@ -275,7 +275,10 @@ function goPage(page, key) {
 }
 function navigate(page) {
   if (page === P.page) { closeSidebar(); return; }
-  if (P.page === 'groups' && P.groupAutoSave && P.dirtyGroups) { flushGroupSave(); }
+  /* 群聊管理（列表/详情）都是"改了就保存"，离开前把未落盘的先提交 */
+  if ((P.page === 'groups' || P.page === 'group') && P.groupAutoSave && P.dirtyGroups) {
+    flushGroupSave();
+  }
   guardUnsaved('切换页面').then(function (ok) { if (!ok) return; clearDirty(); goPage(page); });
 }
 function openPage(page, key) {

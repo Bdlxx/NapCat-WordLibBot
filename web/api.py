@@ -1071,6 +1071,21 @@ def _page_ctx(b, num, page):
         ctx['group_count'] = len(tg.get('groups') or [])
     if page == 'groups':
         ctx['toggles'] = _toggles_payload(b, [k for k, _ in avail])
+    if page == 'group':
+        # 单群详情：只把这个群的数据喂给页面（提交时也只提交这一个群，后端是按群合并的）
+        gid = str(request.args.get('group') or '').strip()
+        tg = _toggles_payload(b, [k for k, _ in avail])
+        ctx['group_id'] = gid
+        ctx['group_info'] = (tg.get('groupInfo') or {}).get(gid) or {}
+        ctx['toggles'] = {
+            'groups': [gid] if gid else [],
+            'plugins': tg.get('plugins') or [],
+            'toggles': {gid: (tg.get('toggles') or {}).get(gid) or {}},
+            '_pluginMeta': tg.get('_pluginMeta') or {},
+            'groupInfo': tg.get('groupInfo') or {},
+            'chatModes': {gid: (tg.get('chatModes') or {}).get(gid) or {}},
+            'chatModeDefault': tg.get('chatModeDefault'),
+        }
     if page == 'config':
         pkey = request.args.get('plugin') or ''
         if not pkey and avail:
@@ -1200,6 +1215,7 @@ def save_group_toggles(num):
         pc_path = os.path.join(b['dir'], 'data', 'persona_config.json')
         pc = read_json(pc_path) or {}
         gm = dict(pc.get('group_chat_modes') or {})
+        applied = 0
         for gid, mode in modes.items():
             m = str(mode or '').strip().lower()
             if m not in ('normal', 'pseudo'):
@@ -1208,6 +1224,7 @@ def save_group_toggles(num):
                 print(f'[API] 忽略模式写入：群 {gid} 的「AI 对话」未开启')
                 continue
             gm[str(gid)] = m
+            applied += 1
         pc['group_chat_modes'] = gm
         tmp = pc_path + '.tmp'
         with open(tmp, 'w', encoding='utf-8') as f:
@@ -1217,6 +1234,8 @@ def save_group_toggles(num):
     msg = '群组开关已保存' if toggles else 'AI 对话模式已保存'
     if toggles and modes:
         msg = '群组开关与 AI 对话模式已保存'
+    if modes and not applied:
+        msg = '未保存模式：该群的「AI 对话」未开启，请先开启插件再切模式'
     return jsonify({'ok': True, 'msg': msg})
 
 @app.route('/api/bot/<int:num>/restart', methods=['POST'])

@@ -149,6 +149,16 @@ def on_message(ws, message):
                 print(f"[命令表] 已发送 {len(paragraphs)} 段给主人")
                 return
 
+        # ===== 群状态指令（#状态）：2026-11-03 从词库插件迁到主程序，渲染成图片 =====
+        # 放在插件链之前，所以词库在某个群被关掉也照样能查；也避免被伪人插件当闲聊吃掉
+        if event.get("post_type") == "message":
+            try:
+                from utils.group_status import try_handle as _try_status
+                if _try_status(event):
+                    return
+            except Exception as _e:
+                print(f"[状态] 处理失败: {_e}")
+
         for handler in plugin_handlers:
             pname = plugin_meta_by_handler.get(handler, '')
             from utils.log import set_current_plugin

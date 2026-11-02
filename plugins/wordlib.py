@@ -66,11 +66,6 @@ __config_schema__ = {
         "path": "commands.nickname", "default": "依星以后叫我",
         "help": "触发词：前缀匹配，消耗好感度设置自定义昵称",
     },
-    "cmd_status": {
-        "type": "text", "label": "查看状态", "group": "指令", "path": "commands.status",
-        "default": "#状态",
-        "help": "触发词：整条消息全等。回复本群每个插件的开关，以及 AI 对话的模式（普通/伪人）",
-    },
     "cmd_rank": {
         "type": "text", "label": "签到排行", "group": "指令",
         "path": "commands.rank", "default": "签到排行",
@@ -543,7 +538,6 @@ FAVOR_MINUS_RANGE = (0, setting("favor_minus_max", 2))
 NICKNAME_COMMAND = cmd("nickname", f"{BOT_NAME}以后叫我")
 NICKNAME_NEED_FAVOR = setting("nickname_need_favor", 10)
 RANK_COMMAND = cmd("rank", "签到排行")
-STATUS_COMMAND = cmd("status", "#状态")
 RANK_TOP_N = setting("rank_top_n", 10)
 
 # ========== 赞我功能配置 ==========
@@ -1132,128 +1126,6 @@ def _cmd_rank(event, raw, kw):
 
 
 
-def _persona_cfg():
-    """读 AI 对话插件的配置（模式 / 随机接话 / 续接窗口都在 persona_config.json）"""
-    try:
-        p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                         "data", "persona_config.json")
-        with open(p, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-
-def _ai_mode_desc(gid):
-    """本群实际生效的 AI 对话模式（群设置优先，没设置才回落全局）——只回名字"""
-    cfg = _persona_cfg()
-    modes = cfg.get("group_chat_modes") or {}
-    m = str(modes.get(str(gid)) or "").strip().lower()
-    if m not in ("normal", "pseudo"):
-        m = str(cfg.get("chat_mode") or "normal").strip().lower()
-    return "伪人模式（会主动接话）" if m == "pseudo" else "普通模式（只认 @ 与唤醒词）"
-
-
-def _cmd_status(event, raw, kw):
-    """#状态：本群每个插件的开关 + AI 对话模式"""
-    if event.get("message_type") != "group":
-        send_message(event, "「%s」请在群里发（每个群的插件开关和 AI 模式都是独立的）" % (kw or "#状态"))
-        return True
-    gid = str(event.get("group_id"))
-    # 插件清单以**实际加载的插件**为准（自动扫描 plugins 目录，新增插件不用改这里）
-    try:
-        from utils.plugin_toggle import get_plugin_meta
-        meta = get_plugin_meta(plugins_dir=os.path.dirname(os.path.abspath(__file__))) or {}
-    except Exception:
-        meta = {}
-    order = ["wordlib", "marry", "pseudo", "video_parser", "jm_downloader"]
-    keys = [k for k in order if k in meta] + [k for k in meta if k not in order]
-    if not keys:
-        keys = order
-    gname = ""
-    try:
-        from utils.log import get_group_name
-        gname = get_group_name(event.get("group_id")) or ""
-    except Exception:
-        gname = ""
-    lines = ["📋 本群插件状态" + ("（%s）" % gname if gname else "")]
-    for k in keys:
-        on = _pt_enabled(gid, k)
-        name = ((meta.get(k) or {}).get("name_cn") or k)
-        lines.append("%s %s：%s" % ("🟢" if on else "⚪", name, "开启" if on else "关闭"))
-    lines.append("")
-    lines.append("🤖 AI 对话模式：" + _ai_mode_desc(gid))
-    send_message(event, "\n".join(lines))
-    return True
-
-
-# ========== 好感度：聊天配额（加分与否交给 AI 判断，这里只管上限与落盘）==========
-def _favor_today_iso():
-    return beijing_now().date().isoformat()
-
-
-def favor_limits():
-    """(每日最多加分, 每日最多加成几次, 单次最多加几分)"""
-    try:
-        daily = int(setting("favor_chat_daily", 3) or 0)
-        times = int(setting("favor_chat_times", 3) or 0)
-        per_max = int(setting("favor_chat_per_max", 2) or 0)
-    except Exception:
-        daily, times, per_max = 3, 3, 2
-    return max(0, daily), max(0, times), max(1, per_max)
-
-
-def favor_quota(user_id):
-    """今天还能给这个人加多少分 / 几次 / 单次最多几分（给 AI 看的就是这几个数）"""
-    daily, times, per_max = favor_limits()
-    today = _favor_today_iso()
-    used_pts, used_times = 0, 0
-    try:
-        rec = (load_user_data().get(str(user_id)) or {}).get("favor_day") or {}
-        if str(rec.get("date") or "") == today:
-            used_pts = int(rec.get("points") or 0)
-            used_times = int(rec.get("times") or 0)
-    except Exception:
-        pass
-    return {"date": today,
-            "points_left": max(0, daily - used_pts), "times_left": max(0, times - used_times),
-            "per_max": per_max, "used_points": used_pts, "used_times": used_times,
-            "daily": daily, "times": times}
-
-
-def award_favor(user_id, delta, reason="AI判断"):
-    """给好感度加分。delta 是 AI 申请的分数，这里按「单次上限 / 每日分数 / 每日次数」削平。返回实际加分。"""
-    try:
-        d = int(delta)
-    except Exception:
-        return 0
-    if d <= 0:
-        return 0
-    q = favor_quota(user_id)
-    if q["points_left"] <= 0 or q["times_left"] <= 0:
-        return 0
-    add = min(d, q["per_max"], q["points_left"])
-    if add <= 0:
-        return 0
-    key = str(user_id)
-    try:
-        ud = load_user_data()
-        rec = ud.setdefault(key, {})
-        rec["favor"] = int(rec.get("favor", 0) or 0) + add
-        fd = rec.get("favor_day") or {}
-        if str(fd.get("date") or "") != q["date"]:
-            fd = {"date": q["date"], "points": 0, "times": 0}
-        fd["points"] = int(fd.get("points") or 0) + add
-        fd["times"] = int(fd.get("times") or 0) + 1
-        rec["favor_day"] = fd
-        save_user_data(ud)
-        print(f"[词库] 好感度 +{add}（{reason}）：{key} → {rec['favor']}，"
-              f"今日 {fd['points']}/{q['daily']} 分、{fd['times']}/{q['times']} 次")
-    except Exception as e:
-        print(f"[词库] 好感度加分失败: {e}")
-        return 0
-    return add
-
-
 def _cmd_encode(event, raw, kw):
     return _do_encode_start(event)
 
@@ -1298,7 +1170,6 @@ registry.register("每日签到", SIGN_COMMANDS, "每日签到获得好感度", 
 registry.register("赞我", PRAISE_COMMANDS, "让机器人点赞你", _cmd_praise)
 registry.register("设置昵称", [NICKNAME_COMMAND], "设置自定义昵称（需好感度）", _cmd_nickname, kind="prefix")
 registry.register("签到排行", [RANK_COMMAND], "查看签到排行榜", _cmd_rank)
-registry.register("查看状态", [STATUS_COMMAND], "查看本群各插件开关与 AI 对话模式", _cmd_status)
 
 # 同步指令中文名到配置（Web 面板展示可读指令名）
 _CFG.setdefault("command_labels", {}).update(registry.labels())

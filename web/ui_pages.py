@@ -186,12 +186,14 @@ def napcat_status_html(nc, info=None):
 
 
 def _groups(ctx):
+    """群聊管理 = 群卡片列表（点卡片进该群详情页）"""
     tg = ctx.get('toggles') or {}
     groups = tg.get('groups') or []
     plugins = tg.get('plugins') or []
     toggles = tg.get('toggles') or {}
     meta = tg.get('_pluginMeta') or {}
     group_info = tg.get('groupInfo') or {}
+    chat_modes = tg.get('chatModes') or {}
 
     if not groups:
         return ('<div class="empty-state"><div class="icon">🔀</div><p>还没有可管理的群</p>'
@@ -200,99 +202,129 @@ def _groups(ctx):
                 '<div style="margin-top:14px"><button class="btn btn-default" data-refresh="1">'
                 '🔄 重新获取群列表</button></div></div>')
 
-    def pname(p):
-        m = meta.get(p) or {}
-        return m.get('name_cn') or p
-
-    # 开关文件里记着、但本账号当前不在的群（另一个账号的群/已退出的群）——单独标出来，
-    # 否则"开关绑了一堆自己不认识的群"会被当成绑定错误（2026-10-25 线上就踩了这次）
     missing = [g for g in groups if group_info and g not in group_info] if group_info else []
-    head = ['<div class="card"><div class="card-header"><h3>👥 分群插件开关</h3>',
-            f'<span class="badge" style="font-size:11px;padding:2px 10px;border-radius:10px;'
-            f'background:var(--bg-active);color:var(--color-primary)">{len(groups)} 个群</span>',
-            (f'<span class="el-tag warning" style="margin-left:8px" title="开关存着，但该账号当前不在这些群里，'
-             f'开关不会生效">{len(missing)} 个群本账号未加入</span>') if missing else '',
-            '</div>',
-            '<div class="card-body"><div class="table-wrapper"><table class="el-table" style="min-width:600px">',
-            '<thead><tr><th class="sticky-col">群号</th>']
-    for p in plugins:
-        m = meta.get(p) or {}
-        head.append(f'<th style="text-align:center;min-width:90px">{esc(m.get("name_cn") or p)}<br>'
-                    f'<span style="font-weight:400;font-size:11px;color:var(--text-secondary)">'
-                    f'{esc(m.get("name_en") or p)}</span></th>')
-    head.append('<th style="text-align:center;min-width:96px;background:var(--bg-active)">AI 对话模式<br>'
-                '<span style="font-weight:400;font-size:11px;color:var(--text-secondary)">'
-                '开=伪人 / 关=普通</span></th>')
-    head.append('<th style="text-align:center;min-width:70px">全选</th></tr></thead><tbody>')
-
-    # 全选行（每列 = 该插件在所有群的状态）
-    head.append('<tr style="background:var(--bg-active)"><td class="sticky-col is-active" style="font-weight:600">全选</td>')
-    for p in plugins:
-        all_on = all(bool((toggles.get(g) or {}).get(p)) for g in groups)
-        head.append(f'<td style="text-align:center"><label class="el-switch">'
-                    f'<input type="checkbox" {"checked" if all_on else ""} class="tg-ac" data-tgp="{esc(p)}" '
-                    f'aria-label="在所有群开启「{esc(pname(p))}」"><span class="track"></span></label></td>')
-    head.append('<td style="text-align:center;color:var(--text-secondary)">—</td>')
-    head.append('<td style="text-align:center"><label class="el-switch">'
-                '<input type="checkbox" data-tg-all="1" aria-label="全部群全部插件全选">'
-                '<span class="track"></span></label></td></tr>')
+    out = ['<div class="card"><div class="card-header"><h3>👥 群聊管理</h3>',
+           f'<span class="badge" style="font-size:11px;padding:2px 10px;border-radius:10px;'
+           f'background:var(--bg-active);color:var(--color-primary)">{len(groups)} 个群</span>',
+           (f'<span class="el-tag warning" style="margin-left:8px" title="开关存着，但该账号当前不在这些群里，'
+            f'开关不会生效">{len(missing)} 个群本账号未加入</span>') if missing else '',
+           '</div><div class="card-body">',
+           '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">'
+           '点任意一个群 → 进入该群的开关设置（改动即时生效，不用点保存）。</div>',
+           '<div class="group-grid">']
 
     for g in groups:
         gi = group_info.get(g) or {}
         gname = gi.get('name') or g
         avatar = gi.get('avatar') or ''
-        row_all = all(bool((toggles.get(g) or {}).get(p)) for p in plugins)
-        head.append('<tr><td class="sticky-col"><div class="group-cell"><div class="g-avatar">')
-        if avatar:
-            head.append(f'<img src="{esc(avatar)}" alt="" onerror="this.style.display=\'none\';'
-                        f'this.parentElement.textContent=\'👥\'">')
-        else:
-            head.append('👥')
+        on_cnt = sum(1 for p in plugins if (toggles.get(g) or {}).get(p))
+        cm = (chat_modes.get(g) or {}).get('mode') or 'normal'
+        pseudo_on = bool((toggles.get(g) or {}).get('pseudo'))
+        mode_txt = ('伪人' if cm == 'pseudo' else '普通') if pseudo_on else 'AI 未开'
+        avatar_html = (f'<img class="group-card-avatar" src="{esc(avatar)}" alt="" loading="lazy" '
+                       f'onerror="this.style.display=\'none\'">') if avatar else \
+                      '<div class="group-card-avatar" style="display:flex;align-items:center;' \
+                      'justify-content:center;font-size:20px">👥</div>'
         name_html = esc(gname)
         if g in missing:
             name_html += (' <span class="el-tag warning" style="font-size:10px;padding:1px 6px" '
                           'title="该账号当前不在此群：开关存着但不会生效">未加入</span>')
-        head.append(f'</div><div class="g-info"><div class="g-name">{name_html}</div>'
-                    f'<div class="g-id">{esc(g)}</div></div></div></td>')
-        for p in plugins:
-            on = bool((toggles.get(g) or {}).get(p))
-            head.append(f'<td style="text-align:center"><label class="el-switch">'
-                        f'<input type="checkbox" {"checked" if on else ""} class="tg-c" data-tgg="{esc(g)}" '
-                        f'data-tgp="{esc(p)}" aria-label="{esc(gname)} 的「{esc(pname(p))}」">'
-                        f'<span class="track"></span></label></td>')
-        cm = (tg.get('chatModes') or {}).get(g) or {}
-        cm_mode = cm.get('mode') or 'normal'
-        cm_explicit = bool(cm.get('explicit'))
-        pseudo_on = bool((toggles.get(g) or {}).get('pseudo'))
-        head.append('<td style="text-align:center">'
-                    f'<label class="el-switch" title="{"开启 = 伪人模式（会主动接话）；关闭 = 普通模式（只认 @ 与唤醒词）" if pseudo_on else "先开启本群的「AI 对话」才能切模式"}">'
-                    f'<input type="checkbox" class="tg-mode" data-tgg="{esc(g)}" '
-                    f'{"checked" if cm_mode == "pseudo" else ""} {"disabled" if not pseudo_on else ""} '
-                    f'aria-label="{esc(gname)} 的 AI 对话模式"><span class="track"></span></label>'
-                    f'<div class="tg-mode-txt" data-tgg="{esc(g)}" style="font-size:10px;'
-                    f'color:var(--text-secondary);margin-top:2px">'
-                    f'{"伪人" if cm_mode == "pseudo" else "普通"}{"" if cm_explicit else "（默认）"}</div></td>')
-        head.append(f'<td style="text-align:center"><label class="el-switch">'
-                    f'<input type="checkbox" {"checked" if row_all else ""} class="tg-r" data-tgg="{esc(g)}" '
-                    f'aria-label="在 {esc(gname)} 开启所有插件"><span class="track"></span></label></td></tr>')
-    head.append('</tbody></table></div></div></div>')
+        out.append(
+            f'<div class="group-card" data-open="group" data-key="{esc(g)}" role="button" tabindex="0" '
+            f'aria-label="进入 {esc(gname)} 的开关设置">'
+            f'{avatar_html}'
+            f'<div class="group-card-main">'
+            f'<div class="group-card-name" title="{esc(gname)}">{name_html}</div>'
+            f'<div class="group-card-meta">{esc(g)} · 已开 {on_cnt}/{len(plugins)} · {mode_txt}</div>'
+            f'</div><div class="group-card-arrow">›</div></div>')
 
-    head.append('<div class="card"><div class="card-header"><h3>💡 说明</h3></div>'
-                '<div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.8">'
-                '所有插件在每个群默认关闭。<br>在群内发送对应命令开启：<code>开启词库</code> / <code>关闭词库</code><br>'
-                '私聊发送 = 全局控制。横向「全选」列控制单个插件在所有群的状态，'
-                '纵向「全选」行控制单个群的所有插件。<br>'
-                '<b>AI 对话模式</b>按群设置：必须先在本群开启「AI 对话」，开关才可用；'
-                '关 = 普通模式（只认 @ 与唤醒词），开 = 伪人模式（额外会主动接话）。'
-                '标「（默认）」表示跟随全局默认，改全局默认它会跟着变。</div></div>')
-    # 群组状态交给前端做交互（innerHTML 插入的 <script> 不会执行，所以用 JSON 数据块）
-    state = {g: {p: bool((toggles.get(g) or {}).get(p)) for p in plugins} for g in groups}
-    head.append('<script type="application/json" id="groupsState">'
-                + json.dumps(state, ensure_ascii=False).replace('</', '<\\/') + '</script>')
-    modes = {g: ((tg.get('chatModes') or {}).get(g) or {}).get('mode') or 'normal' for g in groups}
-    head.append('<script type="application/json" id="groupsModes">'
-                + json.dumps(modes, ensure_ascii=False).replace('</', '<\\/') + '</script>')
-    return ''.join(head)
+    out.append('</div></div></div>')
+    out.append('<div class="card"><div class="card-header"><h3>💡 说明</h3></div>'
+               '<div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.8">'
+               '所有插件在每个群默认关闭；也可以在群里直接发命令：<code>开启词库</code> / <code>关闭词库</code>。'
+               '<br>「AI 对话模式」按群设置：先在本群开启「AI 对话」，模式开关才可用；'
+               '关 = 普通（只认 @ 与唤醒词），开 = 伪人（额外会主动接话）。</div></div>')
+    return ''.join(out)
+
+
+def _group_detail(ctx):
+    """单个群的开关详情（从群卡片点进来）"""
+    gid = str(ctx.get('group_id') or '')
+    tg = ctx.get('toggles') or {}
+    groups = tg.get('groups') or []
+    plugins = tg.get('plugins') or []
+    meta = tg.get('_pluginMeta') or {}
+    toggles = (tg.get('toggles') or {}).get(gid) or {}
+    gi = ctx.get('group_info') or {}
+    gname = gi.get('name') or gid or '未知群'
+    avatar = gi.get('avatar') or ''
+    cm = (tg.get('chatModes') or {}).get(gid) or {}
+    cm_mode = cm.get('mode') or 'normal'
+    cm_explicit = bool(cm.get('explicit'))
+    pseudo_on = bool(toggles.get('pseudo'))
+    in_groups = gid in groups if groups else True
+
+    if not gid:
+        return ('<div class="empty-state"><div class="icon">⚠️</div><p>没有指定群号</p>'
+                '<div style="margin-top:14px"><button class="btn btn-default" data-page="groups">'
+                '‹ 返回群列表</button></div></div>')
+
+    avatar_html = (f'<img class="group-card-avatar" src="{esc(avatar)}" alt="" onerror="this.style.display=\'none\'">'
+                   if avatar else '<div class="group-card-avatar" style="display:flex;align-items:center;'
+                   'justify-content:center;font-size:20px">👥</div>')
+    out = ['<div style="margin-bottom:12px"><button class="btn btn-default" data-page="groups">'
+           '‹ 返回群列表</button></div>',
+           '<div class="card"><div class="card-header" style="gap:12px">',
+           avatar_html,
+           f'<div style="min-width:0;flex:1"><div class="group-card-name" style="font-size:17px">{esc(gname)}</div>'
+           f'<div class="group-card-meta">{esc(gid)}'
+           + ('' if in_groups else ' · <span class="el-tag warning" style="font-size:10px;padding:1px 6px">本账号未加入</span>')
+           + '</div></div>',
+           '<div style="display:flex;gap:8px">',
+           '<button class="btn btn-default btn-sm" data-tg-group-all="1">全部开启</button>',
+           '<button class="btn btn-default btn-sm" data-tg-group-all="0">全部关闭</button>',
+           '</div></div>',
+           '<div class="card-body">']
+
+    # 插件开关行
+    for p in plugins:
+        m = meta.get(p) or {}
+        label = m.get('name_cn') or p
+        en = m.get('name_en') or p
+        on = bool(toggles.get(p))
+        extra = ''
+        if p == 'pseudo':
+            extra = (' <span class="el-tag" style="font-size:10px;padding:1px 6px;margin-left:6px">'
+                     f'模式：{"伪人" if cm_mode == "pseudo" else "普通"}{"" if cm_explicit else "（默认）"}</span>')
+        out.append(
+            '<div class="gd-row">'
+            f'<div style="min-width:0;flex:1"><div class="gd-name">{esc(label)}'
+            f'<span class="gd-en">{esc(en)}</span>{extra}</div>'
+            f'<div class="gd-desc">{esc((m.get("description") or "").strip())[:80]}</div></div>'
+            f'<label class="el-switch"><input type="checkbox" class="tg-c" data-tgg="{esc(gid)}" '
+            f'data-tgp="{esc(p)}" {"checked" if on else ""} aria-label="本群「{esc(label)}」">'
+            '<span class="track"></span></label>'
+            '</div>')
+
+    # AI 对话模式（AI 对话关着时禁用）
+    out.append('<div class="gd-row">'
+               '<div style="min-width:0;flex:1"><div class="gd-name">AI 对话模式</div>'
+               '<div class="gd-desc">'
+               + ('开 = 伪人模式（会主动接话）／关 = 普通模式（只认 @ 与唤醒词）'
+                  if pseudo_on else '先开启上面的「AI 对话」，才能切换模式')
+               + '</div></div>'
+               f'<label class="el-switch"><input type="checkbox" class="tg-mode" data-tgg="{esc(gid)}" '
+               f'{"checked" if cm_mode == "pseudo" else ""} {"disabled" if not pseudo_on else ""} '
+               f'aria-label="本群 AI 对话模式"><span class="track"></span></label>'
+               '</div>')
+
+    out.append('</div></div>')
+    state = {gid: {p: bool(toggles.get(p)) for p in plugins}}
+    out.append('<script type="application/json" id="groupsState">'
+               + json.dumps(state, ensure_ascii=False).replace('</', '<\\/') + '</script>')
+    out.append('<script type="application/json" id="groupsModes">'
+               + json.dumps({gid: cm_mode}, ensure_ascii=False).replace('</', '<\\/') + '</script>')
+    return ''.join(out)
 
 
 def _unused_removed():
@@ -354,7 +386,8 @@ def _settings(ctx):
 PAGES = {
     'dashboard': (_dashboard, '仪表盘', []),
     'manage': (_manage, '运行管理', []),
-    'groups': (_groups, '群组开关', ['save']),
+    'groups': (_groups, '群聊管理', []),
+    'group': (_group_detail, '群聊详情', []),
     'config': (pp.config_page, '插件配置', ['save', 'save_restart']),
     'logs': (lambda ctx: pp.logs_page(ctx, '运行日志', 'runtime.log'), '运行日志', []),
     'napcat_logs': (lambda ctx: pp.logs_page(ctx, 'NapCat 容器日志', '', napcat=True), 'NapCat 日志', []),
