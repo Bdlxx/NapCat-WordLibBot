@@ -217,10 +217,6 @@ def _groups(ctx):
         gi = group_info.get(g) or {}
         gname = gi.get('name') or g
         avatar = gi.get('avatar') or ''
-        on_cnt = sum(1 for p in plugins if (toggles.get(g) or {}).get(p))
-        cm = (chat_modes.get(g) or {}).get('mode') or 'normal'
-        pseudo_on = bool((toggles.get(g) or {}).get('pseudo'))
-        mode_txt = ('伪人' if cm == 'pseudo' else '普通') if pseudo_on else 'AI 未开'
         avatar_html = (f'<img class="group-card-avatar" src="{esc(avatar)}" alt="" loading="lazy" '
                        f'onerror="this.style.display=\'none\'">') if avatar else \
                       '<div class="group-card-avatar" style="display:flex;align-items:center;' \
@@ -235,7 +231,7 @@ def _groups(ctx):
             f'{avatar_html}'
             f'<div class="group-card-main">'
             f'<div class="group-card-name" title="{esc(gname)}">{name_html}</div>'
-            f'<div class="group-card-meta">{esc(g)} · 已开 {on_cnt}/{len(plugins)} · {mode_txt}</div>'
+            f'<div class="group-card-meta">{esc(g)}</div>'
             f'</div><div class="group-card-arrow">›</div></div>')
 
     out.append('</div></div></div>')
