@@ -49,67 +49,83 @@ def _font(bold=False, size=18):
     return f
 
 
-def _pill(d, right, cy, text, fg, bg, font):
-    """右侧胶囊徽章：底色圆角 + 居中文字，返回左边界 x"""
-    tw = d.textlength(text, font=font)
-    pw, ph = tw + 28, 32
-    x1, y1 = right - pw, cy - ph / 2
-    d.rounded_rectangle([x1, y1, right, cy + ph / 2], radius=ph / 2, fill=bg)
-    d.text(((x1 + right) / 2, cy), text, font=font, fill=fg, anchor="mm")
-    return x1
+def _avatar(path, size, radius):
+    """把群头像裁成圆角方块（取不到就返回 None，由调用方画兜底）"""
+    try:
+        im = Image.open(path).convert("RGBA").resize((size, size), Image.LANCZOS)
+    except Exception:
+        return None
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, size, size], radius=radius, fill=255)
+    out = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    out.paste(im, (0, 0), mask)
+    return out
 
 
-def render_status(title, subtitle, rows, out_path=None, footer=None):
-    """rows: [(名称, 状态文本, (前景色, 底色), 是否子行)]"""
+def _switch(d, right, cy, on, on_color="#22c55e", w=76, h=40):
+    """右侧开关样式：药丸轨道 + 右侧/左侧白色圆钮"""
+    x1, y1 = right - w, cy - h / 2
+    d.rounded_rectangle([x1, y1, right, y1 + h], radius=h / 2,
+                        fill=on_color if on else "#d3dbe6")
+    kr = h / 2 - 4
+    kx = (right - kr - 4) if on else (x1 + kr + 4)
+    d.ellipse([kx - kr, cy - kr, kx + kr, cy + kr], fill="#ffffff",
+              outline=None if on else "#c3cddb", width=1)
+
+
+def render_status(title, subtitle, rows, out_path=None, footer=None, avatar=None):
+    """rows: [{"name": 名称, "on": bool, "kind": "on|off|mode", "indent": bool, "label": 可选小字}]"""
     img = Image.new("RGB", (W, H), "#eef1f7")
     d = ImageDraw.Draw(img)
 
-    # 卡片 + 极淡投影
     d.rounded_rectangle([M, M + 6, W - M, H - M + 6], radius=26, fill="#e3e8f1")
     d.rounded_rectangle([M, M, W - M, H - M], radius=26, fill="#ffffff")
 
-    # 顶部标题区
-    d.text((PAD + M - 24, M + 52), title, font=_font(True, 34), fill="#1b2432")
-    d.text((PAD + M - 24, M + 104), subtitle, font=_font(False, 17), fill="#7c8898")
+    # ===== 顶部：群头像 + 群名/群号 =====
+    av_size, av_x, av_y = 92, M + PAD - 12, M + 44
+    box = _avatar(avatar, av_size, 24) if avatar else None
+    if box is not None:
+        img.paste(box, (av_x, av_y), box)
+        d.rounded_rectangle([av_x, av_y, av_x + av_size, av_y + av_size], radius=24, outline="#eef1f6", width=2)
+    else:
+        d.rounded_rectangle([av_x, av_y, av_x + av_size, av_y + av_size], radius=24, fill="#eef2f9")
+        d.text((av_x + av_size / 2, av_y + av_size / 2), (title or "群")[:1],
+               font=_font(True, 38), fill="#9fb0c4", anchor="mm")
+
+    tx = av_x + av_size + 24
+    d.text((tx, av_y + 16), title, font=_font(True, 32), fill="#1b2432")
+    d.text((tx, av_y + 62), subtitle, font=_font(False, 17), fill="#5d6b7c")
+
     # 右上角小标签
     tag = "群状态"
-    tw = d.textlength(tag, font=_font(True, 15))
-    d.rounded_rectangle([W - M - PAD + 24 - tw - 26, M + 46, W - M - PAD + 24, M + 46 + 34],
-                        radius=17, fill="#eef4ff")
-    d.text((W - M - PAD + 24 - 13 - tw / 2, M + 63), tag, font=_font(True, 15), fill="#2563eb", anchor="mm")
+    tw = d.textlength(tag, font=_font(True, 14))
+    d.rounded_rectangle([W - M - PAD + 12 - tw - 24, M + 52, W - M - PAD + 12, M + 52 + 30],
+                        radius=15, fill="#eef4ff")
+    d.text((W - M - PAD + 12 - 12 - tw / 2, M + 67), tag, font=_font(True, 14), fill="#2563eb", anchor="mm")
 
-    d.line([M + 24, M + 158, W - M - 24, M + 158], fill="#eef1f6", width=2)
+    d.line([M + 24, M + 176, W - M - 24, M + 176], fill="#eef1f6", width=2)
 
-    # 行区：左侧「首字方块」图标（不依赖 emoji 字体）+ 名称 + 右侧紧凑徽章
-    top, bottom = M + 176, H - M - 76
+    # 行区：左侧中文名，右侧开关
+    top, bottom = M + 196, H - M - 76
     n = max(1, len(rows))
     row_h = (bottom - top) / n
-    font_name, font_sub = _font(False, 21), _font(False, 18)
+    font_name, font_sub = _font(False, 22), _font(False, 19)
     for i, row in enumerate(rows):
-        name, state, colors = row[0], row[1], row[2]
-        indent = bool(row[3]) if len(row) > 3 else False
+        name = row.get("name") or ""
+        on = bool(row.get("on"))
+        kind = row.get("kind") or ("on" if on else "off")
+        indent = bool(row.get("indent"))
+        label = row.get("label") or ""
         cy = top + row_h * i + row_h / 2
-        # 图标方块：开启时浅绿底绿字，关闭时浅灰底灰字；子项用小一号
-        tile = 40 if not indent else 32
-        tx = M + PAD + (34 if indent else 0)
-        on = state in ("是", "伪人模式")
-        bg = "#e9f8f0" if on else "#f1f3f7"
-        if state == "伪人模式":
-            bg = "#f3ecff"
-        d.rounded_rectangle([tx - tile / 2, cy - tile / 2, tx + tile / 2, cy + tile / 2],
-                            radius=12 if not indent else 9, fill=bg)
-        # 取中文名的第一个字（"AI 对话"→"AI"）
-        glyph = "AI" if name.startswith("AI") else name[:1]
-        latin = glyph.isascii()
-        fsz = (20 if latin else 19) if not indent else (15 if latin else 14)
-        d.text((tx, cy), glyph, font=_font(True, fsz),
-               fill=colors[0] if on else "#9aa6b5", anchor="mm")
-        if indent:   # 子项：一条很淡的连接线，表明从属
-            d.line([M + PAD + 6, cy - row_h / 2 + 6, M + PAD + 6, cy], fill="#e6ebf3", width=3)
-        d.text((tx + tile / 2 + 16, cy), name,
-               font=(font_sub if indent else font_name),
+        x = M + PAD + (34 if indent else 0)
+        d.text((x, cy), name, font=(font_sub if indent else font_name),
                fill="#5b6b7e" if indent else "#243244", anchor="lm")
-        _pill(d, W - M - PAD, cy, state, colors[0], colors[1], _font(True, 15))
+        color = "#8b5cf6" if kind == "mode" else "#22c55e"
+        if label:
+            lw = d.textlength(label, font=_font(False, 15))
+            d.text((W - M - PAD - 92 - lw, cy), label, font=_font(False, 15),
+                   fill="#8b5cf6" if kind == "mode" else "#8b97a6", anchor="lm")
+        _switch(d, W - M - PAD, cy, on, color)
         if i < n - 1:
             d.line([M + PAD, cy + row_h / 2, W - M - PAD, cy + row_h / 2], fill="#f4f6fa", width=1)
 

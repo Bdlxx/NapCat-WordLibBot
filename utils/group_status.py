@@ -8,6 +8,7 @@
 import base64
 import json
 import os
+import time
 
 import utils.status_card as _card
 from utils.api import send_message
@@ -38,7 +39,7 @@ def status_words():
 
 
 def _plugin_rows(gid):
-    """[(中文名, 状态文本, 颜色, 是否子行)] —— 只保留中文名与开关状态；伪人模式挂在 AI 对话下面"""
+    """[{name, on, kind, indent, label}] —— 名称 + 开关；伪人模式挂在 AI 对话下面"""
     rows = []
     try:
         import utils.plugin_toggle as pt
@@ -48,19 +49,37 @@ def _plugin_rows(gid):
         for k in keys:
             m = meta.get(k) or {}
             on = bool(pt.is_enabled(gid, k))
-            rows.append((m.get("name_cn") or k, "是" if on else "否",
-                         (_C_FG["on"], _C_BG["on"]) if on else (_C_FG["off"], _C_BG["off"]), False))
+            rows.append({"name": m.get("name_cn") or k, "on": on, "kind": "on" if on else "off"})
             if k == "pseudo":
                 if on:
-                    m2 = _group_mode(gid)
-                    _m = m2 == "pseudo"
-                    rows.append(("伪人模式", "伪人模式" if _m else "普通模式",
-                                 (_C_FG["mode"], _C_BG["mode"]) if _m else (_C_FG["off"], _C_BG["off"]), True))
+                    pseudo = _group_mode(gid) == "pseudo"
+                    rows.append({"name": "伪人模式", "on": pseudo, "kind": "mode", "indent": True,
+                                 "label": "伪人" if pseudo else "普通"})
                 else:
-                    rows.append(("伪人模式", "否", (_C_FG["off"], _C_BG["off"]), True))
+                    rows.append({"name": "伪人模式", "on": False, "kind": "off", "indent": True,
+                                 "label": "普通"})
     except Exception as e:
         print(f"[状态] 读插件开关失败: {e}")
     return rows
+
+
+def _group_avatar(gid):
+    """群头像（缓存 1 天）；取不到返回 None"""
+    cache_dir = os.path.join(_BASE, "data", "status_img", "avatars")
+    path = os.path.join(cache_dir, f"{gid}.png")
+    try:
+        if os.path.isfile(path) and (time.time() - os.path.getmtime(path)) < 86400:
+            return path
+        os.makedirs(cache_dir, exist_ok=True)
+        import requests
+        r = requests.get(f"https://p.qlogo.cn/gh/{gid}/{gid}/100", timeout=6)
+        if r.status_code == 200 and r.content:
+            with open(path, "wb") as f:
+                f.write(r.content)
+            return path
+    except Exception as e:
+        print(f"[状态] 取群头像失败（用兜底）: {e}")
+    return None
 
 
 def _group_mode(gid):
@@ -126,17 +145,19 @@ def try_handle(event):
     title = f"群状态 · {gname or '本群'}"
     subtitle = f"群号 {gid} · {now}"
     try:
-        path = _card.render_status(title, subtitle, rows,
+        path = _card.render_status(title, subtitle, rows, avatar=_group_avatar(gid),
                                    footer=f"{_cfg('BOT_NAME', '')} · 自动生成")
     except Exception as e:
         print(f"[状态] 渲染失败，回退纯文本: {e}")
         lines = [f"📋 {title}", f"群号 {gid}"]
-        lines += [("  " if (len(r) > 3 and r[3]) else "") + f"{'🟢' if r[1] == '是' else '⚪'} {r[0]}：{r[1]}"
+        lines += ["  " * (1 if r.get("indent") else 0)
+                  + f"{'🟢 开启' if r.get('on') else '⚪ 关闭'} {r.get('name')}"
+                  + (f"（{r.get('label')}）" if r.get("label") else "")
                   for r in rows]
         send_message(event, "\n".join(lines))
         return True
     if not _send_png(event, path):
-        lines = [f"📋 {title}"] + [f"{r[0]}：{r[1]}" for r in rows]
+        lines = [f"📋 {title}"] + [f"{r.get('name')}：{'开启' if r.get('on') else '关闭'}" for r in rows]
         send_message(event, "\n".join(lines))
     print(f"[状态] 已发送群状态图（{len(rows)} 个插件）: {path}")
     return True
