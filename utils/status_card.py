@@ -75,38 +75,31 @@ def _switch(d, right, cy, on, on_color="#22c55e", w=76, h=40):
 
 def render_status(title, subtitle, rows, out_path=None, footer=None, avatar=None):
     """rows: [{"name": 名称, "on": bool, "kind": "on|off|mode", "indent": bool, "label": 可选小字}]"""
-    img = Image.new("RGB", (W, H), "#eef1f7")
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
 
-    d.rounded_rectangle([M, M + 6, W - M, H - M + 6], radius=26, fill="#e3e8f1")
-    d.rounded_rectangle([M, M, W - M, H - M], radius=26, fill="#ffffff")
+    # 卡片直接铺满画布、四角透明 —— 不会出现外圈浅色边
+    d.rounded_rectangle([0, 0, W - 1, H - 1], radius=28, fill="#ffffff",
+                        outline="#e6ebf3", width=2)
 
-    # ===== 顶部：群头像 + 群名/群号 =====
-    av_size, av_x, av_y = 92, M + PAD - 12, M + 44
-    box = _avatar(avatar, av_size, 24) if avatar else None
+    # ===== 顶部：群头像 + 群名 + 群号（与面板群卡片同一套布局）=====
+    av_size, av_x, av_y = 96, PAD, PAD + 6
+    box = _avatar(avatar, av_size, 26) if avatar else None
     if box is not None:
         img.paste(box, (av_x, av_y), box)
-        d.rounded_rectangle([av_x, av_y, av_x + av_size, av_y + av_size], radius=24, outline="#eef1f6", width=2)
     else:
-        d.rounded_rectangle([av_x, av_y, av_x + av_size, av_y + av_size], radius=24, fill="#eef2f9")
+        d.rounded_rectangle([av_x, av_y, av_x + av_size, av_y + av_size], radius=26, fill="#eef2f9")
         d.text((av_x + av_size / 2, av_y + av_size / 2), (title or "群")[:1],
-               font=_font(True, 38), fill="#9fb0c4", anchor="mm")
+               font=_font(True, 40), fill="#9fb0c4", anchor="mm")
 
-    tx = av_x + av_size + 24
-    d.text((tx, av_y + 16), title, font=_font(True, 32), fill="#1b2432")
-    d.text((tx, av_y + 62), subtitle, font=_font(False, 17), fill="#5d6b7c")
+    tx = av_x + av_size + 22
+    d.text((tx, av_y + 18), title, font=_font(True, 32), fill="#1b2432")
+    d.text((tx, av_y + 66), subtitle, font=_font(False, 17), fill="#5d6b7c")
 
-    # 右上角小标签
-    tag = "群状态"
-    tw = d.textlength(tag, font=_font(True, 14))
-    d.rounded_rectangle([W - M - PAD + 12 - tw - 24, M + 52, W - M - PAD + 12, M + 52 + 30],
-                        radius=15, fill="#eef4ff")
-    d.text((W - M - PAD + 12 - 12 - tw / 2, M + 67), tag, font=_font(True, 14), fill="#2563eb", anchor="mm")
-
-    d.line([M + 24, M + 176, W - M - 24, M + 176], fill="#eef1f6", width=2)
+    d.line([PAD, av_y + av_size + 22, W - PAD, av_y + av_size + 22], fill="#eef1f6", width=2)
 
     # 行区：左侧中文名，右侧开关
-    top, bottom = M + 196, H - M - 76
+    top, bottom = av_y + av_size + 44, H - 92
     n = max(1, len(rows))
     row_h = (bottom - top) / n
     font_name, font_sub = _font(False, 22), _font(False, 19)
@@ -117,7 +110,7 @@ def render_status(title, subtitle, rows, out_path=None, footer=None, avatar=None
         indent = bool(row.get("indent"))
         label = row.get("label") or ""
         cy = top + row_h * i + row_h / 2
-        x = M + PAD + (34 if indent else 0)
+        x = PAD + (34 if indent else 0)
         d.text((x, cy), name, font=(font_sub if indent else font_name),
                fill="#5b6b7e" if indent else "#243244", anchor="lm")
         color = "#8b5cf6" if kind == "mode" else "#22c55e"
@@ -125,11 +118,11 @@ def render_status(title, subtitle, rows, out_path=None, footer=None, avatar=None
             lw = d.textlength(label, font=_font(False, 15))
             d.text((W - M - PAD - 92 - lw, cy), label, font=_font(False, 15),
                    fill="#8b5cf6" if kind == "mode" else "#8b97a6", anchor="lm")
-        _switch(d, W - M - PAD, cy, on, color)
+        _switch(d, W - PAD, cy, on, color)
         if i < n - 1:
-            d.line([M + PAD, cy + row_h / 2, W - M - PAD, cy + row_h / 2], fill="#f4f6fa", width=1)
+            d.line([PAD, cy + row_h / 2, W - PAD, cy + row_h / 2], fill="#f4f6fa", width=1)
 
-    d.text((W / 2, H - M - 34), footer or "", font=_font(False, 15), fill="#8b97a6", anchor="mm")
+    d.text((W / 2, H - 46), footer or "", font=_font(False, 15), fill="#8b97a6", anchor="mm")
 
     if out_path is None:
         out_dir = os.path.join(_BASE, "data", "status_img")
