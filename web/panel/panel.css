@@ -618,3 +618,9 @@ body,input,textarea,select,pre,code,.log-viewer,.cf-help,.info-table{-webkit-use
 .gd-row .el-switch input:not(:checked) + .track{background:#c8d2e0}
 [data-theme="dark"] .gd-row .el-switch input:not(:checked) + .track{background:#4a5568}
 @media (max-width:560px){.group-grid{grid-template-columns:1fr}}
+
+/* 详情页子行（伪人模式挂在 AI 对话下面）：左侧竖线 + 缩进表达从属 */
+.gd-row.gd-sub{padding-left:22px;margin-left:4px;border-left:3px solid #e3e9f2}
+.gd-row.gd-sub .gd-name{font-weight:600;font-size:13px;color:var(--text-regular)}
+.gd-row.gd-sub .gd-en{font-size:11px}
+[data-theme="dark"] .gd-row.gd-sub{border-left-color:#334155}

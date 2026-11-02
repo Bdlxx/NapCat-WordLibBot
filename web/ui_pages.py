@@ -286,7 +286,9 @@ def _group_detail(ctx):
            '</div></div>',
            '<div class="card-body">']
 
-    # 插件开关行
+    # 插件开关行（按"常用优先"排序：词库 → AI 对话（含伪人模式子行）→ 视频解析 → 结婚 → JM → 其它）
+    _order = ["wordlib", "pseudo", "video_parser", "marry", "jm_downloader"]
+    plugins = [p for p in _order if p in plugins] + [p for p in plugins if p not in _order]
     for p in plugins:
         m = meta.get(p) or {}
         label = m.get('name_cn') or p
@@ -298,25 +300,24 @@ def _group_detail(ctx):
                      f'模式：{"伪人" if cm_mode == "pseudo" else "普通"}{"" if cm_explicit else "（默认）"}</span>')
         out.append(
             '<div class="gd-row">'
-            f'<div style="min-width:0;flex:1"><div class="gd-name">{esc(label)}'
-            f'<span class="gd-en">{esc(en)}</span>{extra}</div>'
+            f'<div style="min-width:0;flex:1"><div class="gd-name" title="{esc(en)}">{esc(label)}</div>'
             f'<div class="gd-desc">{esc((m.get("description") or "").strip())[:80]}</div></div>'
             f'<label class="el-switch"><input type="checkbox" class="tg-c" data-tgg="{esc(gid)}" '
             f'data-tgp="{esc(p)}" {"checked" if on else ""} aria-label="本群「{esc(label)}」">'
             '<span class="track"></span></label>'
             '</div>')
-
-    # AI 对话模式（AI 对话关着时禁用）
-    out.append('<div class="gd-row">'
-               '<div style="min-width:0;flex:1"><div class="gd-name">AI 对话模式</div>'
-               '<div class="gd-desc">'
-               + ('开 = 伪人模式（会主动接话）／关 = 普通模式（只认 @ 与唤醒词）'
-                  if pseudo_on else '先开启上面的「AI 对话」，才能切换模式')
-               + '</div></div>'
-               f'<label class="el-switch"><input type="checkbox" class="tg-mode" data-tgg="{esc(gid)}" '
-               f'{"checked" if cm_mode == "pseudo" else ""} {"disabled" if not pseudo_on else ""} '
-               f'aria-label="本群 AI 对话模式"><span class="track"></span></label>'
-               '</div>')
+        if p == 'pseudo':
+            # 「AI 对话」只管插件开关；模式是它下面的子开关：开=伪人，关=普通
+            out.append(
+                '<div class="gd-row gd-sub">'
+                '<div style="min-width:0;flex:1"><div class="gd-name">伪人模式'
+                '<span class="gd-en">开启后会自动接话；关闭则只回应 @ 和唤醒词</span></div>'
+                + ('' if pseudo_on else '<div class="gd-desc">先开启上面的「AI 对话」，这个开关才可用</div>')
+                + '</div>'
+                f'<label class="el-switch"><input type="checkbox" class="tg-mode" data-tgg="{esc(gid)}" '
+                f'{"checked" if cm_mode == "pseudo" else ""} {"disabled" if not pseudo_on else ""} '
+                f'aria-label="本群伪人模式"><span class="track"></span></label>'
+                '</div>')
 
     out.append('</div></div>')
     state = {gid: {p: bool(toggles.get(p)) for p in plugins}}

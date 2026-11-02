@@ -1,21 +1,28 @@
 # -*- coding: utf-8 -*-
-"""把「群状态」画成图片（PIL 直绘，不依赖浏览器）。
+"""群状态卡片（PIL 直绘，不用浏览器）。
 
-为什么不用截图方案：跑 Chromium 一次要 1.5s + 300MB，三个实例同时来会顶爆内存；
-haruka 插件当初也明确"不走 playwright 截图"，这里保持同一取舍。
-字体用鸿蒙黑体子集（assets/fonts/HanaSC-{Regular,Bold}.ttf）。
+设计目标：像正经 App 的「设置」页 —— 白卡片 + 柔和底色 + 左侧圆点 + 右侧胶囊徽章，
+不再是一行行裸文字。尺寸 **750×1000（竖屏 4:3）**，2 倍图便于 QQ 里看清。
+
+配色取自面板设计令牌（与 Web 面板观感一致）：
+  背景 #eef1f7 · 卡片 #fff · 主文 #1f2937 · 次文 #94a3b8
+  开 #16a34a/#e9f8f0 · 关 #94a3b8/#f2f4f8 · 伪人 #7c3aed/#f3ecff
+字体：assets/fonts/HanaSC-{Regular,Bold}.ttf（鸿蒙黑体子集）
 """
 import os
 import time
-from datetime import datetime
 
 from PIL import Image, ImageDraw, ImageFont
 
-_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # 实例根目录（或仓库根）
+_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_CACHE = {}
+
+W, H = 750, 1000          # 竖屏 4:3（高:宽 = 4:3）
+M = 40                    # 卡片外边距
+PAD = 44                  # 卡片内边距
 
 
 def _font_dirs():
-    """字体目录候选：实例下的 assets/fonts → 往上找到仓库根下的 assets/fonts"""
     out = [os.path.join(_BASE, "assets", "fonts")]
     p = _BASE
     for _ in range(4):
@@ -27,19 +34,13 @@ def _font_dirs():
 
 
 _FONT_DIR = (_font_dirs() or [os.path.join(_BASE, "assets", "fonts")])[0]
-_CACHE = {}
-
-W = 760            # 画布宽
-PAD = 28           # 卡片内边距
-GAP = 10
 
 
 def _font(bold=False, size=18):
     key = (bold, size)
     if key in _CACHE:
         return _CACHE[key]
-    name = "HanaSC-Bold.ttf" if bold else "HanaSC-Regular.ttf"
-    path = os.path.join(_FONT_DIR, name)
+    path = os.path.join(_FONT_DIR, "HanaSC-Bold.ttf" if bold else "HanaSC-Regular.ttf")
     try:
         f = ImageFont.truetype(path, size)
     except Exception:
@@ -48,42 +49,71 @@ def _font(bold=False, size=18):
     return f
 
 
-def _text_h(font):
-    box = font.getbbox("汉字Ag")
-    return box[3] - box[1]
+def _pill(d, right, cy, text, fg, bg, font):
+    """右侧胶囊徽章：底色圆角 + 居中文字，返回左边界 x"""
+    tw = d.textlength(text, font=font)
+    pw, ph = tw + 28, 32
+    x1, y1 = right - pw, cy - ph / 2
+    d.rounded_rectangle([x1, y1, right, cy + ph / 2], radius=ph / 2, fill=bg)
+    d.text(((x1 + right) / 2, cy), text, font=font, fill=fg, anchor="mm")
+    return x1
 
 
-def render_status(title, subtitle, rows, footer=None, out_path=None):
-    """rows: [(名称, 说明, 状态文本, 状态色)]；footer: 末尾一行说明"""
-    row_h = 46
-    head_h = 96
-    body_h = row_h * len(rows)
-    foot_h = 40 if footer else 0
-    h = head_h + body_h + foot_h + PAD * 2
-
-    img = Image.new("RGB", (W, h), "#f6f8fb")
+def render_status(title, subtitle, rows, out_path=None, footer=None):
+    """rows: [(名称, 状态文本, (前景色, 底色), 是否子行)]"""
+    img = Image.new("RGB", (W, H), "#eef1f7")
     d = ImageDraw.Draw(img)
 
-    # 外卡片
-    d.rounded_rectangle([12, 12, W - 12, h - 12], radius=16, fill="#ffffff", outline="#e3e8f0")
+    # 卡片 + 极淡投影
+    d.rounded_rectangle([M, M + 6, W - M, H - M + 6], radius=26, fill="#e3e8f1")
+    d.rounded_rectangle([M, M, W - M, H - M], radius=26, fill="#ffffff")
 
-    # 标题 + 副标题
-    d.text((PAD, 26), title, font=_font(True, 24), fill="#1f2937")
-    d.text((PAD, 60), subtitle, font=_font(False, 13), fill="#7b8794")
+    # 顶部标题区
+    d.text((PAD + M - 24, M + 52), title, font=_font(True, 34), fill="#1b2432")
+    d.text((PAD + M - 24, M + 104), subtitle, font=_font(False, 17), fill="#7c8898")
+    # 右上角小标签
+    tag = "群状态"
+    tw = d.textlength(tag, font=_font(True, 15))
+    d.rounded_rectangle([W - M - PAD + 24 - tw - 26, M + 46, W - M - PAD + 24, M + 46 + 34],
+                        radius=17, fill="#eef4ff")
+    d.text((W - M - PAD + 24 - 13 - tw / 2, M + 63), tag, font=_font(True, 15), fill="#2563eb", anchor="mm")
 
-    y = head_h + PAD - 8
-    d.line([PAD, y - 10, W - PAD, y - 10], fill="#eef2f7")
-    for name, desc, state, color in rows:
-        d.text((PAD, y + 6), name, font=_font(True, 17), fill="#263445")
-        if desc:
-            d.text((PAD + 150, y + 9), desc, font=_font(False, 12), fill="#8b97a6")
-        tw = d.textlength(state, font=_font(True, 15))
-        d.text((W - PAD - tw, y + 6), state, font=_font(True, 15), fill=color)
-        y += row_h
-        d.line([PAD, y - 8, W - PAD, y - 8], fill="#f2f5f9")
+    d.line([M + 24, M + 158, W - M - 24, M + 158], fill="#eef1f6", width=2)
 
-    if footer:
-        d.text((PAD, y + 6), footer, font=_font(False, 12), fill="#8b97a6")
+    # 行区：左侧「首字方块」图标（不依赖 emoji 字体）+ 名称 + 右侧紧凑徽章
+    top, bottom = M + 176, H - M - 76
+    n = max(1, len(rows))
+    row_h = (bottom - top) / n
+    font_name, font_sub = _font(False, 21), _font(False, 18)
+    for i, row in enumerate(rows):
+        name, state, colors = row[0], row[1], row[2]
+        indent = bool(row[3]) if len(row) > 3 else False
+        cy = top + row_h * i + row_h / 2
+        # 图标方块：开启时浅绿底绿字，关闭时浅灰底灰字；子项用小一号
+        tile = 40 if not indent else 32
+        tx = M + PAD + (34 if indent else 0)
+        on = state in ("是", "伪人模式")
+        bg = "#e9f8f0" if on else "#f1f3f7"
+        if state == "伪人模式":
+            bg = "#f3ecff"
+        d.rounded_rectangle([tx - tile / 2, cy - tile / 2, tx + tile / 2, cy + tile / 2],
+                            radius=12 if not indent else 9, fill=bg)
+        # 取中文名的第一个字（"AI 对话"→"AI"）
+        glyph = "AI" if name.startswith("AI") else name[:1]
+        latin = glyph.isascii()
+        fsz = (20 if latin else 19) if not indent else (15 if latin else 14)
+        d.text((tx, cy), glyph, font=_font(True, fsz),
+               fill=colors[0] if on else "#9aa6b5", anchor="mm")
+        if indent:   # 子项：一条很淡的连接线，表明从属
+            d.line([M + PAD + 6, cy - row_h / 2 + 6, M + PAD + 6, cy], fill="#e6ebf3", width=3)
+        d.text((tx + tile / 2 + 16, cy), name,
+               font=(font_sub if indent else font_name),
+               fill="#5b6b7e" if indent else "#243244", anchor="lm")
+        _pill(d, W - M - PAD, cy, state, colors[0], colors[1], _font(True, 15))
+        if i < n - 1:
+            d.line([M + PAD, cy + row_h / 2, W - M - PAD, cy + row_h / 2], fill="#f4f6fa", width=1)
+
+    d.text((W / 2, H - M - 34), footer or "", font=_font(False, 15), fill="#8b97a6", anchor="mm")
 
     if out_path is None:
         out_dir = os.path.join(_BASE, "data", "status_img")

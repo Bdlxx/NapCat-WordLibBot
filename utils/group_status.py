@@ -14,7 +14,8 @@ from utils.api import send_message
 
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-_COLORS = {"on": "#16a34a", "off": "#94a3b8"}
+_C_FG = {"on": "#15803d", "off": "#94a3b8", "mode": "#6d28d9"}
+_C_BG = {"on": "#e9f8f0", "off": "#f2f4f8", "mode": "#f3ecff"}
 
 
 def _cfg(key, default=None):
@@ -37,7 +38,7 @@ def status_words():
 
 
 def _plugin_rows(gid):
-    """[(中文名, 英文名/说明, 状态文本, 颜色)]"""
+    """[(中文名, 状态文本, 颜色, 是否子行)] —— 只保留中文名与开关状态；伪人模式挂在 AI 对话下面"""
     rows = []
     try:
         import utils.plugin_toggle as pt
@@ -47,13 +48,30 @@ def _plugin_rows(gid):
         for k in keys:
             m = meta.get(k) or {}
             on = bool(pt.is_enabled(gid, k))
-            rows.append((m.get("name_cn") or k,
-                         (m.get("name_en") or k),
-                         "开启" if on else "关闭",
-                         _COLORS["on"] if on else _COLORS["off"]))
+            rows.append((m.get("name_cn") or k, "是" if on else "否",
+                         (_C_FG["on"], _C_BG["on"]) if on else (_C_FG["off"], _C_BG["off"]), False))
+            if k == "pseudo":
+                if on:
+                    m2 = _group_mode(gid)
+                    _m = m2 == "pseudo"
+                    rows.append(("伪人模式", "伪人模式" if _m else "普通模式",
+                                 (_C_FG["mode"], _C_BG["mode"]) if _m else (_C_FG["off"], _C_BG["off"]), True))
+                else:
+                    rows.append(("伪人模式", "否", (_C_FG["off"], _C_BG["off"]), True))
     except Exception as e:
         print(f"[状态] 读插件开关失败: {e}")
     return rows
+
+
+def _group_mode(gid):
+    try:
+        with open(os.path.join(_BASE, "data", "persona_config.json"), encoding="utf-8") as f:
+            pc = json.load(f)
+    except Exception:
+        return "normal"
+    gm = (pc.get("group_chat_modes") or {}).get(str(gid))
+    m = str(gm or pc.get("chat_mode") or "normal").strip().lower()
+    return "pseudo" if m == "pseudo" else "normal"
 
 
 def _chat_mode_desc(gid):
@@ -108,16 +126,17 @@ def try_handle(event):
     title = f"群状态 · {gname or '本群'}"
     subtitle = f"群号 {gid} · {now}"
     try:
-        path = _card.render_status(title, subtitle, rows, footer=_chat_mode_desc(gid))
+        path = _card.render_status(title, subtitle, rows,
+                                   footer=f"{_cfg('BOT_NAME', '')} · 自动生成")
     except Exception as e:
         print(f"[状态] 渲染失败，回退纯文本: {e}")
         lines = [f"📋 {title}", f"群号 {gid}"]
-        lines += [f"{'🟢' if r[2] == '开启' else '⚪'} {r[0]}：{r[2]}" for r in rows]
-        lines.append(_chat_mode_desc(gid))
+        lines += [("  " if (len(r) > 3 and r[3]) else "") + f"{'🟢' if r[1] == '是' else '⚪'} {r[0]}：{r[1]}"
+                  for r in rows]
         send_message(event, "\n".join(lines))
         return True
     if not _send_png(event, path):
-        lines = [f"📋 {title}"] + [f"{r[0]}：{r[2]}" for r in rows] + [_chat_mode_desc(gid)]
+        lines = [f"📋 {title}"] + [f"{r[0]}：{r[1]}" for r in rows]
         send_message(event, "\n".join(lines))
     print(f"[状态] 已发送群状态图（{len(rows)} 个插件）: {path}")
     return True
