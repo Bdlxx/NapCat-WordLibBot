@@ -9,11 +9,11 @@
 <link rel="stylesheet" href="panel.css?v=1db2d3bd">
 
 <link rel="stylesheet" href="fonts/harmonyos.css?v=1">
-<link rel="stylesheet" href="cfg_form.css?v=64b4e908">
+<link rel="stylesheet" href="cfg_form.css?v=fba272ae">
 </head>
 <body>
-<script src="cfg_form.js?v=4d86bddf"></script>
-<script src="panel.js?v=89b20c62"></script>
+<script src="cfg_form.js?v=1523f7c0"></script>
+<script src="panel.js?v=27a9f159"></script>
 <script>
 /* ==========================================================================
    Linux 机器人面板：这里**只声明"接口在哪"和"显示哪些页"**。
@@ -113,6 +113,24 @@ PANEL.hooks = {
     if (icon) icon.href = 'https://q1.qlogo.cn/g?b=qq&nk=' + d.qq + '&s=640';
   },
   logout: function () { post('/api/logout').then(function () { location.href = '/'; }); },
+  /* 配置页对象列表的「测试」按钮：把这一行当场的值发过去测（不必先保存） */
+  testAction: async function (action, item, btn) {
+    if (action !== 'model_test') return;
+    var old = btn.textContent;
+    btn.disabled = true; btn.textContent = '测试中…';
+    try {
+      var d = await post(BASE + '/model-test', {
+        name: item.name, model: item.model, url: item.url, key: item.key
+      });
+      if (!d.ok) throw new Error((d.data && d.data.error) || d.error || '测试失败');
+      var r = d.data;
+      toast('✅ ' + (r.model || item.model) + ' 可用（' + r.latency_ms + 'ms）' + (r.preview ? '：' + r.preview : ''), 'ok');
+    } catch (e) {
+      toast('❌ 测试失败：' + (e.message || e), 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = old;
+    }
+  },
   /* 左上角账号卡（侧栏展开时点头像）→ 向右弹出实例列表，点哪个切哪个。
      桌面端靠这个浮层切账号，Linux 端原来没给 hook → 点头像没反应（只会"展开侧栏"）。 */
   accountPop: async function (pop) {

@@ -28,8 +28,12 @@ log = logging.getLogger("astercore.config_schema")
 
 # ---- 类型与各自的额外字段（前端据此渲染控件；服务端据此校验） ----
 SCALAR_TYPES = ("text", "textarea", "number", "bool", "select", "password",
-                "group_select", "color", "file", "json")
+                "group_select", "color", "file", "json", "object_list")
 FIELD_TYPES = SCALAR_TYPES + ("multiselect", "list")
+
+# object_list（对象数组）：给"模型库"这类**记录列表**用 —— 每行几个子字段、可增删改排序。
+# 子字段声明走 item_fields（和普通字段同一套写法，但只允许标量类型）。
+OBJECT_ITEM_TYPES = ("text", "textarea", "password", "number", "bool", "select", "color")
 
 # 每种类型允许的额外字段（多出来的会被忽略，避免拼错字段名却毫无反馈）
 TYPE_EXTRA: dict[str, tuple[str, ...]] = {
@@ -37,14 +41,15 @@ TYPE_EXTRA: dict[str, tuple[str, ...]] = {
     "textarea": ("rows", "placeholder"),
     "number": ("min", "max", "step", "unit"),
     "bool": (),
-    "select": ("options",),
-    "multiselect": ("options", "max_items"),
+    "select": ("options", "options_from"),
+    "multiselect": ("options", "options_from", "max_items"),
     "list": ("item_type", "options", "min_items", "max_items"),
     "password": ("secret", "placeholder"),
     "group_select": ("multiple", "max_items"),
     "color": (),
     "file": ("accept",),
     "json": ("rows",),
+    "object_list": ("item_fields", "min_items", "max_items", "id_field", "test_action"),
 }
 
 # 通用字段（所有类型都认）
@@ -52,7 +57,10 @@ TYPE_EXTRA: dict[str, tuple[str, ...]] = {
 #       不写就等于字段名本身。Linux 版老插件的配置是分段的（commands/settings/messages），
 #       面板要能把控件写回正确的那一段，所以字段名与存储位置必须能分开。
 COMMON = ("label", "help", "default", "required", "advanced", "group",
-          "readonly", "path")
+          "readonly", "path", "hidden")
+
+# 动态选项：select/multiselect 可以不写死 options，而是声明一个"从配置里读"的路径，
+# 例如模型库模型选择器 options_from: "models"（前端按 {id,name} 渲染成下拉项）。
 
 # 推断 schema 时，"名字像密码"的键一律按 password 处理（避免 API Key 大喇喇显示在屏幕上）
 SECRET_KEY_RE = re.compile(
@@ -109,7 +117,7 @@ def normalize_field(name: str, raw: Any) -> dict[str, Any]:
             field[key] = str(raw[key])
     if "path" in field:
         _check_path(field["path"], name)
-    for key in ("required", "advanced", "readonly"):
+    for key in ("required", "advanced", "readonly", "hidden"):
         if raw.get(key):
             field[key] = True
     if "default" in raw:
@@ -137,11 +145,36 @@ def normalize_field(name: str, raw: Any) -> dict[str, Any]:
         if hi is not None and field["default"] > hi:
             field["default"] = hi
 
-    if "options" in TYPE_EXTRA[ftype]:
+    if ftype in ("select", "multiselect"):
         opts = normalize_options(raw.get("options"))
-        if ftype in ("select", "multiselect") and not opts:
-            raise SchemaError(f"字段 {name!r} 是 {ftype}，必须给 options")
+        # options_from：选项来自配置里的某个数组（如模型库 models），前端渲染时展开；
+        # 这种情况下允许 options 为空 —— 校验交给插件自己（当前值不在列表里也算合法）。
+        if raw.get("options_from"):
+            field["options_from"] = str(raw["options_from"])
+        if not opts and not field.get("options_from"):
+            raise SchemaError(f"字段 {name!r} 是 {ftype}，必须给 options 或 options_from")
         field["options"] = opts
+
+    if ftype == "object_list":
+        subs = raw.get("item_fields")
+        if not isinstance(subs, dict) or not subs:
+            raise SchemaError(f"字段 {name!r} 是 object_list，必须给 item_fields（子字段声明）")
+        # 用**列表**保存子字段顺序：JSON 对象键会被 Flask 默认按字母排序，
+        # 面板上就会出现“启用/密钥/模型名/显示名”这种乱序（用户按声明顺序填才对）。
+        clean_list: list[dict] = []
+        for sname, sraw in subs.items():
+            sf = normalize_field(str(sname), sraw)
+            if sf["type"] not in OBJECT_ITEM_TYPES:
+                raise SchemaError(f"字段 {name!r} 的子字段 {sname!r} 类型 {sf['type']!r} 不支持"
+                                  f"（可用：{'/'.join(OBJECT_ITEM_TYPES)}）")
+            clean_list.append(sf)
+        field["item_fields"] = clean_list
+        if raw.get("test_action"):
+            field["test_action"] = str(raw["test_action"])
+        if isinstance(raw.get("default"), list):
+            field["default"] = raw["default"]
+        else:
+            field["default"] = []
 
     if ftype == "list":
         item_type = str(raw.get("item_type") or "text").strip().lower()
@@ -164,7 +197,7 @@ def normalize_field(name: str, raw: Any) -> dict[str, Any]:
 
 def _default_for(ftype: str) -> Any:
     return {"bool": False, "number": 0, "multiselect": [], "list": [],
-            "json": {}, "group_select": []}.get(ftype, "")
+            "json": {}, "group_select": [], "object_list": []}.get(ftype, "")
 
 
 # ------------------------------------------------- 值在配置里的位置（点号路径）
@@ -325,6 +358,37 @@ def coerce_value(field: dict[str, Any], value: Any) -> tuple[bool, Any, str]:
             return False, None, f"{name}：不能大于 {field['max']}"
         return True, num, ""
 
+    if ftype == "object_list":
+        if value is None:
+            return True, [], ""
+        if not isinstance(value, list):
+            return False, None, f"{name}：需要数组"
+        subs = {sf["name"]: sf for sf in (field.get("item_fields") or [])}
+        lo = field.get("min_items")
+        hi = field.get("max_items")
+        if lo is not None and len(value) < lo:
+            return False, None, f"{name}：至少 {lo} 条"
+        if hi is not None and len(value) > hi:
+            return False, None, f"{name}：最多 {hi} 条"
+        out: list = []
+        for i, item in enumerate(value):
+            if not isinstance(item, dict):
+                return False, None, f"{name}：第 {i + 1} 条必须是对象"
+            row: dict[str, Any] = {}
+            for k, v in item.items():
+                sf = subs.get(k)
+                if sf is None:            # 未声明的键原样保留（前端可能带 id 之类的内部字段）
+                    row[k] = v
+                    continue
+                ok2, v2, err2 = coerce_value(sf, v)
+                if not ok2:
+                    return False, None, f"{name} 第 {i + 1} 条：{err2}"
+                row[k] = v2
+            for k, sf in subs.items():
+                row.setdefault(k, sf.get("default"))
+            out.append(row)
+        return True, out, ""
+
     if ftype in ("text", "textarea", "color", "file", "password", "json"):
         if ftype == "json":
             if isinstance(value, str):
@@ -376,18 +440,16 @@ def coerce_value(field: dict[str, Any], value: Any) -> tuple[bool, Any, str]:
         min_items = field.get("min_items")
         if min_items is not None and len(value) < min_items:
             return False, None, f"{name}：至少 {min_items} 项"
-        if ftype == "list":
-            item_field = {"name": field["name"], "type": field["item_type"],
-                          "label": name}
-            item_field.update({k: v for k, v in field.items()
-                               if k in ("options", "min", "max", "step", "maxlength")})
-            out = []
-            for i, item in enumerate(value):
-                ok, val, err = coerce_value(item_field, item)
-                if not ok:
-                    return False, None, f"{err}（第 {i + 1} 项）"
-                out.append(val)
-            return True, out, ""
+        item_field = {"name": field["name"], "type": field["item_type"], "label": name}
+        item_field.update({k: v for k, v in field.items()
+                           if k in ("options", "min", "max", "step", "maxlength")})
+        out = []
+        for i, item in enumerate(value):
+            ok, val, err = coerce_value(item_field, item)
+            if not ok:
+                return False, None, f"{err}（第 {i + 1} 项）"
+            out.append(val)
+        return True, out, ""
 
     return True, value, ""
 

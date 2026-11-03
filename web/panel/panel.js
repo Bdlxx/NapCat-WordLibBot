@@ -1079,6 +1079,11 @@ P.start = async function () {
   if (global.CFGCTL) {
     CFGCTL.groupSelectProvider = function () { return (P.hooks.groupSelect && P.hooks.groupSelect()) || { groups: [], error: '' }; };
     CFGCTL.onGroupRefresh = function () { P.hooks.loadGroups && P.hooks.loadGroups(true); };
+    /* 对象列表行内「测试」：动作名由字段声明（test_action），具体请求由外壳实现 */
+    CFGCTL.onTest = function (action, item, btn) {
+      if (P.hooks.testAction) return P.hooks.testAction(action, item, btn);
+      return Promise.resolve();
+    };
   }
   bindDelegates();
   bindAccountPop();

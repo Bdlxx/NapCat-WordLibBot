@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import re
 import signal
 import subprocess
 import time
@@ -1052,6 +1053,38 @@ def get_plugin_schema(num, pkey):
     return jsonify({'ok': True, 'data': _plugin_cfg_payload(b, meta, pkey)})
 
 
+def _normalize_model_rows(merged):
+    """对象列表里的模型记录：补 id / protocol、显示名去重。
+
+    面板存的是"文件里的值"，插件内存里的归一化不会回写文件，
+    所以在保存这一步就做掉，避免"保存一次就把主键弄丢"（本轮踩过）。
+    """
+    models = merged.get('models')
+    if not isinstance(models, list):
+        return merged
+    used_ids = {str(m.get('id')) for m in models if isinstance(m, dict) and m.get('id')}
+    seen_names = set()
+    for m in models:
+        if not isinstance(m, dict):
+            continue
+        if not m.get('id'):
+            i = 1
+            while f"m{i}" in used_ids:
+                i += 1
+            m['id'] = f"m{i}"
+            used_ids.add(m['id'])
+        if not m.get('protocol'):
+            m['protocol'] = 'openai'
+        base = str(m.get('name') or m.get('model') or '模型').strip() or '模型'
+        name, n = base, 2
+        while name in seen_names:
+            name = f"{base}-{n}"
+            n += 1
+        seen_names.add(name)
+        m['name'] = name
+    return merged
+
+
 def _page_ctx(b, num, page):
     """页面片段需要的上下文；只取该页真正要用的东西（少一次请求就快一点）"""
     pd = os.path.join(b['dir'], 'plugins')
@@ -1180,11 +1213,75 @@ def save_config(num):
         # 未声明（或 JSON 原文页签）：沿用历史语义原样合并
         merged = _legacy_merge(merged, cfg)
 
+    merged = _normalize_model_rows(merged)   # 模型库：补主键/协议、显示名去重
     write_json(config_path, merged)
     # 通知 bot 立即重载配置（web 端与插件实际配置保持同步，无需重启/轮询）
     _notify_bot_reload(str(b['qq']))
     return jsonify({'ok': True, 'validated': bool(payload['declared']) and not raw,
                     'msg': '配置已保存并生效'})
+
+
+@app.route('/api/bot/<int:num>/model-test', methods=['POST'])
+@login_required
+def model_test(num):
+    """测试一条模型记录是否可用（面板「模型管理」行尾的「测试」按钮）。
+
+    直接把表单里**当前这一行**的值发过去测，所以不用先保存；
+    请求是 OpenAI 兼容的最小调用（一句「你好」，最多 8 token）。
+    """
+    if num not in BOTS: return jsonify({'error': '无效编号'}), 404
+    d = request.get_json(silent=True) or {}
+    name = str(d.get('name') or '').strip()
+    model = str(d.get('model') or '').strip()
+    url = str(d.get('url') or '').strip()
+    key = str(d.get('key') or '').strip()
+    if not model:
+        return jsonify({'ok': False, 'data': {'error': '没填「调用名称」'}})
+    if not url:
+        return jsonify({'ok': False, 'data': {'error': '没填「调用地址」'}})
+    if not key:
+        return jsonify({'ok': False, 'data': {'error': '没填「API 密钥」'}})
+    # 地址补全规则与插件一致：完整端点原样用，只给 /v1 或域名则补 /chat/completions
+    endpoint = url if re.search(r'/chat/completions/?$', url) else url.rstrip('/')
+    if not re.search(r'/chat/completions/?$', endpoint):
+        endpoint += '/chat/completions' if re.search(r'/v\d+$', endpoint) else '/v1/chat/completions'
+    import time as _t
+    try:
+        import requests as _req
+    except Exception as e:
+        return jsonify({'ok': False, 'data': {'error': f'requests 未安装: {e}'}})
+    t0 = _t.time()
+    try:
+        r = _req.post(endpoint,
+                          headers={'Content-Type': 'application/json',
+                                   'Authorization': f'Bearer {key}'},
+                          json={'model': model,
+                                'messages': [{'role': 'user', 'content': '你好'}],
+                                'max_tokens': 8},
+                          timeout=(10, 40))
+        latency = int((_t.time() - t0) * 1000)
+        body = {}
+        try:
+            body = r.json()
+        except Exception:
+            body = {}
+        if r.status_code != 200:
+            err = (body.get('error') or {})
+            msg = err.get('message') if isinstance(err, dict) else str(err or '')
+            return jsonify({'ok': False, 'data': {
+                'error': f'HTTP {r.status_code}',
+                'status': r.status_code, 'latency_ms': latency,
+                'detail': (msg or (r.text or ''))[:200]}})
+        text = ''
+        try:
+            text = (body['choices'][0]['message']['content'] or '').strip()
+        except Exception:
+            pass
+        return jsonify({'ok': True, 'data': {'status': 200, 'latency_ms': latency,
+                                             'model': model, 'name': name,
+                                             'preview': text[:40]}})
+    except Exception as e:
+        return jsonify({'ok': False, 'data': {'error': str(e)[:200]}})
 
 
 @app.route('/api/bot/<int:num>/group-toggles', methods=['POST'])

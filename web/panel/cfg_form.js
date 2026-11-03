@@ -9,6 +9,9 @@
 
    支持类型：text / textarea / number / bool / select / multiselect / list /
              password / group_select / color / file（+ json 兜底嵌套对象）
+             object_list（对象数组：模型库这类"记录列表"，可增删改排序）
+   select/multiselect 除 options 外还支持 options_from：选项从配置里的某个数组动态取
+   （如 options_from="models" → 用每条记录的 {id, name} 生成下拉项）。
 
    字段的 `path` 是值在配置文件里的位置（如 settings.favor_add_max、glm.api_key）；
    控件用 `data-k="<字段名>"` 提交，服务端按 path 写回 —— 分段配置（commands/
@@ -16,6 +19,9 @@
    ========================================================================== */
 (function (global) {
 'use strict';
+
+/* 当前表单的值（渲染时填充）：options_from 需要按路径读配置里的数组 */
+var _values = {};
 
 /* ---------------------------------------------------------------- 小工具 */
 function esc(v) {
@@ -44,6 +50,28 @@ function setPath(obj, path, value) {
   cur[parts[parts.length - 1]] = value;
 }
 function fieldPath(f) { return f && (f.path || f.name); }
+
+/* 动态选项：options_from 指向配置里的数组（[{id,name}] / ["a","b"] / [{value,label}]）。
+   数组里的对象优先取 value/label，其次 id/name、key/label。 */
+function dynamicOptions(f) {
+  var from = f && f.options_from;
+  if (!from) return null;
+  var arr = getPath(_values, from);
+  if (!Array.isArray(arr)) return [];
+  return arr.map(function (it) {
+    if (it && typeof it === 'object') {
+      var v = it.value != null ? it.value : (it.id != null ? it.id : (it.key != null ? it.key : ''));
+      var l = it.label != null ? it.label : (it.name != null ? it.name : v);
+      var sub = it.model || it.model_name || '';
+      return { value: String(v), label: sub ? (String(l) + '（' + String(sub) + '）') : String(l) };
+    }
+    return { value: String(it), label: String(it) };
+  });
+}
+function optionsOf(f) {
+  var dyn = dynamicOptions(f);
+  return dyn === null ? (f.options || []) : dyn;
+}
 function optHtml(options, cur) {
   var hasCur = (cur !== undefined && cur !== null && cur !== '');
   return (options || []).map(function (o) {
@@ -78,18 +106,27 @@ function control(f, value, path) {
       return '<label class="cf-check"><input type="checkbox" ' + k + ro + (value ? ' checked' : '') + '>'
         + '<span>' + (value ? '已开启' : '已关闭') + '</span></label>';
     case 'select':
+      var opts = optionsOf(f);
+      var hasCur = (value !== '' && value !== undefined && value !== null);
+      var inList = opts.some(function (o) { return String(o.value) === String(value); });
+      /* 当前值不在选项里（模型被删了 / 手改过配置）→ 也要显示并选中，
+         否则下拉会停在「(未设置)」，一保存就把配置写空（chat_mode 当年就这么被写掉的） */
+      var extra = (hasCur && !inList)
+        ? '<option value="' + esc(value) + '" selected>' + esc(value) + '（不在列表里）</option>' : '';
       return '<select ' + k + ro + '><option value=""'
-        + (value === '' || value === undefined || value === null ? ' selected' : '') + '>（未设置）</option>'
-        + optHtml(f.options, value) + '</select>';
+        + (hasCur ? '' : ' selected') + '>（未设置）</option>'
+        + extra + optHtml(opts, value) + '</select>';
     case 'multiselect':
       var vals = Array.isArray(value) ? value.map(String) : [];
-      return '<div class="cf-rows">' + (f.options || []).map(function (o) {
+      return '<div class="cf-rows">' + optionsOf(f).map(function (o) {
         var on = vals.indexOf(String(o.value)) >= 0;
         return '<label class="cf-check"><input type="checkbox" data-multi="' + esc(path) + '"'
           + ' value="' + esc(o.value) + '"' + (on ? ' checked' : '') + '><span>' + esc(o.label) + '</span></label>';
       }).join('') + '</div>';
     case 'list':
       return listHtml(f, Array.isArray(value) ? value : [], path);
+    case 'object_list':
+      return objListHtml(f, Array.isArray(value) ? value : [], path);
     case 'password':
       return '<div class="cf-inline"><input type="' + (f.secret === false ? 'text' : 'password') + '" ' + k
         + ' value="' + esc(value) + '"' + ph + ' autocomplete="new-password">'
@@ -125,6 +162,64 @@ function listHtml(f, values, path) {
   }).join('');
   return '<div class="cf-rows" data-list="' + esc(path) + '" data-item-type="' + (f.item_type || 'text') + '">'
     + rows + '<div><button class="mini" type="button" onclick="cfgListAdd(this)">+ 添加一项</button></div></div>';
+}
+
+/* ---------------------------------------------------------------- 对象列表 */
+/* 一行 = 一条记录：每个子字段一个控件；末尾带「↑ 上移 / ↓ 下移 / 删除」。
+   行内隐藏 key 记原始 id（插件用它做主键，重排/改名都不影响"哪个是当前模型"）。 */
+function objFieldCtrl(sf, val, path) {
+  var sub = ' data-objfield="' + esc(sf.name) + '"';
+  var base = ' data-obj="' + esc(path) + '"' + sub;
+  /* 隐藏子字段（如 protocol / id）：只在提交里带着，不占版面 */
+  if (sf.hidden) {
+    return '<input type="hidden"' + base + ' value="' + esc(val) + '">';
+  }
+  if (sf.type === 'bool') {
+    return '<label class="cf-check"><input type="checkbox"' + base
+      + (val ? ' checked' : '') + '><span>' + (val ? '已开启' : '已关闭') + '</span></label>';
+  }
+  if (sf.type === 'number') {
+    return '<input type="number"' + base + ' value="' + esc(val)
+      + '"' + (sf.min != null ? ' min="' + sf.min + '"' : '')
+      + (sf.max != null ? ' max="' + sf.max + '"' : '') + '>';
+  }
+  if (sf.type === 'select') {
+    return '<select' + base + '><option value="">（未设置）</option>'
+      + optHtml(optionsOf(sf), val) + '</select>';
+  }
+  if (sf.type === 'password') {
+    return '<input type="password"' + base + ' value="' + esc(val) + '" autocomplete="new-password">';
+  }
+  return '<input type="text"' + base + ' value="' + esc(val) + '"'
+    + (sf.placeholder ? ' placeholder="' + esc(sf.placeholder) + '"' : '') + '>';
+}
+
+function objRowHtml(f, item, path, idx) {
+  /* item_fields 是**有序列表**（服务端按声明顺序给出），照它的顺序排行 */
+  var subs = f.item_fields || [];
+  var cells = subs.map(function (sf) {
+    var ctrl = objFieldCtrl(sf, item && item[sf.name], path);
+    if (sf.hidden) return ctrl;      /* 隐藏字段：只留控件本体，不占格子也不出标签 */
+    return '<div class="cf-objcell cf-objcell-' + esc(sf.type) + '">'
+      + '<div class="cf-objlabel">' + esc(sf.label || sf.name) + '</div>' + ctrl + '</div>';
+  }).join('');
+  var key = (item && item.id) || '';   /* 只认 id：别把「API 密钥」当成主键 */
+  var testBtn = f.test_action
+    ? '<button class="mini" type="button" onclick="cfgObjTest(this)">测试</button>' : '';
+  return '<div class="cf-objrow">'
+    + '<input type="hidden" data-objkey value="' + esc(key) + '">' + cells
+    + '<div class="cf-objops">' + testBtn
+    + '<button class="mini" type="button" onclick="cfgObjUp(this)" title="上移">↑</button>'
+    + '<button class="mini" type="button" onclick="cfgObjDown(this)" title="下移">↓</button>'
+    + '<button class="mini" type="button" onclick="cfgObjDel(this)" title="删除">删除</button>'
+    + '</div></div>';
+}
+
+function objListHtml(f, items, path) {
+  var rows = items.map(function (it) { return objRowHtml(f, it, path, 0); }).join('');
+  return '<div class="cf-objlist" data-objlist="' + esc(path) + '"'
+    + (f.test_action ? ' data-obj-test="' + esc(f.test_action) + '"' : '') + '>' + rows
+    + '<div class="cf-objadd"><button class="mini" type="button" onclick="cfgObjAdd(this)">+ 新增一条</button></div></div>';
 }
 
 /* 群号选择器：群列表由**外壳**提供（每个项目的取群方式不同），拿不到就退化成手填，
@@ -194,6 +289,7 @@ function renderForm(box, payload, opts) {
   /* 普通字段照常铺开；高级字段**全部收集到最后**再折叠成一块。
      老实现是"遇到第一个 advanced 就开 details 并一直撑到结尾"，
      结果第一个高级字段之后的所有常规字段都被藏进去了（AI 对话当时默认只剩 1 项可见）。 */
+  syncValues(payload);
   var html = '', lastGroup = null, adv = [];
   for (var i = 0; i < fields.length; i++) {
     var f = fields[i];
@@ -214,7 +310,28 @@ function renderForm(box, payload, opts) {
     html += '</details>';
   }
   box.innerHTML = html;
+  bindObjTemplates(box, fields);
   bindLive(box);
+}
+
+/* 记录当前表单值（options_from 动态选项要用）：
+   先按 payload.flat 的扁平路径铺开，再用 declaration 的 path→value 覆盖。 */
+function syncValues(payload) {
+  _values = {};
+  var flat = (payload && payload.flat) || {};
+  Object.keys(flat).forEach(function (k) { setPath(_values, k, flat[k]); });
+  ((payload && payload.fields) || []).forEach(function (f) {
+    setPath(_values, fieldPath(f), f.value);
+  });
+}
+
+/* 新增行的模板：把 item_fields 里每个子字段的声明 bake 进 data 属性 */
+function bindObjTemplates(box, fields) {
+  (fields || []).forEach(function (f) {
+    if (f.type !== 'object_list') return;
+    var el = box.querySelector('[data-objlist="' + (global.CSS && CSS.escape ? CSS.escape(f.name) : f.name) + '"]');
+    if (el) el.dataset.objTemplate = JSON.stringify(f.item_fields || {});
+  });
 }
 
 /* 颜色控件联动 + 开关文字；纯展示，不影响提交值 */
@@ -250,6 +367,38 @@ function listAdd(btn) {
   box.insertBefore(div, box.lastElementChild);
 }
 function listDel(btn) { btn.closest('.cf-rowitem').remove(); }
+function objAdd(btn) {
+  var box = btn.closest('[data-objlist]');
+  var f = { item_fields: box.dataset.objTemplate ? JSON.parse(box.dataset.objTemplate) : {} };
+  var div = document.createElement('div');
+  div.innerHTML = objRowHtml(f, {}, box.dataset.objlist, 0);
+  box.insertBefore(div.firstChild, box.querySelector('.cf-objadd'));
+}
+function objDel(btn) { btn.closest('.cf-objrow').remove(); }
+/* 行内「测试」：把这一行的值交给外壳（外壳负责发请求、回显结果） */
+function objTest(btn) {
+  var row = btn.closest('.cf-objrow');
+  var list = btn.closest('[data-objlist]');
+  var action = list && list.dataset.objTest;
+  if (!action || typeof global.CFGCTL.onTest !== 'function') return;
+  var item = {};
+  var keyEl = row.querySelector('[data-objkey]');
+  if (keyEl && keyEl.value) item.id = keyEl.value;
+  row.querySelectorAll('[data-objfield]').forEach(function (el) {
+    item[el.dataset.objfield] = el.type === 'checkbox' ? el.checked : readOne(el);
+  });
+  global.CFGCTL.onTest(action, item, btn);
+}
+function objUp(btn) {
+  var row = btn.closest('.cf-objrow'), prev = row.previousElementSibling;
+  if (prev && prev.classList.contains('cf-objrow')) row.parentNode.insertBefore(row, prev);
+}
+function objDown(btn) {
+  var row = btn.closest('.cf-objrow'), next = row.nextElementSibling;
+  if (next && next.classList.contains('cf-objrow')) {
+    row.parentNode.insertBefore(next, row);
+  }
+}
 function refreshGroups() {
   if (typeof global.CFGCTL.onGroupRefresh === 'function') global.CFGCTL.onGroupRefresh();
 }
@@ -281,6 +430,21 @@ function collect(root, payload) {
   root.querySelectorAll('[data-multi-text]').forEach(function (el) {
     out[el.dataset.multiText] = String(el.value || '').split(/[,，\s]+/).filter(Boolean);
     handled[el.dataset.multiText] = 1;
+  });
+  root.querySelectorAll('[data-objlist]').forEach(function (box) {
+    out[box.dataset.objlist] = Array.from(box.querySelectorAll('.cf-objrow')).map(function (row) {
+      var item = {};
+      var keyEl = row.querySelector('[data-objkey]');
+      /* 新增的行没有主键：现场生成一个（插件按 id 记住"当前是哪个模型"） */
+      item.id = (keyEl && keyEl.value)
+        ? keyEl.value
+        : ('n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5));
+      row.querySelectorAll('[data-objfield]').forEach(function (el) {
+        item[el.dataset.objfield] = el.type === 'checkbox' ? el.checked : readOne(el);
+      });
+      return item;
+    });
+    handled[box.dataset.objlist] = 1;
   });
   root.querySelectorAll('[data-list]').forEach(function (box) {
     out[box.dataset.list] = Array.from(box.querySelectorAll('.cf-rowitem')).map(function (row) {
@@ -322,6 +486,8 @@ global.CFGCTL = {
   esc: esc, getPath: getPath, setPath: setPath, fieldPath: fieldPath,
   optHtml: optHtml, control: control, listItemControl: listItemControl,
   listHtml: listHtml, fieldHtml: fieldHtml, renderForm: renderForm,
+  objListHtml: objListHtml, objFieldCtrl: objFieldCtrl, optionsOf: optionsOf,
+  onTest: null,   /* 外壳实现：(action, item, btn) => Promise */
   bindLive: bindLive, peek: peek, listAdd: listAdd, listDel: listDel,
   refreshGroups: refreshGroups, readOne: readOne, collect: collect,
   clearErrors: clearErrors, fieldError: fieldError,
@@ -332,4 +498,9 @@ global.CFGCTL = {
 global.cfgPeek = peek;
 global.cfgListAdd = listAdd;
 global.cfgListDel = listDel;
+global.cfgObjAdd = objAdd;
+global.cfgObjDel = objDel;
+global.cfgObjUp = objUp;
+global.cfgObjDown = objDown;
+global.cfgObjTest = objTest;
 })(window);

@@ -59,3 +59,21 @@
 
 /* 字段类型徽标（不是字段说明：`.cf-help` 留给 help 文本） */
 .cf-type{font-weight:400;font-size:11px;color:var(--cf-muted,var(--text-secondary,#6b7280))}
+
+/* ---------- 对象列表（object_list）：模型库这类"记录列表" ---------- */
+.cf-objlist{border:1px solid var(--border-color);border-radius:10px;overflow:hidden;background:var(--bg-card)}
+.cf-objrow{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:12px;
+  border-bottom:1px solid var(--border-light, #eef1f6)}
+.cf-objrow:last-of-type{border-bottom:none}
+.cf-objcell{display:flex;flex-direction:column;gap:4px;min-width:120px;flex:1 1 140px}
+.cf-objcell-bool{flex:0 0 auto;min-width:104px}
+.cf-objcell-bool .cf-check{white-space:nowrap;flex-wrap:nowrap}
+.cf-objlabel{font-size:11px;color:var(--text-secondary)}
+.cf-objcell input,.cf-objcell select{width:100%}
+.cf-objops{display:flex;gap:6px;flex:0 0 auto;align-items:center;padding-bottom:2px}
+.cf-objadd{padding:10px 12px;background:var(--bg-active, #f7f9fc)}
+@media (max-width:640px){
+  .cf-objrow{gap:8px;padding:10px}
+  .cf-objcell{min-width:100%;}
+  .cf-objops{width:100%;justify-content:flex-end}
+}
